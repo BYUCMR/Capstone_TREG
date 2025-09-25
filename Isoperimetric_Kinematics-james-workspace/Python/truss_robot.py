@@ -1,6 +1,7 @@
 import numpy as np
 from common_data import Data3D, Data2D
-from scipy.linalg import block_diag
+import scipy as sp
+import sp.linalg.block_diag as block_diag
 from path import Path
 
 from abc import ABC, abstractmethod

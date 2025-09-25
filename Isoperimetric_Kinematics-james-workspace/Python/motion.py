@@ -1,6 +1,6 @@
 from truss_robot import TrussRobot, Robot3D, Robot2D
 import numpy as np
-from scipy.optimize import minimize
+import scipy.optimize.minimize
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
