@@ -1,7 +1,6 @@
 import numpy as np
 from common_data import Data3D, Data2D
-import scipy as sp
-import sp.linalg.block_diag as block_diag
+from scipy.linalg import block_diag
 from path import Path
 
 from abc import ABC, abstractmethod
@@ -17,7 +16,20 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 class TrussRobot(ABC):
 
-    def __init__(self, index: int, dimension: int, path_type: str, ZYZrot: list[float], path_scale: float, num_sides: int):
+    def __init__(self, index: int, dimension: int, path_type: str, RPYrot: list[float], path_scale: float, num_sides: int):
+        """
+        Initializes the truss robot object with specified parameters.
+
+        Args:
+            index (int): Index of the robot instance.
+            dimension (int): Dimensionality of the robot (2 for 2D, 3 for 3D).
+            path_type (str): Type of path for the robot to follow.
+            RPYrot (list[float]): Roll, pitch, and yaw rotation angles (in radians or degrees).
+            path_scale (float): Scaling factor for the path length.
+            num_sides (int): Number of sides for the path shape.
+
+        """
+
         self.index = index
         self.dim = dimension
         if self.dim == 3:
@@ -29,18 +41,19 @@ class TrussRobot(ABC):
         self.path = Path(path_type,
                          self.dim,
                          length=path_scale,
-                         ZYZrot=ZYZrot,
-                         start_coords=self.positions[self.target_node[0]-1],
+                         RPYrot=RPYrot,
+                         start_coords=self.positions[self.move_node[0]-1],
                          num_sides=num_sides)
 
         self.pos_hist = [self.positions.copy()]
+        self.xd_hist = [np.zeros(self.positions.shape)]
         self.Ldot_hist = [np.zeros((self.edges_nodes.shape[0], 1))]
-        self.L_hist = [self.calc_edge_lengths(self.positions)]
+        self.L_hist = [self._calc_edge_lengths(self.positions)]
         self.thetad_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.theta_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.t_hist = [0]
 
-        self.total_perimeters = self.calc_perimeters(self.L_hist[-1])
+        self.total_perimeters = self._calc_perimeters(self.L_hist[-1])
         self._scatter = None
         self._lines = []
         self._labels = []
@@ -49,7 +62,7 @@ class TrussRobot(ABC):
     def _generate_embedding_shape(self, embedding_index) -> None:
         '''Generates the appropriate geometric information based on the user-specified embedding index'''
         self.supports: list[int] = self.data.support_move_dict[embedding_index]["support"]
-        self.target_node: list[int] = self.data.support_move_dict[embedding_index]["target"]
+        self.move_node: list[int] = self.data.support_move_dict[embedding_index]["move"]
         self.positions: np.ndarray = self._calc_init_node_positions(embedding_index)
         self.edges_nodes: np.ndarray  = self.data.edge_nodes_dict[embedding_index]
         self.triangle_nodes: np.ndarray  = self.data.triangle_nodes_dict[embedding_index]
@@ -72,8 +85,9 @@ class TrussRobot(ABC):
         self.adj = self._calc_adj_matrix()
 
         self.triangle_loops = block_diag(*tuple([np.ones((1,3))]*self.num_triangles))
+        self.support_indices = self._calc_support_indices()
 
-    def calc_edge_lengths(self, positions: np.ndarray):
+    def _calc_edge_lengths(self, positions: np.ndarray):
         lengths = np.zeros((self.edges_nodes.shape[0], 1))
 
         positions_copy = positions.copy()
@@ -88,8 +102,14 @@ class TrussRobot(ABC):
 
         return lengths
 
-    def calc_perimeters(self, edge_lengths: np.ndarray):
+    def _calc_perimeters(self, edge_lengths: np.ndarray):
         return np.array([edge_lengths[i,0] + edge_lengths[i+1,0] + edge_lengths[i+2,0] for i in range(0, edge_lengths.shape[0], 3) ])
+
+    def get_perimeters(self):
+        return self._calc_perimeters(self.L_hist[-1])
+
+    def get_perimeters_diff(self):
+        return self._calc_perimeters(self.L_hist[-1]) - self.total_perimeters
 
     def _clean_matrix(self, matrix: np.ndarray):
         matrix_cp = matrix.copy()
@@ -131,39 +151,35 @@ class TrussRobot(ABC):
         return adj
 
     def ol_update_and_store_positions_and_R(self, t, dt, xd: np.ndarray, Ldot: np.ndarray):
-        self.t_hist = t
+        self.t_hist.append(t+dt)
+        xd = xd.reshape((-1, self.dim), order="F")
         delta_pos: np.ndarray = xd*dt
 
-        delta_pos = delta_pos.reshape((-1, self.dim), order="F")
         self.positions += delta_pos.copy()
 
         self.pos_hist.append(self.positions.copy())
+        self.xd_hist.append(xd.copy())
         self.Ldot_hist.append(Ldot.copy())
         self.thetad_hist.append((self.L2th@Ldot).copy())
 
-        self.L_hist.append(self.calc_edge_lengths(self.positions))
+        self.L_hist.append(self._calc_edge_lengths(self.positions))
         self.theta_hist.append(self.theta_hist[-1] + dt*self.thetad_hist[-1])
 
         self.R = self._calc_rigidity_matrix(self.positions)
 
-    def cl_update_positions_and_R(self, t, dt, xd: np.ndarray, Ldot: np.ndarray):
-        self.t_hist = t
-        delta_pos: np.ndarray = xd*dt
+    def _cl_update_positions_and_R(self, t, positions: np.ndarray, xd: np.ndarray, Ldot: np.ndarray, thetad: np.ndarray, L: np.ndarray, theta: np.ndarray):
+        self.t_hist.append(t)
 
-        delta_pos = delta_pos.reshape((-1, self.dim), order="F")
-        self.positions += delta_pos.copy()
-
-        self.pos_hist.append(self.positions.copy())
+        self.pos_hist.append(positions.copy())
+        self.xd_hist.append(xd.copy())
         self.Ldot_hist.append(Ldot.copy())
-        self.thetad_hist.append((self.L2th@Ldot).copy())
+        self.thetad_hist.append(thetad.copy())
 
-        self.L_hist.append(self.calc_edge_lengths(self.positions))
-        self.theta_hist.append(self.theta_hist[-1] + dt*self.thetad_hist[-1])
+        self.L_hist.append(L.copy())
+        self.theta_hist.append(theta.copy())
 
-        self.R = self._calc_rigidity_matrix(self.positions)
-
-    def get_target_nodes_pos(self):
-        return self.positions[self.target_node[0]-1, :]
+    def get_move_nodes_pos(self):
+        return self.positions[self.move_node[0]-1, :]
 
     def update_plot(self):
         if self._scatter is None or not self._lines or not self._labels:
@@ -226,6 +242,46 @@ class TrussRobot(ABC):
             arrow.remove()
         return self.plot_arrow(ax, position, direction)
 
+    def fk_position(self, t: float, dt: float, real_thetas: np.ndarray):
+        real_thetas = real_thetas.reshape((-1, 1))
+        average_theta_d = (real_thetas - self.theta_hist[-1]) / dt
+
+        return self.fk_velocity(t, dt, average_theta_d)
+
+    def fk_velocity(self, t: float, dt: float, real_thetads: np.ndarray):
+        real_thetads = real_thetads.reshape((-1, 1))
+        real_thetas = self.theta_hist[-1] + real_thetads*dt
+        real_Ldot = self.B_T@real_thetads
+        real_xd = self._convert_Ldot_to_xd(real_Ldot)
+        real_xd = real_xd.reshape((-1, self.dim), order="F")
+        self.positions = self.positions + real_xd*dt
+        real_L = self._calc_edge_lengths(self.positions)
+        self.R = self._calc_rigidity_matrix(self.positions)
+        self._cl_update_positions_and_R(t, self.positions, real_xd, real_Ldot, real_thetads, real_L, real_thetas)
+
+    def convert_xd_to_thetad(self, xd: np.ndarray) -> np.ndarray:
+        xd = xd.reshape((-1, 1))
+        Ldot = self.R@xd
+        thetad = self.L2th@Ldot
+        return thetad.reshape((1, -1))
+
+    def _convert_Ldot_to_xd(self, Ldot: np.ndarray) -> np.ndarray:
+        xd = np.zeros((self.num_nodes*self.dim, 1))
+        R_reduced = np.delete(self.R, self.support_indices, axis=1)
+        xd_reduced = np.linalg.inv(R_reduced)@Ldot
+
+        value_position = [i for i in range(xd.shape[0]) if i not in self.support_indices]
+        xd[value_position, 0] = xd_reduced[:, 0]
+
+        return xd
+
+    def _calc_support_indices(self):
+        support_indices = []
+        for i, support in enumerate(self.supports):
+            for d in range(i, self.dim):
+                support_indices.append((support - 1) + d*self.num_nodes)
+        return sorted(support_indices)
+
     @abstractmethod
     def _rotate_robot(self) -> None:
         '''Rotates robot positions such that supports are on xy plane and origin is at first point'''
@@ -239,7 +295,12 @@ class TrussRobot(ABC):
         pass
 
     @abstractmethod
-    def create_fig_ax(self, equal_aspect=True) -> tuple[Figure, Axes | Axes3D]:
+    def create_fig_ax(self, equal_aspect=True) -> tuple[Figure, Axes | Axes3D, Axes]:
+        """Create a figure and return (fig, main_axis_for_robot, axis_for_theta_history)
+
+        The extra axis is used by MotionViz to plot theta histories alongside the
+        robot visualization.
+        """
         pass
 
     @abstractmethod
@@ -254,20 +315,24 @@ class TrussRobot(ABC):
     def _calc_init_node_positions(self, embedding_index):
         pass
 
-    @abstractmethod
-    def fk_position(self, delta_theta: np.ndarray, dt: float):
-        pass
-
-    @abstractmethod
-    def fk_velocity(self, dt: float, real_thetads: np.ndarray):
-        pass
-
 class Robot2D(TrussRobot):
 
-    def __init__(self, index: int, path_type: str = "square", ZYZrot: list[float] = [0.], path_scale: float = 1, num_sides: int = 4):
-        if len(ZYZrot) != 1:
+    def __init__(self, index: int, path_type: str = "square", RPYrot: list[float] = [0.], path_scale: float = 1, num_sides: int = 4):
+        """
+        Initialize the object with specified parameters.
+        Args:
+            index (int): The index of the object.
+            path_type (str, optional): The type of path to use. Defaults to "square".
+            RPYrot (list[float], optional): List containing a single rotation angle (Roll-Pitch-Yaw). Defaults to [0.].
+            path_scale (float, optional): Scale factor for the path. Defaults to 1.
+            num_sides (int, optional): Number of sides for the path shape. Defaults to 4.
+        Raises:
+            Exception: If more than one rotation angle is specified in RPYrot.
+        """
+
+        if len(RPYrot) != 1:
             raise Exception("Only one rotation angle can be specified")
-        super().__init__(index=index, dimension=2, path_type=path_type, ZYZrot=ZYZrot, path_scale=path_scale, num_sides=num_sides)
+        super().__init__(index=index, dimension=2, path_type=path_type, RPYrot=RPYrot, path_scale=path_scale, num_sides=num_sides)
 
     def _rotate_robot(self) -> None:
         orign_node_idx = self.supports[0] - 1
@@ -331,9 +396,10 @@ class Robot2D(TrussRobot):
 
         self.path_plotted = True
 
-    def create_fig_ax(self) -> tuple[Figure, Axes]:
-        fig, ax = plt.subplots()
-        return fig, ax
+    def create_fig_ax(self) -> tuple[Figure, Axes, Axes]:
+        # Create a two-panel figure: left for robot, right for theta history
+        fig, (ax_robot, ax_theta) = plt.subplots(ncols=2, figsize=(10, 5))
+        return fig, ax_robot, ax_theta
 
     def show(self, ax: Axes):
         if not self.robot_plotted and not self.path_plotted:
@@ -375,29 +441,24 @@ class Robot2D(TrussRobot):
     def plot_arrow(self, ax, position: np.ndarray, direction: np.ndarray):
         return ax.quiver(*position.tolist(), *direction.tolist(), color='blue', linewidth=3)
 
-    def fk_position(self, delta_theta: np.ndarray, dt: float):
-        delta_theta = delta_theta.reshape((1, -1))
-        average_theta_d = delta_theta / dt
-
-        return self.fk_velocity(dt, average_theta_d)
-
-    def fk_velocity(self, dt: float, real_thetads: np.ndarray):
-        real_thetads = real_thetads.reshape((1, -1))
-        real_Ldot = (self.B_T@real_thetads.T).T
-        real_xd = (np.linalg.pinv(self.R)@real_Ldot.T).T
-        real_x = self.positions + real_xd*dt
-        real_L = self.calc_edge_lengths(real_x)
-
-        self.R = self._calc_rigidity_matrix(real_x)
-        # real_xdot = np.linalg.inv(self.R)@real_Ldot
-
-
 class Robot3D(TrussRobot):
 
-    def __init__(self, index: int, path_type: str = "square", ZYZrot: list[float] = [0., 0., 0.], path_scale: float = 1, num_sides: int = 4):
-        if len(ZYZrot) != 3:
+    def __init__(self, index: int, path_type: str = "square", RPYrot: list[float] = [0., 0., 0.], path_scale: float = 1, num_sides: int = 4):
+        """
+        Initialize the object with specified parameters.
+        Args:
+            index (int): Unique identifier for the object.
+            path_type (str, optional): Type of path to use. Defaults to "square".
+            RPYrot (list[float], optional): List of 3 Euler angles (roll, pitch, yaw) for rotation. Defaults to [0., 0., 0.].
+            path_scale (float, optional): Scaling factor for the path. Defaults to 1.
+            num_sides (int, optional): Number of sides for the path shape. Defaults to 4.
+        Raises:
+            Exception: If RPYrot does not contain exactly 3 elements.
+        """
+
+        if len(RPYrot) != 3:
             raise Exception("3 Euler angles required")
-        super().__init__(index=index, dimension=3, path_type=path_type, ZYZrot=ZYZrot, path_scale=path_scale, num_sides=num_sides)
+        super().__init__(index=index, dimension=3, path_type=path_type, RPYrot=RPYrot, path_scale=path_scale, num_sides=num_sides)
 
     def _rotate_robot(self):
         '''Rotates robot positions such that supports are on xy plane and origin is at first point'''
@@ -474,12 +535,14 @@ class Robot3D(TrussRobot):
 
         self.path_plotted = True
 
-    def create_fig_ax(self, equal_aspect=True) -> tuple[Figure, Axes3D]:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
+    def create_fig_ax(self, equal_aspect=True) -> tuple[Figure, Axes3D, Axes]:
+        # Create a two-panel figure: left for robot (3D), right for theta history
+        fig = plt.figure(figsize=(12, 6))
+        ax_robot = fig.add_subplot(1, 2, 1, projection='3d')
+        ax_theta = fig.add_subplot(1, 2, 2)
         if equal_aspect:
-            ax.set_box_aspect([1, 1, 1]) # type: ignore
-        return fig, ax
+            ax_robot.set_box_aspect([1, 1, 1]) # type: ignore
+        return fig, ax_robot, ax_theta
 
     def show(self, ax: Axes3D):
         if not self.robot_plotted and not self.path_plotted:
@@ -526,9 +589,9 @@ class Robot3D(TrussRobot):
 
 if __name__ == "__main__":
     # robot = Robot2D(1, ZYZrot=[0.])
-    robot = Robot3D(1, ZYZrot=[45, 30, 45])
+    robot = Robot3D(1, RPYrot=[45, 30, 45])
 
-    fig, ax = robot.create_fig_ax()
-    robot.plot_robot(ax)
-    robot.plot_path(ax)
-    robot.show(ax)
+    fig, ax_robot, ax_theta = robot.create_fig_ax()
+    robot.plot_robot(ax_robot)
+    robot.plot_path(ax_robot)
+    robot.show(ax_robot)

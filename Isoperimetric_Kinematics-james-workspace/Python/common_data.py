@@ -4,8 +4,8 @@ from dataclasses import dataclass
 @dataclass
 class Data3D:
     support_move_dict = {
-        1: {"support": [2, 6, 4], "target": [1]},
-        2: {"support": [2, 6, 4], "target": [1]}
+        1: {"support": [2, 6, 4], "move": [1]},
+        2: {"support": [2, 6, 4], "move": [1]}
     }
 
     edge_nodes_dict = {
@@ -34,12 +34,12 @@ class Data3D:
         [-0.164760721921362,   4.99455035545062,   0.165289598523319],
         [-4.81591881210246,   -0.202844182067798,  1.32882663769163]])
     }
-    
+
 @dataclass
 class Data2D:
     support_move_dict = {
-        1: {"support": [1, 2], "target": [3]},
-        2: {"support": [1, 4], "target": [6]}
+        1: {"support": [1, 2], "move": [3]},
+        2: {"support": [1, 4], "move": [6]}
     }
 
     edge_nodes_dict = {
