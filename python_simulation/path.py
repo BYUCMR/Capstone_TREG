@@ -2,11 +2,11 @@ import numpy as np
 from linalg import Matrix, rotx, roty, rotz, rot2D, clean_matrix
 
 
-def transform_path(
-    shape: str,
-    dimension: int,
+def make_path(
+    *,
+    shape: str = 'polygon',
+    dimension: int = 3,
     RPYrot: tuple[float, ...] | None = None,
-    start_coords: Matrix | None = None,
     length: float = 1,
     num_sides: int = 4,
 ) -> Matrix:
@@ -49,10 +49,8 @@ def transform_path(
         xform = rotz(r) @ roty(p) @ rotx(y)
     else:
         raise ValueError(f"{dimension!r} is not a valid number of spatial dimensions")
-    if start_coords is None:
-        start_coords = np.zeros(path.shape)
-    transformed_path = (xform @ path.T).T + start_coords
 
+    transformed_path = (xform @ path.T).T
     return clean_matrix(transformed_path)
 
 

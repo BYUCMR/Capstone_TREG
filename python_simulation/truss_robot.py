@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.linalg import block_diag
-from path import transform_path
 
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Generic, TypeVar
@@ -22,14 +21,7 @@ _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 class TrussRobot(ABC, Generic[_AxesT]):
     dim: ClassVar[int]
 
-    def __init__(
-        self,
-        config: TrussConfig,
-        path_type: str = 'polygon',
-        RPYrot: tuple[float, ...] = (),
-        path_scale: float = 1,
-        num_sides: int = 4,
-    ) -> None:
+    def __init__(self, config: TrussConfig, path: Matrix) -> None:
         """
         Initializes the truss robot object with specified parameters.
 
@@ -43,14 +35,7 @@ class TrussRobot(ABC, Generic[_AxesT]):
         """
         self._generate_embedding_shape(config)
 
-        self.path = transform_path(
-            path_type,
-            self.dim,
-            length=path_scale,
-            RPYrot=RPYrot,
-            start_coords=self.positions[self.move_node[0]],
-            num_sides=num_sides,
-        )
+        self.path = path + self.positions[self.move_node[0]]
 
         self.pos_hist = [self.positions.copy()]
         self.xd_hist = [np.zeros(self.positions.shape)]
@@ -511,12 +496,14 @@ class Robot3D(TrussRobot[Axes3D]):
 
 
 if __name__ == "__main__":
-    import truss_config
+    import path, truss_config
     config_2d = truss_config.CONFIG_2D_1
     config_3d = truss_config.CONFIG_3D_1
+    path_2d = path.make_path(dimension=2)
+    path_3d = path.make_path(RPYrot=(45, 30, 45))
 
-    # robot = Robot2D(config_2d, RPYrot=(0.,))
-    robot = Robot3D(config_3d, RPYrot=(45, 30, 45))
+    # robot = Robot2D(config_2d, path_2d)
+    robot = Robot3D(config_3d, path_3d)
 
     fig, ax_robot, ax_theta = robot.create_fig_ax()
     robot.plot_robot(ax_robot)

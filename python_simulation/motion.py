@@ -205,12 +205,14 @@ class MotionPlanner:
 
 
 if __name__ == "__main__":
-    import truss_config
+    import path, truss_config
     config_3d = truss_config.CONFIG_3D_1
     config_2d = truss_config.CONFIG_2D_1
+    path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
+    path_2d = path.make_path(dimension=2)
 
-    # ol_robot = Robot3D(config_3d, RPYrot=(90., -45.0, 45.0), path_scale=1, path_type="polygon", num_sides=4)
-    ol_robot = Robot2D(config_2d, RPYrot=(0,), path_scale=1, path_type="polygon", num_sides=4)
+    # ol_robot = Robot3D(config_3d, path_3d)
+    ol_robot = Robot2D(config_2d, path_2d)
 
     ol_planner = MotionPlanner(
         robot=ol_robot,
