@@ -1,10 +1,11 @@
 # viz.py
 import numpy as np
 import matplotlib.pyplot as plt
+from linalg import Vector
 from truss_robot import TrussRobot
 
 class MotionViz:
-    def __init__(self, robot: TrussRobot, refresh_rate: int = 10, theta_window: float = 2.0):
+    def __init__(self, robot: TrussRobot, refresh_rate: int = 10, theta_window: float = 2.0) -> None:
         """
         Initialize the visualization for the TrussRobot.
         Args:
@@ -12,7 +13,6 @@ class MotionViz:
             refresh_rate (int, optional): Number of frames between plot refreshes. Defaults to 10.
             theta_window (float, optional): Duration (in seconds) of theta data to display in the moving window. Defaults to 2.0.
         """
-
         self.robot = robot
         # create_fig_ax now returns (fig, ax_robot, ax_theta)
         self.fig, self.ax, self.ax_theta = self.robot.create_fig_ax()
@@ -22,7 +22,7 @@ class MotionViz:
         self.theta_window = float(theta_window)
         self.init_animation()
 
-    def init_animation(self):
+    def init_animation(self) -> None:
         plt.ion()
         self.dot = self.robot.plot_dot(self.ax)
         self.quiver = None
@@ -132,7 +132,7 @@ class MotionViz:
             # matplotlib might not have widgets in some backends; ignore
             self.check = None
 
-    def _get_robot_time(self, default=0.0):
+    def _get_robot_time(self, default: float = 0.0) -> float:
         """Return a numeric timestamp from robot.t_hist whether it's a list or scalar."""
         if not hasattr(self.robot, 't_hist'):
             return default
@@ -148,13 +148,13 @@ class MotionViz:
         except Exception:
             return default
 
-    def update_motion_coords(self, move_node_position, b_move):
-        self.quiver = self.robot.update_arrow(
-            self.ax, self.quiver, move_node_position, b_move
-        )
+    def update_motion_coords(self, move_node_position: Vector, b_move: Vector) -> None:
+        if self.quiver is not None:
+            self.quiver.remove()
+        self.quiver = self.robot.plot_arrow(self.ax, move_node_position, b_move)
         self.robot.update_dot(self.dot, move_node_position)
 
-    def _append_theta_data(self):
+    def _append_theta_data(self) -> None:
         # Append latest time and theta values
         t = float(self._get_robot_time(default=(self.theta_times[-1] if len(self.theta_times) else 0.0)))
         thetas = self.robot.theta_hist[-1].ravel()
@@ -194,7 +194,7 @@ class MotionViz:
                 for i in range(len(self.thetad_histories)):
                     self.thetad_histories[i] = self.thetad_histories[i][first_idx:]
 
-    def update_plot(self):
+    def update_plot(self) -> None:
         if self.count % self.refresh_rate == 0:
             self.robot.update_plot()
         self.count += 1
@@ -265,7 +265,7 @@ class MotionViz:
 
         plt.pause(0.0001)
 
-    def _rescale_visible_axes(self):
+    def _rescale_visible_axes(self) -> None:
         """Rescale theta and thetad axes to show only visible traces.
 
         Uses the current theta_times for x-limits (respecting theta_window)
@@ -314,43 +314,32 @@ class MotionViz:
                 pass
         plt.draw()
 
-class PlotViz:
 
-    def __init__(self, robot: TrussRobot):
-        """
-        Initializes the visualization class with a TrussRobot instance.
-        Args:
-            robot (TrussRobot): An instance of the TrussRobot class representing the robot to be visualized.
-        """
-        
-        self.robot = robot
+def plot_theta_thetad(robot: TrussRobot, save_fig: bool = False, filename: str = "theta_thetad_plots.png") -> None:
+    plt.ioff()
+    fig, (ax_theta, ax_thetad) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 
-    def plot_theta_thetad(self, save_fig: bool = False, filename: str = "theta_thetad_plots.png"):
-        plt.ioff()
-        fig, (ax_theta, ax_thetad) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    theta_hist = np.array(robot.theta_hist)
+    thetad_hist = np.array(robot.thetad_hist)
 
-        theta_hist = np.array(self.robot.theta_hist)
-        thetad_hist = np.array(self.robot.thetad_hist)
-        timesteps = self.robot.t_hist
+    # Plot each joint's theta
+    for i in range(theta_hist.shape[1]):
+        ax_theta.plot(robot.t_hist, theta_hist[:, i], label=f"theta {i+1}")
+    ax_theta.set_ylabel('Theta')
+    ax_theta.legend()
+    ax_theta.set_title('Theta over Time')
+    ax_theta.grid(True)
 
-        # Plot each joint's theta
-        for i in range(theta_hist.shape[1]):
-            ax_theta.plot(timesteps, theta_hist[:, i], label=f"theta {i+1}")
-        ax_theta.set_ylabel('Theta')
-        ax_theta.legend()
-        ax_theta.set_title('Theta over Time')
-        ax_theta.grid(True)
+    # Plot each joint's thetad
+    for i in range(thetad_hist.shape[1]):
+        ax_thetad.plot(robot.t_hist, thetad_hist[:, i], label=f"thetad {i+1}")
+    ax_thetad.set_xlabel('Time (s)')
+    ax_thetad.set_ylabel('Thetad')
+    ax_thetad.legend()
+    ax_thetad.set_title('Thetad over Time')
+    ax_thetad.grid(True)
 
-        # Plot each joint's thetad
-        for i in range(thetad_hist.shape[1]):
-            ax_thetad.plot(timesteps, thetad_hist[:, i], label=f"thetad {i+1}")
-        ax_thetad.set_xlabel('Time (s)')
-        ax_thetad.set_ylabel('Thetad')
-        ax_thetad.legend()
-        ax_thetad.set_title('Thetad over Time')
-        ax_thetad.grid(True)
-
-        plt.tight_layout()
-        if save_fig:
-            fig.savefig(filename, dpi=150)
-        plt.show()
+    plt.tight_layout()
+    if save_fig:
+        fig.savefig(filename, dpi=150)
+    plt.show()

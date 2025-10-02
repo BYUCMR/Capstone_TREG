@@ -25,7 +25,7 @@ See the results and main demo in the following video:
 
 ### path.py
 **Purpose:** Generates geometric paths for the robot to follow (line, circle, polygon, etc.). Contains:
-- `Path`: Class for generating and transforming paths based on type, dimension, and rotation.
+- `transform_path`: Function for generating and transforming paths based on type, dimension, and rotation.
 
 ### common_data.py
 **Purpose:** Stores geometric and connectivity data for different robot configurations. Contains:
