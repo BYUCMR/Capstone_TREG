@@ -367,7 +367,7 @@ class Robot2D(TrussRobot[Axes]):
         dot.set_data([position[0]], [position[1]])
 
 class Robot3D(TrussRobot[Axes3D]):
-    dim: ClassVar = 2
+    dim: ClassVar = 3
 
     def _rotate_robot(self) -> None:
         '''Rotates robot positions such that supports are on xy plane and origin is at first point'''
