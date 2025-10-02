@@ -1,5 +1,4 @@
 import numpy as np
-from common_data import CommonData, Data2D, Data3D
 from scipy.linalg import block_diag
 from path import transform_path
 
@@ -7,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Generic, TypeVar
 
 from linalg import Vector, Matrix, rot2D, rotx, roty, rotz
+from truss_config import TrussConfig
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -21,11 +21,10 @@ _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
 class TrussRobot(ABC, Generic[_AxesT]):
     dim: ClassVar[int]
-    data: ClassVar[CommonData]
 
     def __init__(
         self,
-        index: int,
+        config: TrussConfig,
         path_type: str = 'polygon',
         RPYrot: tuple[float, ...] = (),
         path_scale: float = 1,
@@ -35,15 +34,14 @@ class TrussRobot(ABC, Generic[_AxesT]):
         Initializes the truss robot object with specified parameters.
 
         Args:
-            index (int): Index of the robot instance.
+            config (TrussConfig): Configuration of the robot.
             path_type (str): Type of path for the robot to follow.
             RPYrot (tuple[float, ...]): Roll, pitch, and yaw rotation angles (in degrees).
             path_scale (float): Scaling factor for the path length.
             num_sides (int): Number of sides for the path shape.
 
         """
-        self.index = index
-        self._generate_embedding_shape(self.index)
+        self._generate_embedding_shape(config)
 
         self.path = transform_path(
             path_type,
@@ -67,13 +65,13 @@ class TrussRobot(ABC, Generic[_AxesT]):
         self._labels = []
         self._fills = []
 
-    def _generate_embedding_shape(self, embedding_index: int) -> None:
+    def _generate_embedding_shape(self, config: TrussConfig) -> None:
         '''Generates the appropriate geometric information based on the user-specified embedding index'''
-        self.supports = self.data.support_move_dict[embedding_index]["support"] - 1
-        self.move_node = self.data.support_move_dict[embedding_index]["move"] - 1
-        self.positions = self.data.initial_node_positions[embedding_index].copy()
-        self.edges_nodes  = self.data.edge_nodes_dict[embedding_index] - 1
-        self.triangle_nodes  = self.data.triangle_nodes_dict[embedding_index] - 1
+        self.supports = config.support_nodes - 1
+        self.move_node = config.moving_nodes - 1
+        self.positions = config.initial_pos.copy()
+        self.edges_nodes  = config.edges - 1
+        self.triangle_nodes  = config.triangles - 1
 
         self.num_nodes = len(self.positions)
         self.num_edges = len(self.edges_nodes)
@@ -281,7 +279,6 @@ class TrussRobot(ABC, Generic[_AxesT]):
 
 class Robot2D(TrussRobot[Axes]):
     dim: ClassVar = 2
-    data: ClassVar = Data2D
 
     def _rotate_robot(self) -> None:
         orign_node_idx = self.supports[0]
@@ -386,7 +383,6 @@ class Robot2D(TrussRobot[Axes]):
 
 class Robot3D(TrussRobot[Axes3D]):
     dim: ClassVar = 2
-    data: ClassVar = Data3D
 
     def _rotate_robot(self) -> None:
         '''Rotates robot positions such that supports are on xy plane and origin is at first point'''
@@ -515,8 +511,12 @@ class Robot3D(TrussRobot[Axes3D]):
 
 
 if __name__ == "__main__":
-    # robot = Robot2D(1, RPYrot=(0.,))
-    robot = Robot3D(1, RPYrot=(45, 30, 45))
+    import truss_config
+    config_2d = truss_config.CONFIG_2D_1
+    config_3d = truss_config.CONFIG_3D_1
+
+    # robot = Robot2D(config_2d, RPYrot=(0.,))
+    robot = Robot3D(config_3d, RPYrot=(45, 30, 45))
 
     fig, ax_robot, ax_theta = robot.create_fig_ax()
     robot.plot_robot(ax_robot)
