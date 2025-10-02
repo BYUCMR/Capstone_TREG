@@ -73,12 +73,12 @@ def _generate_polygon_path(dim: int, length: float, num_sides: int) -> Matrix:
     rot_angle_for_each_side = 2*np.pi / num_sides
     path = np.zeros((num_sides + 1, dim))
 
-    R_func = rotz if dim == 3 else rot2D
+    rot_func = rotz if dim == 3 else rot2D
 
     path[1,0] = length
 
     for i in range(2, num_sides+1):
-        path[i,:] = (R_func(rot_angle_for_each_side*(i-1))@(path[1,:]).T) + path[i-1,:]
+        path[i,:] = (rot_func(rot_angle_for_each_side*(i-1))@(path[1,:]).T) + path[i-1,:]
 
     return clean_matrix(path)
 
@@ -100,18 +100,18 @@ def _generate_inscribed_polygon_path(dim: int, length: float, num_sides: int) ->
     rot_angle_for_each_side = 2*np.pi / num_sides
     path = np.zeros((num_sides + 1, dim))
 
-    R_func = rotz if dim == 3 else rot2D
+    rot_func = rotz if dim == 3 else rot2D
 
     angle_from_base_corner_to_centroid = (np.pi - rot_angle_for_each_side) / 2.0
 
     initial_radius_vector = np.zeros((1, dim))
     initial_radius_vector[0,0] = length / 2.0
-    vector_from_corner_to_centroid = (R_func(angle_from_base_corner_to_centroid)@initial_radius_vector.T).T
+    vector_from_corner_to_centroid = (rot_func(angle_from_base_corner_to_centroid)@initial_radius_vector.T).T
 
     vector_from_centroid_to_corner = -vector_from_corner_to_centroid
 
     for i in range(1, num_sides+1):
-        path[i,:] = vector_from_corner_to_centroid + (R_func(rot_angle_for_each_side*i)@vector_from_centroid_to_corner.T).T
+        path[i,:] = vector_from_corner_to_centroid + (rot_func(rot_angle_for_each_side*i)@vector_from_centroid_to_corner.T).T
 
     return clean_matrix(path)
 

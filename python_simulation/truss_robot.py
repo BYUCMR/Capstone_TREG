@@ -87,7 +87,7 @@ class TrussRobot(ABC, Generic[_AxesT]):
         self.num_rollers = self.B_T.shape[1]
 
         self.L2th = np.linalg.pinv(self.B_T)
-        self.R = self._calc_rigidity_matrix(self.positions)
+        self.rigidity = self._calc_rigidity_matrix(self.positions)
         self.adj = self._calc_adj_matrix()
 
         self.triangle_loops = block_diag(*[np.ones((1,3))]*self.num_triangles)
@@ -121,7 +121,7 @@ class TrussRobot(ABC, Generic[_AxesT]):
         adj[self.edges_nodes] = 1
         return adj + adj.T
 
-    def ol_update_and_store_positions_and_R(self, t: float, dt: float, xd: Matrix, Ldot: Matrix) -> None:
+    def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix, Ldot: Matrix) -> None:
         self.t_hist.append(t+dt)
         xd = xd.reshape((-1, self.dim), order="F")
         self.positions += xd*dt
@@ -134,9 +134,9 @@ class TrussRobot(ABC, Generic[_AxesT]):
         self.L_hist.append(self._calc_edge_lengths(self.positions))
         self.theta_hist.append(self.theta_hist[-1] + dt*self.thetad_hist[-1])
 
-        self.R = self._calc_rigidity_matrix(self.positions)
+        self.rigidity = self._calc_rigidity_matrix(self.positions)
 
-    def _cl_update_positions_and_R(
+    def _cl_update_positions_and_rigidity(
         self,
         t: float,
         positions: Matrix,
@@ -215,19 +215,19 @@ class TrussRobot(ABC, Generic[_AxesT]):
         real_xd = real_xd.reshape((-1, self.dim), order="F")
         self.positions = self.positions + real_xd*dt
         real_L = self._calc_edge_lengths(self.positions)
-        self.R = self._calc_rigidity_matrix(self.positions)
-        self._cl_update_positions_and_R(t, self.positions, real_xd, real_Ldot, real_thetads, real_L, real_thetas)
+        self.rigidity = self._calc_rigidity_matrix(self.positions)
+        self._cl_update_positions_and_rigidity(t, self.positions, real_xd, real_Ldot, real_thetads, real_L, real_thetas)
 
     def convert_xd_to_thetad(self, xd: Matrix) -> Matrix:
         xd = xd.reshape((-1, 1))
-        Ldot = self.R@xd
+        Ldot = self.rigidity @ xd
         thetad = self.L2th@Ldot
         return thetad.reshape((1, -1))
 
     def _convert_Ldot_to_xd(self, Ldot: Matrix) -> Matrix:
         xd = np.zeros((self.num_nodes*self.dim, 1))
-        R_reduced = np.delete(self.R, self.support_indices, axis=1)
-        xd_reduced = np.linalg.inv(R_reduced)@Ldot
+        rigidity_reduced = np.delete(self.rigidity, self.support_indices, axis=1)
+        xd_reduced = np.linalg.inv(rigidity_reduced) @ Ldot
 
         value_position = [i for i in range(len(xd)) if i not in self.support_indices]
         xd[value_position, 0] = xd_reduced[:, 0]

@@ -38,17 +38,17 @@ class MotionConstraintsGenerator:
                 self.A_lock[last_row_updated, support + j*num_nodes] = 1
         self.b_lock = np.zeros((n_lock, 1))
 
-        self.A_loopcon = self.robot.triangle_loops @ self.robot.R
+        self.A_loopcon = self.robot.triangle_loops @ self.robot.rigidity
         self.b_loopcon = np.zeros((len(self.A_loopcon), 1))
 
-        thetadot = self.robot.L2th @ self.robot.R
+        thetadot = self.robot.L2th @ self.robot.rigidity
         self.A_broken = thetadot[[node - 1 for node in self.broken_rollers], :]
         self.b_broken = np.zeros((len(self.broken_rollers), 1))
 
     def update_constraint_matrices(self, dir: Vector | Matrix) -> None:
-        self.A_loopcon = self.robot.triangle_loops @ self.robot.R
+        self.A_loopcon = self.robot.triangle_loops @ self.robot.rigidity
         self.b_move = unit_vector(dir.reshape(self.b_move.shape))
-        thetadot = self.robot.L2th @ self.robot.R
+        thetadot = self.robot.L2th @ self.robot.rigidity
         self.A_broken = thetadot[[node - 1 for node in self.broken_rollers], :]
         self.b_broken = np.zeros((self.A_broken.shape[0], 1))
 
@@ -73,7 +73,7 @@ class MotionPlanner:
 
     def _get_objective(self) -> tuple[Matrix, Matrix]:
         if self.obj_str == "Ldot":
-            obj = self.robot.R
+            obj = self.robot.rigidity
             H = 2 * (obj.T @ obj)
             f = np.zeros((H.shape[0], 1))
         else:
@@ -98,7 +98,7 @@ class MotionPlanner:
         )
 
         xd_opt = result.x.reshape(f.shape)
-        return xd_opt, self.robot.R @ xd_opt
+        return xd_opt, self.robot.rigidity @ xd_opt
 
     def _calc_goal_direction(self) -> Vector:
         curr_goal = self.robot.path[self.curr_goal_idx]
@@ -108,7 +108,7 @@ class MotionPlanner:
 
     def _ol_step_in_direction(self, t: float) -> None:
         xd_opt, Ldot = self._step_in_direction()
-        self.robot.ol_update_and_store_positions_and_R(t, self.dt, xd_opt, Ldot)
+        self.robot.ol_update_and_store_positions_and_rigidity(t, self.dt, xd_opt, Ldot)
         if self.motion_viz:
             self.motion_viz.update_plot()
 
