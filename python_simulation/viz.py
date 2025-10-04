@@ -2,7 +2,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from linalg import Vector
-from truss_robot import TrussRobot
+from truss_robot import TrussRobot, RobotPlotter2D, RobotPlotter3D
+
 
 class MotionViz:
     def __init__(self, robot: TrussRobot, refresh_rate: int = 10, theta_window: float = 2.0) -> None:
@@ -14,8 +15,9 @@ class MotionViz:
             theta_window (float, optional): Duration (in seconds) of theta data to display in the moving window. Defaults to 2.0.
         """
         self.robot = robot
+        self.robot_plotter = RobotPlotter3D(robot) if robot.dim == 3 else RobotPlotter2D(robot)
         # create_fig_ax now returns (fig, ax_robot, ax_theta)
-        self.fig, self.ax, self.ax_theta = self.robot.create_fig_ax()
+        self.fig, self.ax, self.ax_theta = self.robot_plotter.create_fig_ax()
         self.refresh_rate = refresh_rate
         self.count = 0
         # how many seconds of theta data to show (moving window)
@@ -24,10 +26,10 @@ class MotionViz:
 
     def init_animation(self) -> None:
         plt.ion()
-        self.dot = self.robot.plot_dot(self.ax)
+        self.dot = self.robot_plotter.plot_dot(self.ax)
         self.quiver = None
-        self.robot.plot_path(self.ax)
-        self.robot.plot_robot(self.ax)
+        self.robot_plotter.plot_path(self.ax)
+        self.robot_plotter.plot_robot(self.ax)
 
         # Theta history plot (right subplot) and theta-dot subplot below it
         # Prepare history storage and one line per theta
@@ -151,8 +153,8 @@ class MotionViz:
     def update_motion_coords(self, move_node_position: Vector, b_move: Vector) -> None:
         if self.quiver is not None:
             self.quiver.remove()
-        self.quiver = self.robot.plot_arrow(self.ax, move_node_position, b_move)
-        self.robot.update_dot(self.dot, move_node_position)
+        self.quiver = self.robot_plotter.plot_arrow(self.ax, move_node_position, b_move)
+        self.robot_plotter.update_dot(self.dot, move_node_position)
 
     def _append_theta_data(self) -> None:
         # Append latest time and theta values
@@ -196,7 +198,7 @@ class MotionViz:
 
     def update_plot(self) -> None:
         if self.count % self.refresh_rate == 0:
-            self.robot.update_plot()
+            self.robot_plotter.update_plot()
         self.count += 1
         # update theta history plot
         try:

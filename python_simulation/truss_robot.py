@@ -18,7 +18,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
 
-class TrussRobot(ABC, Generic[_AxesT]):
+class TrussRobot(ABC):
     dim: ClassVar[int]
 
     def __init__(self, config: TrussConfig, path: Matrix) -> None:
@@ -44,11 +44,6 @@ class TrussRobot(ABC, Generic[_AxesT]):
         self.thetad_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.theta_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.t_hist = [0.]
-
-        self._scatter = None
-        self._lines = []
-        self._labels = []
-        self._fills = []
 
     def _generate_embedding_shape(self, config: TrussConfig) -> None:
         '''Generates the appropriate geometric information based on the user-specified embedding index'''
@@ -142,49 +137,6 @@ class TrussRobot(ABC, Generic[_AxesT]):
     def get_move_nodes_pos(self) -> Vector:
         return self.positions[self.move_node[0], :]
 
-    def update_plot(self) -> None:
-        if self._scatter is None or not self._lines or not self._labels:
-            raise RuntimeError("plot_robot must be called before update_plot")
-
-        coords_xyz = self.positions.T
-
-        if self.dim == 2:
-            x, y = coords_xyz[0], coords_xyz[1]
-            z = np.zeros_like(y)
-        if self.dim == 3:
-            x, y, z = coords_xyz[0], coords_xyz[1], coords_xyz[2]
-
-        # Update scatter points
-        if self.dim == 2:
-            self._scatter.set_offsets(np.c_[x, y])
-        if self.dim == 3:
-            self._scatter._offsets3d = (x, y, z)
-
-        # Update lines
-        for (p1, p2), line in zip(self.edges_nodes, self._lines):
-            line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
-            if self.dim == 3:
-                line.set_3d_properties([z[p1], z[p2]])
-
-        # Update fills
-        if self.dim == 2:
-            for (p1, p2, p3), fill in zip(self.triangle_nodes, self._fills):
-                fill.set_xy(np.array([[x[p1], y[p1]], [x[p2], y[p2]], [x[p3], y[p3]]]))
-
-        # Update labels
-        for label, xi, yi, zi in zip(self._labels, x, y, z):
-            label.set_position((xi + 0.1, yi))
-            if self.dim ==3:
-                label.set_3d_properties(zi, zdir='z')
-
-    def plot_dot(self, ax: _AxesT) -> Line2D:
-        dot, = ax.plot(*[[] for _ in range(self.dim)], 'o', color="blue")
-        dot.set_markerfacecolor('blue')  # fill color
-        dot.set_markeredgecolor('gray')  # optional edge color
-        dot.set_markersize(8)
-
-        return dot
-
     def fk_position(self, t: float, dt: float, real_thetas: Matrix) -> None:
         real_thetas = real_thetas.reshape((-1, 1))
         average_theta_d = (real_thetas - self.theta_hist[-1]) / dt
@@ -230,6 +182,58 @@ class TrussRobot(ABC, Generic[_AxesT]):
         '''Rotates robot positions such that supports are on xy plane and origin is at first point'''
         raise NotImplementedError
 
+
+class RobotPlotter(ABC, Generic[_AxesT]):
+    def __init__(self, robot: TrussRobot) -> None:
+        self.robot = robot
+        self._scatter = None
+        self._lines = []
+        self._labels = []
+        self._fills = []
+
+    def update_plot(self) -> None:
+        if self._scatter is None or not self._lines or not self._labels:
+            raise RuntimeError("plot_robot must be called before update_plot")
+
+        coords_xyz = self.robot.positions.T
+
+        if self.robot.dim == 2:
+            x, y = coords_xyz[0], coords_xyz[1]
+            z = np.zeros_like(y)
+        if self.robot.dim == 3:
+            x, y, z = coords_xyz[0], coords_xyz[1], coords_xyz[2]
+
+        # Update scatter points
+        if self.robot.dim == 2:
+            self._scatter.set_offsets(np.c_[x, y])
+        if self.robot.dim == 3:
+            self._scatter._offsets3d = (x, y, z)
+
+        # Update lines
+        for (p1, p2), line in zip(self.robot.edges_nodes, self._lines):
+            line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
+            if self.robot.dim == 3:
+                line.set_3d_properties([z[p1], z[p2]])
+
+        # Update fills
+        if self.robot.dim == 2:
+            for (p1, p2, p3), fill in zip(self.robot.triangle_nodes, self._fills):
+                fill.set_xy(np.array([[x[p1], y[p1]], [x[p2], y[p2]], [x[p3], y[p3]]]))
+
+        # Update labels
+        for label, xi, yi, zi in zip(self._labels, x, y, z):
+            label.set_position((xi + 0.1, yi))
+            if self.robot.dim ==3:
+                label.set_3d_properties(zi, zdir='z')
+
+    def plot_dot(self, ax: _AxesT) -> Line2D:
+        dot, = ax.plot(*[[] for _ in range(self.robot.dim)], 'o', color="blue")
+        dot.set_markerfacecolor('blue')  # fill color
+        dot.set_markeredgecolor('gray')  # optional edge color
+        dot.set_markersize(8)
+
+        return dot
+
     @abstractmethod
     def plot_robot(self, ax: _AxesT) -> None:
         raise NotImplementedError
@@ -262,7 +266,7 @@ class TrussRobot(ABC, Generic[_AxesT]):
         raise NotImplementedError
 
 
-class Robot2D(TrussRobot[Axes]):
+class Robot2D(TrussRobot):
     dim: ClassVar = 2
 
     def _rotate_robot(self) -> None:
@@ -275,19 +279,21 @@ class Robot2D(TrussRobot[Axes]):
 
         self.positions = (rot2D(theta)@(self.positions.T)).T
 
+
+class RobotPlotter2D(RobotPlotter[Axes]):
     def plot_robot(self, ax: Axes) -> None:
-        x, y = self.positions.T
+        x, y = self.robot.positions.T
 
         # Plot the points
         self._scatter = ax.scatter(x, y, color='b', s=50, label='Points')
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.edges_nodes):
+        for idx, (p1, p2) in enumerate(self.robot.edges_nodes):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], triangle_colors[idx // 3], lw=3)
             self._lines.append(line)
 
-        for idx, (p1, p2, p3) in enumerate(self.triangle_nodes):
+        for idx, (p1, p2, p3) in enumerate(self.robot.triangle_nodes):
             self._fills.append(ax.fill([x[p1], x[p2], x[p3]], [y[p1], y[p2], y[p3]], triangle_colors[idx], alpha=0.2)[0])
 
         for i, (xi, yi) in enumerate(zip(x, y)):
@@ -308,7 +314,7 @@ class Robot2D(TrussRobot[Axes]):
         self.robot_plotted = True
 
     def plot_path(self, ax: Axes, fill: bool = True) -> None:
-        x, y = self.path.T
+        x, y = self.robot.path.T
         ax.plot(x, y)
 
         if fill:
@@ -331,12 +337,12 @@ class Robot2D(TrussRobot[Axes]):
         xs, ys = [], []
 
         if self.robot_plotted:
-            x, y = self.positions.T
+            x, y = self.robot.positions.T
             xs.append(x)
             ys.append(y)
 
         if self.path_plotted:
-            x, y = self.path.T
+            x, y = self.robot.path.T
             xs.append(x)
             ys.append(y)
 
@@ -366,7 +372,8 @@ class Robot2D(TrussRobot[Axes]):
     def update_dot(dot, position) -> None:
         dot.set_data([position[0]], [position[1]])
 
-class Robot3D(TrussRobot[Axes3D]):
+
+class Robot3D(TrussRobot):
     dim: ClassVar = 3
 
     def _rotate_robot(self) -> None:
@@ -388,8 +395,10 @@ class Robot3D(TrussRobot[Axes3D]):
         if np.sum(self.positions[:, -1]) < 0:
             self.positions[:,-1] *= -1
 
+
+class RobotPlotter3D(RobotPlotter[Axes3D]):
     def plot_robot(self, ax: Axes3D) -> None:
-        x, y, z = self.positions.T
+        x, y, z = self.robot.positions.T
 
         # Plot the points
         self._scatter = ax.scatter(x, y, z, color='b', s=50, label='Points')
@@ -400,7 +409,7 @@ class Robot3D(TrussRobot[Axes3D]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.edges_nodes):
+        for idx, (p1, p2) in enumerate(self.robot.edges_nodes):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], triangle_colors[idx // 3], lw=6)
             self._lines.append(line)
 
@@ -427,7 +436,7 @@ class Robot3D(TrussRobot[Axes3D]):
         self.robot_plotted = True
 
     def plot_path(self, ax: Axes3D, fill: bool = True) -> None:
-        x, y, z = self.path.T
+        x, y, z = self.robot.path.T
         ax.scatter(x, y, z, color='r')
 
         if fill:
@@ -456,13 +465,13 @@ class Robot3D(TrussRobot[Axes3D]):
         xs, ys, zs = [], [], []
 
         if self.robot_plotted:
-            x, y, z = self.positions.T
+            x, y, z = self.robot.positions.T
             xs.append(x)
             ys.append(y)
             zs.append(z)
 
         if self.path_plotted:
-            x, y, z = self.path.T
+            x, y, z = self.robot.path.T
             xs.append(x)
             ys.append(y)
             zs.append(z)
@@ -503,9 +512,11 @@ if __name__ == "__main__":
     path_3d = path.make_path(RPYrot=(45, 30, 45))
 
     # robot = Robot2D(config_2d, path_2d)
+    # robot_plotter = RobotPlotter2D(robot)
     robot = Robot3D(config_3d, path_3d)
+    robot_plotter = RobotPlotter3D(robot)
 
-    fig, ax_robot, ax_theta = robot.create_fig_ax()
-    robot.plot_robot(ax_robot)
-    robot.plot_path(ax_robot)
-    robot.show(ax_robot)
+    fig, ax_robot, ax_theta = robot_plotter.create_fig_ax()
+    robot_plotter.plot_robot(ax_robot)
+    robot_plotter.plot_path(ax_robot)
+    robot_plotter.show(ax_robot)
