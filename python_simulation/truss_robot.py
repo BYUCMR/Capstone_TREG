@@ -2,7 +2,7 @@ import numpy as np
 from scipy.linalg import block_diag
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import Any, Generic, SupportsIndex, TypeVar
 
 from linalg import Vector, Matrix, rot2D, rotx, roty, rotz
 from truss_config import TrussConfig, IntMatrix
@@ -40,9 +40,44 @@ def calc_edge_lengths(positions: Matrix, edges: IntMatrix) -> Matrix:
     return lengths
 
 
-class TrussRobot(ABC):
-    dim: ClassVar[int]
+def rotate_2d(
+    positions: Matrix,
+    orign_node: SupportsIndex,
+    linear_node: SupportsIndex,
+) -> Matrix:
+    positions = positions - positions[orign_node]
+    theta = -np.arctan2(positions[linear_node, 1] - positions[orign_node, 1],
+                        positions[linear_node, 0] - positions[orign_node, 0])
+    return (rot2D(theta) @ positions.T).T
 
+
+def rotate_3d(
+    positions: Matrix,
+    origin_node: SupportsIndex,
+    linear_node: SupportsIndex,
+    free_node: SupportsIndex,
+) -> Matrix:
+    """
+    Rotate positions such that supports are on xy plane and the first point is the origin.
+
+    `origin_node` will be set at the origin
+    `linear_node` will be aligned along the x-axis
+    `free_node` will be on the xy plane
+    """
+    positions = positions - positions[origin_node]
+    theta_z = -np.arctan2(positions[linear_node, 1] - positions[origin_node, 1],
+                          positions[linear_node, 0] - positions[origin_node, 0])
+    positions = (rotz(theta_z) @ positions.T).T
+    theta_y = np.arctan2(positions[linear_node, 2], positions[linear_node, 0])
+    positions = (roty(theta_y) @ positions.T).T
+    theta_x = -np.arctan2(positions[free_node, 2], positions[free_node, 1])
+    positions = (rotx(theta_x) @ positions.T).T
+    if np.sum(positions[:, -1]) < 0:
+        positions[:,-1] *= -1
+    return positions
+
+
+class TrussRobot:
     def __init__(self, config: TrussConfig, path: Matrix) -> None:
         """
         Initializes the truss robot object with specified parameters.
@@ -61,11 +96,11 @@ class TrussRobot(ABC):
         self.edges_nodes  = config.edges - 1
         self.triangle_nodes  = config.triangles - 1
 
-        self.num_nodes = len(self.positions)
+        self.num_nodes, self.dim = self.positions.shape
         self.num_edges = len(self.edges_nodes)
         self.num_triangles = len(self.triangle_nodes)
 
-        self._rotate_robot()
+        self.positions = (rotate_2d if self.dim == 2 else rotate_3d)(self.positions, *self.supports)
         triangle_incident_mat = np.array([[1, -1, 0],[0, 1, -1],[-1, 0, 1]])
         B_T = block_diag(*[triangle_incident_mat]*self.num_triangles)
         self.B_T = np.delete(B_T, [i for i in range(0, self.num_edges, 3)], axis=1)
@@ -158,11 +193,6 @@ class TrussRobot(ABC):
         support_indices.sort()
         return support_indices
 
-    @abstractmethod
-    def _rotate_robot(self) -> None:
-        '''Rotates robot positions such that supports are on xy plane and origin is at first point'''
-        raise NotImplementedError
-
 
 class RobotPlotter(ABC, Generic[_AxesT]):
     def __init__(self, robot: TrussRobot) -> None:
@@ -245,20 +275,6 @@ class RobotPlotter(ABC, Generic[_AxesT]):
     @abstractmethod
     def update_dot(dot, position: Vector) -> None:
         raise NotImplementedError
-
-
-class Robot2D(TrussRobot):
-    dim: ClassVar = 2
-
-    def _rotate_robot(self) -> None:
-        orign_node_idx = self.supports[0]
-        linear_node_idx = self.supports[1]
-
-        self.positions -= self.positions[orign_node_idx]
-        theta = -np.arctan2(self.positions[linear_node_idx][1] - self.positions[orign_node_idx][1],
-                            self.positions[linear_node_idx][0] - self.positions[orign_node_idx][0])
-
-        self.positions = (rot2D(theta)@(self.positions.T)).T
 
 
 class RobotPlotter2D(RobotPlotter[Axes]):
@@ -352,29 +368,6 @@ class RobotPlotter2D(RobotPlotter[Axes]):
     @staticmethod
     def update_dot(dot, position) -> None:
         dot.set_data([position[0]], [position[1]])
-
-
-class Robot3D(TrussRobot):
-    dim: ClassVar = 3
-
-    def _rotate_robot(self) -> None:
-        '''Rotates robot positions such that supports are on xy plane and origin is at first point'''
-        origin_node_idx = self.supports[0]  # This node should be centered at origin
-        linear_node_idx = self.supports[1]  # This node should be aligned along the x axis
-        free_node_idx = self.supports[2]  # This node should be on xy plane
-
-        self.positions -= self.positions[origin_node_idx]
-        theta_z = -np.arctan2(self.positions[linear_node_idx][1] - self.positions[origin_node_idx][1],
-                              self.positions[linear_node_idx][0] - self.positions[origin_node_idx][0])
-        self.positions = (rotz(theta_z)@(self.positions.T)).T
-        theta_y = np.arctan2(self.positions[linear_node_idx, 2], self.positions[linear_node_idx, 0])
-        self.positions = (roty(theta_y)@(self.positions.T)).T
-        theta_x = -np.arctan2(self.positions[free_node_idx][2], self.positions[free_node_idx][1])
-        self.positions = (rotx(theta_x)@(self.positions.T)).T
-        # self.positions = clean_matrix(self.positions, tol=1e-12)
-
-        if np.sum(self.positions[:, -1]) < 0:
-            self.positions[:,-1] *= -1
 
 
 class RobotPlotter3D(RobotPlotter[Axes3D]):
@@ -492,9 +485,7 @@ if __name__ == "__main__":
     path_2d = path.make_path(dimension=2)
     path_3d = path.make_path(RPYrot=(45, 30, 45))
 
-    # robot = Robot2D(config_2d, path_2d)
-    # robot_plotter = RobotPlotter2D(robot)
-    robot = Robot3D(config_3d, path_3d)
+    robot = TrussRobot(config_3d, path_3d)
     robot_plotter = RobotPlotter3D(robot)
 
     fig, ax_robot, ax_theta = robot_plotter.create_fig_ax()

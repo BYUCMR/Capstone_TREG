@@ -1,4 +1,4 @@
-from truss_robot import TrussRobot, Robot3D, Robot2D
+from truss_robot import TrussRobot
 import numpy as np
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
@@ -212,8 +212,7 @@ if __name__ == "__main__":
     path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
     path_2d = path.make_path(dimension=2)
 
-    # ol_robot = Robot3D(config_3d, path_3d)
-    ol_robot = Robot2D(config_2d, path_2d)
+    ol_robot = TrussRobot(config_2d, path_2d)
 
     ol_planner = MotionPlanner(
         robot=ol_robot,

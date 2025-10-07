@@ -1,7 +1,7 @@
 import numpy as np
 
 import path, truss_config
-from truss_robot import Robot2D, Robot3D
+from truss_robot import TrussRobot
 from motion import MotionPlanner, MotionConstraintsGenerator
 from viz import MotionViz, plot_theta_thetad
 
@@ -11,8 +11,7 @@ ol_config_2d = truss_config.CONFIG_2D_1
 ol_path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
 ol_path_2d = path.make_path(dimension=2)
 
-ol_robot = Robot3D(ol_config_3d, ol_path_3d)
-# ol_robot = Robot2D(ol_config_2d, ol_path_2d)
+ol_robot = TrussRobot(ol_config_3d, ol_path_3d)
 
 ol_planner = MotionPlanner(
     robot=ol_robot,
@@ -30,7 +29,7 @@ plot_theta_thetad(ol_robot, save_fig=False, filename="theta_thetad_plot.png")
 cl_config_3d = truss_config.CONFIG_3D_1
 cl_path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
 
-cl_robot = Robot3D(cl_config_3d, cl_path_3d)
+cl_robot = TrussRobot(cl_config_3d, cl_path_3d)
 cl_planner = MotionPlanner(
     robot=cl_robot,
     motion_viz=MotionViz(cl_robot),
