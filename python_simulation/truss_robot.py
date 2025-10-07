@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Generic, TypeVar
 
 from linalg import Vector, Matrix, rot2D, rotx, roty, rotz
-from truss_config import TrussConfig
+from truss_config import TrussConfig, IntMatrix
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -16,6 +16,28 @@ from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
+
+
+def calc_rigidity_matrix(positions: Matrix, edges: IntMatrix) -> Matrix:
+    num_nodes, dim = positions.shape
+    R = np.zeros((len(edges), num_nodes*dim))
+    for i, (e1, e2) in enumerate(edges):
+        x1 = positions[e1]
+        x2 = positions[e2]
+        dist = np.linalg.norm(x1 - x2)
+        for j in range(dim):
+            rel_dist_j = (x1[j] - x2[j]) / dist
+            R[i, e1 + j*num_nodes] = rel_dist_j
+            R[i, e2 + j*num_nodes] = -rel_dist_j
+    return R
+
+
+def calc_edge_lengths(positions: Matrix, edges: IntMatrix) -> Matrix:
+    lengths = np.zeros((edges.shape[0], 1))
+    for i, (p1, p2) in enumerate(edges):
+        length = np.linalg.norm(positions[p1] - positions[p2])
+        lengths[i, 0] = length
+    return lengths
 
 
 class TrussRobot(ABC):
@@ -33,22 +55,8 @@ class TrussRobot(ABC):
             num_sides (int): Number of sides for the path shape.
 
         """
-        self._generate_embedding_shape(config)
-
-        self.path = path + self.positions[self.move_node[0]]
-
-        self.pos_hist = [self.positions.copy()]
-        self.xd_hist = [np.zeros(self.positions.shape)]
-        self.Ldot_hist = [np.zeros((self.edges_nodes.shape[0], 1))]
-        self.L_hist = [self._calc_edge_lengths(self.positions)]
-        self.thetad_hist = [np.zeros((self.L2th.shape[0], 1))]
-        self.theta_hist = [np.zeros((self.L2th.shape[0], 1))]
-        self.t_hist = [0.]
-
-    def _generate_embedding_shape(self, config: TrussConfig) -> None:
-        '''Generates the appropriate geometric information based on the user-specified embedding index'''
         self.supports = config.support_nodes - 1
-        self.move_node = config.moving_nodes - 1
+        self.move_node = config.move_node - 1
         self.positions = config.initial_pos.copy()
         self.edges_nodes  = config.edges - 1
         self.triangle_nodes  = config.triangles - 1
@@ -65,39 +73,24 @@ class TrussRobot(ABC):
         self.num_rollers = self.B_T.shape[1]
 
         self.L2th = np.linalg.pinv(self.B_T)
-        self.rigidity = self._calc_rigidity_matrix(self.positions)
-        self.adj = self._calc_adj_matrix()
+        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
 
         self.triangle_loops = block_diag(*[np.ones((1,3))]*self.num_triangles)
         self.support_indices = self._calc_support_indices()
 
-    def _calc_edge_lengths(self, positions: Matrix) -> Matrix:
-        lengths = np.zeros((self.edges_nodes.shape[0], 1))
-        for i, (p1, p2) in enumerate(self.edges_nodes):
-            length = np.linalg.norm(positions[p1, :] - positions[p2, :])
-            lengths[i, 0] = length
-        return lengths
+        self.path = path + self.positions[self.move_node]
 
-    def _calc_rigidity_matrix(self, positions: Matrix) -> Matrix:
-        R = np.zeros((self.num_edges, self.num_nodes * self.dim))  # Initialize the rigidity matrix
+        self.pos_hist = [self.positions.copy()]
+        self.xd_hist = [np.zeros(self.positions.shape)]
+        self.Ldot_hist = [np.zeros((self.edges_nodes.shape[0], 1))]
+        self.L_hist = [calc_edge_lengths(self.positions, self.edges_nodes)]
+        self.thetad_hist = [np.zeros((self.L2th.shape[0], 1))]
+        self.theta_hist = [np.zeros((self.L2th.shape[0], 1))]
+        self.t_hist = [0.]
 
-        for i in range(self.num_edges):
-            # Extract the points
-            x1 = positions[self.edges_nodes[i, 0], :]
-            x2 = positions[self.edges_nodes[i, 1], :]
-            norm_x1x2 = np.linalg.norm(x1 - x2)
-
-            # Loop over the dimensions
-            for j in range(self.dim):
-                R[i, self.edges_nodes[i, 0] + self.num_nodes * j] = (x1[j] - x2[j]) / norm_x1x2
-                R[i, self.edges_nodes[i, 1] + self.num_nodes * j] = -R[i, self.edges_nodes[i, 0] + self.num_nodes * j]
-
-        return R
-
-    def _calc_adj_matrix(self) -> Matrix:
-        adj = np.zeros((self.num_nodes, self.num_nodes))
-        adj[self.edges_nodes] = 1
-        return adj + adj.T
+    @property
+    def move_node_pos(self) -> Vector:
+        return self.positions[self.move_node]
 
     def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix, Ldot: Matrix) -> None:
         self.t_hist.append(t+dt)
@@ -109,10 +102,10 @@ class TrussRobot(ABC):
         self.Ldot_hist.append(Ldot.copy())
         self.thetad_hist.append(self.L2th @ Ldot)
 
-        self.L_hist.append(self._calc_edge_lengths(self.positions))
+        self.L_hist.append(calc_edge_lengths(self.positions, self.edges_nodes))
         self.theta_hist.append(self.theta_hist[-1] + dt*self.thetad_hist[-1])
 
-        self.rigidity = self._calc_rigidity_matrix(self.positions)
+        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
 
     def _cl_update_positions_and_rigidity(
         self,
@@ -134,30 +127,18 @@ class TrussRobot(ABC):
         self.L_hist.append(L.copy())
         self.theta_hist.append(theta.copy())
 
-    def get_move_nodes_pos(self) -> Vector:
-        return self.positions[self.move_node[0], :]
-
     def fk_position(self, t: float, dt: float, real_thetas: Matrix) -> None:
-        real_thetas = real_thetas.reshape((-1, 1))
-        average_theta_d = (real_thetas - self.theta_hist[-1]) / dt
-        return self.fk_velocity(t, dt, average_theta_d)
-
-    def fk_velocity(self, t: float, dt: float, real_thetads: Matrix) -> None:
-        real_thetads = real_thetads.reshape((-1, 1))
-        real_thetas = self.theta_hist[-1] + real_thetads*dt
+        real_thetads = (real_thetas - self.theta_hist[-1]) / dt
         real_Ldot = self.B_T@real_thetads
         real_xd = self._convert_Ldot_to_xd(real_Ldot)
         real_xd = real_xd.reshape((-1, self.dim), order="F")
         self.positions = self.positions + real_xd*dt
-        real_L = self._calc_edge_lengths(self.positions)
-        self.rigidity = self._calc_rigidity_matrix(self.positions)
+        real_L = calc_edge_lengths(self.positions, self.edges_nodes)
+        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
         self._cl_update_positions_and_rigidity(t, self.positions, real_xd, real_Ldot, real_thetads, real_L, real_thetas)
 
     def convert_xd_to_thetad(self, xd: Matrix) -> Matrix:
-        xd = xd.reshape((-1, 1))
-        Ldot = self.rigidity @ xd
-        thetad = self.L2th@Ldot
-        return thetad.reshape((1, -1))
+        return self.L2th @ self.rigidity @ xd
 
     def _convert_Ldot_to_xd(self, Ldot: Matrix) -> Matrix:
         xd = np.zeros((self.num_nodes*self.dim, 1))

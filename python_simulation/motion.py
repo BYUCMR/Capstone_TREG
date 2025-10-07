@@ -23,7 +23,7 @@ class MotionConstraintsGenerator:
         num_nodes = self.robot.num_nodes
         self.broken_rollers = [] if broken_rollers is None else broken_rollers
 
-        target_node_idx = self.robot.move_node[0]
+        target_node_idx = self.robot.move_node
         self.A_move = np.zeros((dim, dim * num_nodes))
         for i in range(dim):
             self.A_move[i, target_node_idx + i*num_nodes] = 1
@@ -102,7 +102,7 @@ class MotionPlanner:
 
     def _calc_goal_direction(self) -> Vector:
         curr_goal = self.robot.path[self.curr_goal_idx]
-        move_node_position = self.robot.get_move_nodes_pos()
+        move_node_position = self.robot.move_node_pos
         goal_direction = curr_goal - move_node_position
         return goal_direction
 
@@ -127,7 +127,7 @@ class MotionPlanner:
     def _print_debug_info(self) -> None:
         print(f"Current Goal Index: {self.curr_goal_idx}")
         print(f"Current Goal Position: {self.robot.path[self.curr_goal_idx]}")
-        move_node_position = self.robot.get_move_nodes_pos()
+        move_node_position = self.robot.move_node_pos
         print(f"Move Node Position: {move_node_position}")
         print(f"Goal Direction: {self.goal_direction}")
         if self.goal_direction is not None:
@@ -156,7 +156,7 @@ class MotionPlanner:
             while np.linalg.norm(self.goal_direction) > 0.01 and count < 10000:
                 if self.motion_viz and count % self.motion_viz.refresh_rate == 0:
                     self.motion_viz.update_motion_coords(
-                        move_node_position=self.robot.get_move_nodes_pos(),
+                        move_node_position=self.robot.move_node_pos,
                         b_move=self.motion_constraints_generator.get_b_move()
                     )
 
@@ -187,7 +187,8 @@ class MotionPlanner:
 
         if self.motion_viz and self.count % self.motion_viz.refresh_rate == 0:
             self.motion_viz.update_motion_coords(
-                move_node_position=self.robot.get_move_nodes_pos(), b_move=self.motion_constraints_generator.get_b_move()
+                move_node_position=self.robot.move_node_pos,
+                b_move=self.motion_constraints_generator.get_b_move(),
             )
 
         self.goal_direction = self._calc_goal_direction()

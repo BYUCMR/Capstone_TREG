@@ -11,7 +11,7 @@ IntVector: TypeAlias = np.ndarray[tuple[int], np.dtype[np.int64]]
 @dataclass(kw_only=True)
 class TrussConfig:
     support_nodes: IntVector
-    moving_nodes: IntVector
+    move_node: int
     edges: IntMatrix
     triangles: IntMatrix
     initial_pos: Matrix
@@ -19,7 +19,7 @@ class TrussConfig:
 
 CONFIG_3D_1: Final = TrussConfig(
     support_nodes=np.array([2, 6, 4]),
-    moving_nodes=np.array([1]),
+    move_node=1,
     edges=np.array([[1,3],[3,4],[4,1],[1,5],[5,6],[6,1],[2,3],[3,5],[5,2],[2,4],[4,6],[6,2]]),
     triangles=np.array([[1,3,4],[1,5,6],[2,3,5],[2,4,6]]),
     initial_pos=np.array([
@@ -34,7 +34,7 @@ CONFIG_3D_1: Final = TrussConfig(
 
 CONFIG_3D_2: Final = TrussConfig(
     support_nodes=np.array([2, 6, 4]),
-    moving_nodes=np.array([1]),
+    move_node=1,
     edges=np.array([[1,3],[3,5],[5,1],[1,4],[4,6],[6,1],[2,3],[3,4],[4,2],[2,5],[5,6],[6,2]]),
     triangles=np.array([[1,3,5],[1,4,6],[2,3,4],[2,5,6]]),
     initial_pos=np.array([
@@ -50,7 +50,7 @@ CONFIG_3D_2: Final = TrussConfig(
 
 CONFIG_2D_1: Final = TrussConfig(
     support_nodes=np.array([1, 2]),
-    moving_nodes=np.array([3]),
+    move_node=3,
     edges=np.array([[1,2],[2,3],[3,1]]),
     triangles=np.array([[1,2,3]]),
     initial_pos=np.array([
@@ -62,7 +62,7 @@ CONFIG_2D_1: Final = TrussConfig(
 
 CONFIG_2D_2: Final = TrussConfig(
     support_nodes=np.array([1, 4]),
-    moving_nodes=np.array([6]),
+    move_node=6,
     edges=np.array([[1,2],[2,3],[3,1],[2,4],[4,5],[5,2],[3,5],[5,6],[6,3]]),
     triangles=np.array([[1,2,3],[2,4,5],[3,5,6]]),
     initial_pos=np.array([
