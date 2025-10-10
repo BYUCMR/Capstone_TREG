@@ -23,7 +23,7 @@ class MotionConstraintsGenerator:
         num_nodes = self.robot.num_nodes
         self.broken_rollers = [] if broken_rollers is None else broken_rollers
 
-        target_node_idx = self.robot.move_node
+        target_node_idx = self.robot.config.move_node
         self.A_move = np.zeros((dim, dim * num_nodes))
         for i in range(dim):
             self.A_move[i, target_node_idx + i*num_nodes] = 1
@@ -32,7 +32,7 @@ class MotionConstraintsGenerator:
         n_lock = (dim-1) * 3
         self.A_lock = np.zeros((n_lock, dim*num_nodes))
         last_row_updated = -1
-        for i, support in enumerate(self.robot.supports):
+        for i, support in enumerate(self.robot.config.supports):
             for j in range(i, dim):
                 last_row_updated += 1
                 self.A_lock[last_row_updated, support + j*num_nodes] = 1

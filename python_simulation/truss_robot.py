@@ -90,17 +90,14 @@ class TrussRobot:
             num_sides (int): Number of sides for the path shape.
 
         """
-        self.supports = config.support_nodes - 1
-        self.move_node = config.move_node - 1
+        self.config = config
         self.positions = config.initial_pos.copy()
-        self.edges_nodes  = config.edges - 1
-        self.triangle_nodes  = config.triangles - 1
 
         self.num_nodes, self.dim = self.positions.shape
-        self.num_edges = len(self.edges_nodes)
-        self.num_triangles = len(self.triangle_nodes)
+        self.num_edges = len(self.config.edges)
+        self.num_triangles = len(self.config.triangles)
 
-        self.positions = (rotate_2d if self.dim == 2 else rotate_3d)(self.positions, *self.supports)
+        self.positions = (rotate_2d if self.dim == 2 else rotate_3d)(self.positions, *self.config.supports)
         triangle_incident_mat = np.array([[1, -1, 0],[0, 1, -1],[-1, 0, 1]])
         B_T = block_diag(*[triangle_incident_mat]*self.num_triangles)
         self.B_T = np.delete(B_T, [i for i in range(0, self.num_edges, 3)], axis=1)
@@ -108,24 +105,24 @@ class TrussRobot:
         self.num_rollers = self.B_T.shape[1]
 
         self.L2th = np.linalg.pinv(self.B_T)
-        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
+        self.rigidity = calc_rigidity_matrix(self.positions, self.config.edges)
 
         self.triangle_loops = block_diag(*[np.ones((1,3))]*self.num_triangles)
         self.support_indices = self._calc_support_indices()
 
-        self.path = path + self.positions[self.move_node]
+        self.path = path + self.positions[self.config.move_node]
 
         self.pos_hist = [self.positions.copy()]
         self.xd_hist = [np.zeros(self.positions.shape)]
-        self.Ldot_hist = [np.zeros((self.edges_nodes.shape[0], 1))]
-        self.L_hist = [calc_edge_lengths(self.positions, self.edges_nodes)]
+        self.Ldot_hist = [np.zeros((self.config.edges.shape[0], 1))]
+        self.L_hist = [calc_edge_lengths(self.positions, self.config.edges)]
         self.thetad_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.theta_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.t_hist = [0.]
 
     @property
     def move_node_pos(self) -> Vector:
-        return self.positions[self.move_node]
+        return self.positions[self.config.move_node]
 
     def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix, Ldot: Matrix) -> None:
         self.t_hist.append(t+dt)
@@ -137,10 +134,10 @@ class TrussRobot:
         self.Ldot_hist.append(Ldot.copy())
         self.thetad_hist.append(self.L2th @ Ldot)
 
-        self.L_hist.append(calc_edge_lengths(self.positions, self.edges_nodes))
+        self.L_hist.append(calc_edge_lengths(self.positions, self.config.edges))
         self.theta_hist.append(self.theta_hist[-1] + dt*self.thetad_hist[-1])
 
-        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
+        self.rigidity = calc_rigidity_matrix(self.positions, self.config.edges)
 
     def _cl_update_positions_and_rigidity(
         self,
@@ -168,8 +165,8 @@ class TrussRobot:
         real_xd = self._convert_Ldot_to_xd(real_Ldot)
         real_xd = real_xd.reshape((-1, self.dim), order="F")
         self.positions = self.positions + real_xd*dt
-        real_L = calc_edge_lengths(self.positions, self.edges_nodes)
-        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
+        real_L = calc_edge_lengths(self.positions, self.config.edges)
+        self.rigidity = calc_rigidity_matrix(self.positions, self.config.edges)
         self._cl_update_positions_and_rigidity(t, self.positions, real_xd, real_Ldot, real_thetads, real_L, real_thetas)
 
     def convert_xd_to_thetad(self, xd: Matrix) -> Matrix:
@@ -187,7 +184,7 @@ class TrussRobot:
 
     def _calc_support_indices(self) -> list[np.int64]:
         support_indices: list[np.int64] = []
-        for i, support in enumerate(self.supports):
+        for i, support in enumerate(self.config.supports):
             for d in range(i, self.dim):
                 support_indices.append(support + d*self.num_nodes)
         support_indices.sort()
@@ -221,14 +218,14 @@ class RobotPlotter(ABC, Generic[_AxesT]):
             self._scatter._offsets3d = (x, y, z)
 
         # Update lines
-        for (p1, p2), line in zip(self.robot.edges_nodes, self._lines):
+        for (p1, p2), line in zip(self.robot.config.edges, self._lines):
             line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
             if self.robot.dim == 3:
                 line.set_3d_properties([z[p1], z[p2]])
 
         # Update fills
         if self.robot.dim == 2:
-            for (p1, p2, p3), fill in zip(self.robot.triangle_nodes, self._fills):
+            for (p1, p2, p3), fill in zip(self.robot.config.triangles, self._fills):
                 fill.set_xy(np.array([[x[p1], y[p1]], [x[p2], y[p2]], [x[p3], y[p3]]]))
 
         # Update labels
@@ -286,11 +283,11 @@ class RobotPlotter2D(RobotPlotter[Axes]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.robot.edges_nodes):
+        for idx, (p1, p2) in enumerate(self.robot.config.edges):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], triangle_colors[idx // 3], lw=3)
             self._lines.append(line)
 
-        for idx, (p1, p2, p3) in enumerate(self.robot.triangle_nodes):
+        for idx, (p1, p2, p3) in enumerate(self.robot.config.triangles):
             self._fills.append(ax.fill([x[p1], x[p2], x[p3]], [y[p1], y[p2], y[p3]], triangle_colors[idx], alpha=0.2)[0])
 
         for i, (xi, yi) in enumerate(zip(x, y)):
@@ -383,7 +380,7 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.robot.edges_nodes):
+        for idx, (p1, p2) in enumerate(self.robot.config.edges):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], triangle_colors[idx // 3], lw=6)
             self._lines.append(line)
 
