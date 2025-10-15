@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Generic, SupportsIndex, TypeVar
 
 from linalg import Vector, Matrix, rot2D, rotx, roty, rotz
-from truss_config import TrussConfig, IntMatrix, edges
+from truss_config import TrussConfig, Triangles, edges
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -18,7 +18,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
 
-def calc_rigidity_matrix(positions: Matrix, triangles: IntMatrix) -> Matrix:
+def calc_rigidity_matrix(positions: Matrix, triangles: Triangles) -> Matrix:
     num_nodes, dim = positions.shape
     R = np.zeros((3*len(triangles), num_nodes*dim))
     for i, (e1, e2) in enumerate(edges(triangles)):
@@ -32,7 +32,7 @@ def calc_rigidity_matrix(positions: Matrix, triangles: IntMatrix) -> Matrix:
     return R
 
 
-def calc_edge_lengths(positions: Matrix, triangles: IntMatrix) -> Matrix:
+def calc_edge_lengths(positions: Matrix, triangles: Triangles) -> Matrix:
     lengths = np.zeros((3*len(triangles), 1))
     for i, (p1, p2) in enumerate(edges(triangles)):
         length = np.linalg.norm(positions[p1] - positions[p2])
@@ -182,8 +182,8 @@ class TrussRobot:
 
         return xd
 
-    def _calc_support_indices(self) -> list[np.int64]:
-        support_indices: list[np.int64] = []
+    def _calc_support_indices(self) -> list[int]:
+        support_indices: list[int] = []
         for i, support in enumerate(self.config.supports):
             for d in range(i, self.dim):
                 support_indices.append(support + d*self.num_nodes)
