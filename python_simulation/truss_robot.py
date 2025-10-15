@@ -40,43 +40,6 @@ def calc_edge_lengths(positions: Matrix, triangles: Triangles) -> Matrix:
     return lengths
 
 
-def rotate_2d(
-    positions: Matrix,
-    orign_node: SupportsIndex,
-    linear_node: SupportsIndex,
-) -> Matrix:
-    positions = positions - positions[orign_node]
-    theta = -np.arctan2(positions[linear_node, 1] - positions[orign_node, 1],
-                        positions[linear_node, 0] - positions[orign_node, 0])
-    return (rot2D(theta) @ positions.T).T
-
-
-def rotate_3d(
-    positions: Matrix,
-    origin_node: SupportsIndex,
-    linear_node: SupportsIndex,
-    free_node: SupportsIndex,
-) -> Matrix:
-    """
-    Rotate positions such that supports are on xy plane and the first point is the origin.
-
-    `origin_node` will be set at the origin
-    `linear_node` will be aligned along the x-axis
-    `free_node` will be on the xy plane
-    """
-    positions = positions - positions[origin_node]
-    theta_z = -np.arctan2(positions[linear_node, 1] - positions[origin_node, 1],
-                          positions[linear_node, 0] - positions[origin_node, 0])
-    positions = (rotz(theta_z) @ positions.T).T
-    theta_y = np.arctan2(positions[linear_node, 2], positions[linear_node, 0])
-    positions = (roty(theta_y) @ positions.T).T
-    theta_x = -np.arctan2(positions[free_node, 2], positions[free_node, 1])
-    positions = (rotx(theta_x) @ positions.T).T
-    if np.sum(positions[:, -1]) < 0:
-        positions[:,-1] *= -1
-    return positions
-
-
 class TrussRobot:
     def __init__(self, config: TrussConfig, path: Matrix) -> None:
         """
@@ -97,7 +60,6 @@ class TrussRobot:
         self.num_edges = 3 * len(self.config.triangles)
         self.num_triangles = len(self.config.triangles)
 
-        self.positions = (rotate_2d if self.dim == 2 else rotate_3d)(self.positions, *self.config.supports)
         triangle_incident_mat = np.array([[1, -1, 0],[0, 1, -1],[-1, 0, 1]])
         B_T = block_diag(*[triangle_incident_mat]*self.num_triangles)
         self.B_T = np.delete(B_T, [i for i in range(0, self.num_edges, 3)], axis=1)
