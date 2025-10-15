@@ -11,10 +11,11 @@ ol_config_2d = truss_config.CONFIG_2D_1
 ol_path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
 ol_path_2d = path.make_path(dimension=2)
 
-ol_robot = TrussRobot(ol_config_3d, ol_path_3d)
+ol_robot = TrussRobot(ol_config_3d)
 
 ol_planner = MotionPlanner(
     robot=ol_robot,
+    path=ol_robot.move_node_pos + ol_path_3d,
     motion_constraints_generator=MotionConstraintsGenerator(ol_robot),
 )
 
@@ -29,9 +30,10 @@ plot_theta_thetad(ol_robot, save_fig=False, filename="theta_thetad_plot.png")
 cl_config_3d = truss_config.CONFIG_3D_1
 cl_path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
 
-cl_robot = TrussRobot(cl_config_3d, cl_path_3d)
+cl_robot = TrussRobot(cl_config_3d)
 cl_planner = MotionPlanner(
     robot=cl_robot,
+    path=cl_robot.move_node_pos + cl_path_3d,
     motion_viz=MotionViz(cl_robot),
     motion_constraints_generator=MotionConstraintsGenerator(cl_robot),
 )

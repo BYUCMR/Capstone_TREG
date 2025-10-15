@@ -56,7 +56,7 @@ def get_support_indices(config: TrussConfig) -> list[int]:
 
 
 class TrussRobot:
-    def __init__(self, config: TrussConfig, path: Matrix) -> None:
+    def __init__(self, config: TrussConfig) -> None:
         """
         Initializes the truss robot object with specified parameters.
 
@@ -82,8 +82,6 @@ class TrussRobot:
 
         self.triangle_loops = block_diag(*[np.ones((1,3))]*self.num_triangles)
         self.support_indices = get_support_indices(self.config)
-
-        self.path = path + self.positions[self.config.move_node]
 
         self.pos_hist = [self.positions.copy()]
         self.xd_hist = [np.zeros(self.positions.shape)]
@@ -213,7 +211,7 @@ class RobotPlotter(ABC, Generic[_AxesT]):
         raise NotImplementedError
 
     @abstractmethod
-    def plot_path(self, ax: _AxesT, fill: bool = True) -> None:
+    def plot_path(self, path: Matrix, ax: _AxesT, fill: bool = True) -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -226,7 +224,7 @@ class RobotPlotter(ABC, Generic[_AxesT]):
         raise NotImplementedError
 
     @abstractmethod
-    def show(self, ax: _AxesT) -> None:
+    def show(self, path: Matrix, ax: _AxesT) -> None:
         raise NotImplementedError
 
     @staticmethod
@@ -273,8 +271,8 @@ class RobotPlotter2D(RobotPlotter[Axes]):
 
         self.robot_plotted = True
 
-    def plot_path(self, ax: Axes, fill: bool = True) -> None:
-        x, y = self.robot.path.T
+    def plot_path(self, path: Matrix, ax: Axes, fill: bool = True) -> None:
+        x, y = path.T
         ax.plot(x, y)
 
         if fill:
@@ -287,7 +285,7 @@ class RobotPlotter2D(RobotPlotter[Axes]):
         fig, (ax_robot, ax_theta) = plt.subplots(ncols=2, figsize=(10, 5))
         return fig, ax_robot, ax_theta
 
-    def show(self, ax: Axes) -> None:
+    def show(self, path: Matrix, ax: Axes) -> None:
         if not self.robot_plotted and not self.path_plotted:
             self.robot_plotted = False
             self.path_plotted = False
@@ -302,7 +300,7 @@ class RobotPlotter2D(RobotPlotter[Axes]):
             ys.append(y)
 
         if self.path_plotted:
-            x, y = self.robot.path.T
+            x, y = path.T
             xs.append(x)
             ys.append(y)
 
@@ -372,8 +370,8 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
 
         self.robot_plotted = True
 
-    def plot_path(self, ax: Axes3D, fill: bool = True) -> None:
-        x, y, z = self.robot.path.T
+    def plot_path(self, path: Matrix, ax: Axes3D, fill: bool = True) -> None:
+        x, y, z = path.T
         ax.scatter(x, y, z, color='r')
 
         if fill:
@@ -392,7 +390,7 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
             ax_robot.set_box_aspect([1, 1, 1]) # type: ignore
         return fig, ax_robot, ax_theta
 
-    def show(self, ax: Axes3D):
+    def show(self, path: Matrix, ax: Axes3D):
         if not self.robot_plotted and not self.path_plotted:
             self.robot_plotted = False
             self.path_plotted = False
@@ -408,7 +406,7 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
             zs.append(z)
 
         if self.path_plotted:
-            x, y, z = self.robot.path.T
+            x, y, z = path.T
             xs.append(x)
             ys.append(y)
             zs.append(z)
@@ -448,10 +446,10 @@ if __name__ == "__main__":
     path_2d = path.make_path(dimension=2)
     path_3d = path.make_path(RPYrot=(45, 30, 45))
 
-    robot = TrussRobot(config_3d, path_3d)
+    robot = TrussRobot(config_3d)
     robot_plotter = RobotPlotter3D(robot)
 
     fig, ax_robot, ax_theta = robot_plotter.create_fig_ax()
     robot_plotter.plot_robot(ax_robot)
-    robot_plotter.plot_path(ax_robot)
-    robot_plotter.show(ax_robot)
+    robot_plotter.plot_path(robot.move_node_pos + path_3d, ax_robot)
+    robot_plotter.show(robot.move_node_pos + path_3d, ax_robot)

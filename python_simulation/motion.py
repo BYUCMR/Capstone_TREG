@@ -63,12 +63,17 @@ class MotionConstraintsGenerator:
 @dataclass(kw_only=True)
 class MotionPlanner:
     robot: TrussRobot
+    path: Matrix
     dt: float = 0.01
     curr_goal_idx: int = 0
     obj_str: str = 'Ldot'
     ctrl_func: Callable[[Vector], Vector] = unit_vector
     motion_viz: MotionViz | None = None
     motion_constraints_generator: MotionConstraintsGenerator
+
+    def __post_init__(self) -> None:
+        if self.motion_viz is not None:
+            self.motion_viz.init_animation(self.path)
 
     def _get_objective(self) -> tuple[Matrix, Matrix]:
         if self.obj_str == "Ldot":
@@ -98,7 +103,7 @@ class MotionPlanner:
         return result.x.reshape(f.shape)
 
     def _get_error(self) -> Vector:
-        target = self.robot.path[self.curr_goal_idx]
+        target = self.path[self.curr_goal_idx]
         position = self.robot.move_node_pos
         return target - position
 
@@ -117,7 +122,7 @@ class MotionPlanner:
 
     def _print_debug_info(self) -> None:
         print(f"Current Goal Index: {self.curr_goal_idx}")
-        print(f"Current Goal Position: {self.robot.path[self.curr_goal_idx]}")
+        print(f"Current Goal Position: {self.path[self.curr_goal_idx]}")
         move_node_position = self.robot.move_node_pos
         print(f"Move Node Position: {move_node_position}")
         print(f"Goal Direction: {self._get_error()}")
@@ -134,7 +139,7 @@ class MotionPlanner:
         '''Open loop motion of the robot along its path'''
         t = 0
 
-        for _ in range(len(self.robot.path)):
+        for _ in range(len(self.path)):
             if self.curr_goal_idx == 0:
                 self.curr_goal_idx += 1
                 continue  # Because the first point in the path is the starting position
@@ -169,7 +174,7 @@ class MotionPlanner:
 
         if np.linalg.norm(self._get_error()) < 0.01:
             self.curr_goal_idx += 1
-            if self.curr_goal_idx >= len(self.robot.path):
+            if self.curr_goal_idx >= len(self.path):
                 print("Already at end of path")
                 return np.zeros((1, self.robot.num_rollers)), self.robot, True
 
@@ -199,10 +204,11 @@ if __name__ == "__main__":
     path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
     path_2d = path.make_path(dimension=2)
 
-    ol_robot = TrussRobot(config_2d, path_2d)
+    ol_robot = TrussRobot(config_2d)
 
     ol_planner = MotionPlanner(
         robot=ol_robot,
+        path=ol_robot.move_node_pos + path_2d,
         motion_viz = MotionViz(ol_robot),
         motion_constraints_generator=MotionConstraintsGenerator(ol_robot),
     )

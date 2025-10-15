@@ -1,9 +1,9 @@
 # viz.py
 import numpy as np
-from linalg import Vector
 
 import matplotlib.pyplot as plt
 
+from linalg import Matrix, Vector
 from truss_robot import RobotPlotter2D, RobotPlotter3D, TrussRobot
 
 
@@ -24,13 +24,12 @@ class MotionViz:
         self.count = 0
         # how many seconds of theta data to show (moving window)
         self.theta_window = float(theta_window)
-        self.init_animation()
 
-    def init_animation(self) -> None:
+    def init_animation(self, path: Matrix) -> None:
         plt.ion()
         self.dot = self.robot_plotter.plot_dot(self.ax)
         self.quiver = None
-        self.robot_plotter.plot_path(self.ax)
+        self.robot_plotter.plot_path(path, self.ax)
         self.robot_plotter.plot_robot(self.ax)
 
         # Theta history plot (right subplot) and theta-dot subplot below it
