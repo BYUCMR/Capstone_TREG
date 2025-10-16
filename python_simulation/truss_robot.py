@@ -39,6 +39,22 @@ def calc_edge_lengths(positions: Matrix, triangles: Triangles) -> Matrix:
     return lengths
 
 
+def calc_thetas_to_lengths(config: TrussConfig) -> Matrix:
+    triangle_incident_mat = np.array([[1, -1, 0], [0, 1, -1], [-1, 0, 1]])
+    B = block_diag(*[triangle_incident_mat]*len(config.triangles))
+    return np.delete(B, range(0, 3*len(config.triangles), 3), axis=1)
+
+
+def get_support_indices(config: TrussConfig) -> list[int]:
+    num_nodes, dim = config.initial_pos.shape
+    support_indices: list[int] = []
+    for i, support in enumerate(config.supports):
+        for d in range(i, dim):
+            support_indices.append(support + d*num_nodes)
+    support_indices.sort()
+    return support_indices
+
+
 class TrussRobot:
     def __init__(self, config: TrussConfig, path: Matrix) -> None:
         """
@@ -56,26 +72,22 @@ class TrussRobot:
         self.positions = config.initial_pos.copy()
 
         self.num_nodes, self.dim = self.positions.shape
-        self.num_edges = 3 * len(self.config.triangles)
         self.num_triangles = len(self.config.triangles)
 
-        triangle_incident_mat = np.array([[1, -1, 0],[0, 1, -1],[-1, 0, 1]])
-        B_T = block_diag(*[triangle_incident_mat]*self.num_triangles)
-        self.B_T = np.delete(B_T, [i for i in range(0, self.num_edges, 3)], axis=1)
-
+        self.B_T = calc_thetas_to_lengths(self.config)
         self.num_rollers = self.B_T.shape[1]
 
         self.L2th = np.linalg.pinv(self.B_T)
         self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
 
         self.triangle_loops = block_diag(*[np.ones((1,3))]*self.num_triangles)
-        self.support_indices = self._calc_support_indices()
+        self.support_indices = get_support_indices(self.config)
 
         self.path = path + self.positions[self.config.move_node]
 
         self.pos_hist = [self.positions.copy()]
         self.xd_hist = [np.zeros(self.positions.shape)]
-        self.Ldot_hist = [np.zeros((self.num_edges, 1))]
+        self.Ldot_hist = [np.zeros((3*self.num_triangles, 1))]
         self.L_hist = [calc_edge_lengths(self.positions, self.config.triangles)]
         self.thetad_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.theta_hist = [np.zeros((self.L2th.shape[0], 1))]
@@ -85,7 +97,8 @@ class TrussRobot:
     def move_node_pos(self) -> Vector:
         return self.positions[self.config.move_node]
 
-    def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix, Ldot: Matrix) -> None:
+    def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix) -> None:
+        Ldot = self.rigidity @ xd
         self.t_hist.append(t+dt)
         xd = xd.reshape((-1, self.dim), order="F")
         self.positions += xd*dt
@@ -142,14 +155,6 @@ class TrussRobot:
         xd[value_position, 0] = xd_reduced[:, 0]
 
         return xd
-
-    def _calc_support_indices(self) -> list[int]:
-        support_indices: list[int] = []
-        for i, support in enumerate(self.config.supports):
-            for d in range(i, self.dim):
-                support_indices.append(support + d*self.num_nodes)
-        support_indices.sort()
-        return support_indices
 
 
 class RobotPlotter(ABC, Generic[_AxesT]):

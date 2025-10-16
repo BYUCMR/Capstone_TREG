@@ -79,7 +79,7 @@ class MotionPlanner:
             raise ValueError(f"{self.obj_str!r} is an invalid objective")
         return H, f
 
-    def _get_opt_motion(self) -> tuple[Matrix, Matrix]:
+    def _get_opt_motion(self) -> Matrix:
         H, f = self._get_objective()
         def objective(xdot):
             return (0.5 * xdot.T @ H @ xdot + f.T @ xdot).ravel()
@@ -95,9 +95,7 @@ class MotionPlanner:
             constraints=constraints,
             options={"xtol": 1e-8, "disp": False, "maxiter": 10000},
         )
-
-        xd_opt = result.x.reshape(f.shape)
-        return xd_opt, self.robot.rigidity @ xd_opt
+        return result.x.reshape(f.shape)
 
     def _get_error(self) -> Vector:
         target = self.robot.path[self.curr_goal_idx]
@@ -110,22 +108,12 @@ class MotionPlanner:
             move_velocity=self.ctrl_func(error),
         )
 
-    def _ol_step_in_direction(self, t: float) -> None:
-        xd_opt, Ldot = self._step_in_direction()
-        self.robot.ol_update_and_store_positions_and_rigidity(t, self.dt, xd_opt, Ldot)
-        if self.motion_viz:
-            self.motion_viz.update_plot()
-
-    def _cl_step_in_direction(self) -> tuple[Matrix, Matrix]:
-        xd_opt, Ldot = self._step_in_direction()
-        if self.motion_viz:
-            self.motion_viz.update_plot()
-        return xd_opt, Ldot
-
-    def _step_in_direction(self) -> tuple[Matrix, Matrix]:
-        xd_opt, Ldot = self._get_opt_motion()
+    def _step_in_direction(self) -> Matrix:
+        xd_opt = self._get_opt_motion()
         self._refresh_constraints()
-        return xd_opt, Ldot
+        if self.motion_viz:
+            self.motion_viz.update_plot()
+        return xd_opt
 
     def _print_debug_info(self) -> None:
         print(f"Current Goal Index: {self.curr_goal_idx}")
@@ -161,7 +149,8 @@ class MotionPlanner:
                         b_move=self.motion_constraints_generator.get_b_move()
                     )
 
-                self._ol_step_in_direction(t)
+                xd_opt = self._step_in_direction()
+                self.robot.ol_update_and_store_positions_and_rigidity(t, self.dt, xd_opt)
 
                 if verbose_print_rate and count % verbose_print_rate == 0:
                     self._print_debug_info()
@@ -192,7 +181,7 @@ class MotionPlanner:
 
         self._refresh_constraints()
 
-        xd_opt, _ = self._cl_step_in_direction()
+        xd_opt = self._step_in_direction()
 
         thetad_opt = self.robot.convert_xd_to_thetad(xd_opt)
 
