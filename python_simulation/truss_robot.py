@@ -1,6 +1,6 @@
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Any, Generic, SupportsIndex, TypeVar
+from typing import Any, Generic, TypeVar
 
 import matplotlib.pyplot as plt
 from scipy.linalg import block_diag
@@ -11,16 +11,16 @@ from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
-from linalg import Matrix, Vector, rot2D, rotx, roty, rotz
-from truss_config import TrussConfig, IntMatrix
+from linalg import Matrix, Vector
+from truss_config import TrussConfig, Triangles, edges
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
 
-def calc_rigidity_matrix(positions: Matrix, edges: IntMatrix) -> Matrix:
+def calc_rigidity_matrix(positions: Matrix, triangles: Triangles) -> Matrix:
     num_nodes, dim = positions.shape
-    R = np.zeros((len(edges), num_nodes*dim))
-    for i, (e1, e2) in enumerate(edges):
+    R = np.zeros((3*len(triangles), num_nodes*dim))
+    for i, (e1, e2) in enumerate(edges(triangles)):
         x1 = positions[e1]
         x2 = positions[e2]
         dist = np.linalg.norm(x1 - x2)
@@ -31,49 +31,12 @@ def calc_rigidity_matrix(positions: Matrix, edges: IntMatrix) -> Matrix:
     return R
 
 
-def calc_edge_lengths(positions: Matrix, edges: IntMatrix) -> Matrix:
-    lengths = np.zeros((edges.shape[0], 1))
-    for i, (p1, p2) in enumerate(edges):
+def calc_edge_lengths(positions: Matrix, triangles: Triangles) -> Matrix:
+    lengths = np.zeros((3*len(triangles), 1))
+    for i, (p1, p2) in enumerate(edges(triangles)):
         length = np.linalg.norm(positions[p1] - positions[p2])
         lengths[i, 0] = length
     return lengths
-
-
-def rotate_2d(
-    positions: Matrix,
-    orign_node: SupportsIndex,
-    linear_node: SupportsIndex,
-) -> Matrix:
-    positions = positions - positions[orign_node]
-    theta = -np.arctan2(positions[linear_node, 1] - positions[orign_node, 1],
-                        positions[linear_node, 0] - positions[orign_node, 0])
-    return (rot2D(theta) @ positions.T).T
-
-
-def rotate_3d(
-    positions: Matrix,
-    origin_node: SupportsIndex,
-    linear_node: SupportsIndex,
-    free_node: SupportsIndex,
-) -> Matrix:
-    """
-    Rotate positions such that supports are on xy plane and the first point is the origin.
-
-    `origin_node` will be set at the origin
-    `linear_node` will be aligned along the x-axis
-    `free_node` will be on the xy plane
-    """
-    positions = positions - positions[origin_node]
-    theta_z = -np.arctan2(positions[linear_node, 1] - positions[origin_node, 1],
-                          positions[linear_node, 0] - positions[origin_node, 0])
-    positions = (rotz(theta_z) @ positions.T).T
-    theta_y = np.arctan2(positions[linear_node, 2], positions[linear_node, 0])
-    positions = (roty(theta_y) @ positions.T).T
-    theta_x = -np.arctan2(positions[free_node, 2], positions[free_node, 1])
-    positions = (rotx(theta_x) @ positions.T).T
-    if np.sum(positions[:, -1]) < 0:
-        positions[:,-1] *= -1
-    return positions
 
 
 class TrussRobot:
@@ -89,17 +52,13 @@ class TrussRobot:
             num_sides (int): Number of sides for the path shape.
 
         """
-        self.supports = config.support_nodes - 1
-        self.move_node = config.move_node - 1
+        self.config = config
         self.positions = config.initial_pos.copy()
-        self.edges_nodes  = config.edges - 1
-        self.triangle_nodes  = config.triangles - 1
 
         self.num_nodes, self.dim = self.positions.shape
-        self.num_edges = len(self.edges_nodes)
-        self.num_triangles = len(self.triangle_nodes)
+        self.num_edges = 3 * len(self.config.triangles)
+        self.num_triangles = len(self.config.triangles)
 
-        self.positions = (rotate_2d if self.dim == 2 else rotate_3d)(self.positions, *self.supports)
         triangle_incident_mat = np.array([[1, -1, 0],[0, 1, -1],[-1, 0, 1]])
         B_T = block_diag(*[triangle_incident_mat]*self.num_triangles)
         self.B_T = np.delete(B_T, [i for i in range(0, self.num_edges, 3)], axis=1)
@@ -107,24 +66,24 @@ class TrussRobot:
         self.num_rollers = self.B_T.shape[1]
 
         self.L2th = np.linalg.pinv(self.B_T)
-        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
+        self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
 
         self.triangle_loops = block_diag(*[np.ones((1,3))]*self.num_triangles)
         self.support_indices = self._calc_support_indices()
 
-        self.path = path + self.positions[self.move_node]
+        self.path = path + self.positions[self.config.move_node]
 
         self.pos_hist = [self.positions.copy()]
         self.xd_hist = [np.zeros(self.positions.shape)]
-        self.Ldot_hist = [np.zeros((self.edges_nodes.shape[0], 1))]
-        self.L_hist = [calc_edge_lengths(self.positions, self.edges_nodes)]
+        self.Ldot_hist = [np.zeros((self.num_edges, 1))]
+        self.L_hist = [calc_edge_lengths(self.positions, self.config.triangles)]
         self.thetad_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.theta_hist = [np.zeros((self.L2th.shape[0], 1))]
         self.t_hist = [0.]
 
     @property
     def move_node_pos(self) -> Vector:
-        return self.positions[self.move_node]
+        return self.positions[self.config.move_node]
 
     def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix, Ldot: Matrix) -> None:
         self.t_hist.append(t+dt)
@@ -136,10 +95,10 @@ class TrussRobot:
         self.Ldot_hist.append(Ldot.copy())
         self.thetad_hist.append(self.L2th @ Ldot)
 
-        self.L_hist.append(calc_edge_lengths(self.positions, self.edges_nodes))
+        self.L_hist.append(calc_edge_lengths(self.positions, self.config.triangles))
         self.theta_hist.append(self.theta_hist[-1] + dt*self.thetad_hist[-1])
 
-        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
+        self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
 
     def _cl_update_positions_and_rigidity(
         self,
@@ -167,8 +126,8 @@ class TrussRobot:
         real_xd = self._convert_Ldot_to_xd(real_Ldot)
         real_xd = real_xd.reshape((-1, self.dim), order="F")
         self.positions = self.positions + real_xd*dt
-        real_L = calc_edge_lengths(self.positions, self.edges_nodes)
-        self.rigidity = calc_rigidity_matrix(self.positions, self.edges_nodes)
+        real_L = calc_edge_lengths(self.positions, self.config.triangles)
+        self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
         self._cl_update_positions_and_rigidity(t, self.positions, real_xd, real_Ldot, real_thetads, real_L, real_thetas)
 
     def convert_xd_to_thetad(self, xd: Matrix) -> Matrix:
@@ -184,9 +143,9 @@ class TrussRobot:
 
         return xd
 
-    def _calc_support_indices(self) -> list[np.int64]:
-        support_indices: list[np.int64] = []
-        for i, support in enumerate(self.supports):
+    def _calc_support_indices(self) -> list[int]:
+        support_indices: list[int] = []
+        for i, support in enumerate(self.config.supports):
             for d in range(i, self.dim):
                 support_indices.append(support + d*self.num_nodes)
         support_indices.sort()
@@ -220,14 +179,14 @@ class RobotPlotter(ABC, Generic[_AxesT]):
             self._scatter._offsets3d = (x, y, z)
 
         # Update lines
-        for (p1, p2), line in zip(self.robot.edges_nodes, self._lines):
+        for (p1, p2), line in zip(edges(self.robot.config.triangles), self._lines):
             line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
             if self.robot.dim == 3:
                 line.set_3d_properties([z[p1], z[p2]])
 
         # Update fills
         if self.robot.dim == 2:
-            for (p1, p2, p3), fill in zip(self.robot.triangle_nodes, self._fills):
+            for (p1, p2, p3), fill in zip(self.robot.config.triangles, self._fills):
                 fill.set_xy(np.array([[x[p1], y[p1]], [x[p2], y[p2]], [x[p3], y[p3]]]))
 
         # Update labels
@@ -285,11 +244,11 @@ class RobotPlotter2D(RobotPlotter[Axes]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.robot.edges_nodes):
+        for idx, (p1, p2) in enumerate(edges(self.robot.config.triangles)):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], triangle_colors[idx // 3], lw=3)
             self._lines.append(line)
 
-        for idx, (p1, p2, p3) in enumerate(self.robot.triangle_nodes):
+        for idx, (p1, p2, p3) in enumerate(self.robot.config.triangles):
             self._fills.append(ax.fill([x[p1], x[p2], x[p3]], [y[p1], y[p2], y[p3]], triangle_colors[idx], alpha=0.2)[0])
 
         for i, (xi, yi) in enumerate(zip(x, y)):
@@ -382,7 +341,7 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.robot.edges_nodes):
+        for idx, (p1, p2) in enumerate(edges(self.robot.config.triangles)):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], triangle_colors[idx // 3], lw=6)
             self._lines.append(line)
 
