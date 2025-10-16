@@ -1,8 +1,10 @@
 # viz.py
 import numpy as np
-import matplotlib.pyplot as plt
 from linalg import Vector
-from truss_robot import TrussRobot, RobotPlotter2D, RobotPlotter3D
+
+import matplotlib.pyplot as plt
+
+from truss_robot import RobotPlotter2D, RobotPlotter3D, TrussRobot
 
 
 class MotionViz:

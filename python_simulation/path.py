@@ -1,5 +1,6 @@
 import numpy as np
-from linalg import Matrix, rotx, roty, rotz, rot2D, clean_matrix
+
+from linalg import Matrix, clean_matrix, rot2D, rotx, roty, rotz
 
 
 def make_path(

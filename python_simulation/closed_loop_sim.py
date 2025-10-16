@@ -1,8 +1,8 @@
 import numpy as np
 
 import path, truss_config
+from motion import MotionConstraintsGenerator, MotionPlanner
 from truss_robot import TrussRobot
-from motion import MotionPlanner, MotionConstraintsGenerator
 from viz import MotionViz, plot_theta_thetad
 
 ol_config_3d = truss_config.CONFIG_3D_1

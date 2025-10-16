@@ -1,13 +1,11 @@
-from truss_robot import TrussRobot
 import numpy as np
-from scipy.optimize import minimize
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 from collections.abc import Callable
 from dataclasses import dataclass
-from linalg import Vector, Matrix, unit_vector
 
+from scipy.optimize import minimize
+
+from linalg import Matrix, Vector, unit_vector
+from truss_robot import TrussRobot
 from viz import MotionViz
 
 
