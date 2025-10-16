@@ -1,6 +1,6 @@
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Any, Generic, SupportsIndex, TypeVar
+from typing import Any, Generic, TypeVar
 
 import matplotlib.pyplot as plt
 from scipy.linalg import block_diag
@@ -11,7 +11,7 @@ from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
-from linalg import Matrix, Vector, rot2D, rotx, roty, rotz
+from linalg import Matrix, Vector
 from truss_config import TrussConfig, Triangles, edges
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
