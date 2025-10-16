@@ -8,7 +8,7 @@ from linalg import Matrix
 Triangles: TypeAlias = Sequence[tuple[int, int, int]]
 
 
-@dataclass(kw_only=True)
+@dataclass(slots=True, kw_only=True, frozen=True)
 class TrussConfig:
     supports: Sequence[int]
     move_node: int
