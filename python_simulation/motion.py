@@ -4,6 +4,7 @@ from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from collections.abc import Callable
 from dataclasses import dataclass
 from linalg import Vector, Matrix, unit_vector
 
@@ -45,9 +46,9 @@ class MotionConstraintsGenerator:
         self.A_broken = thetadot[[node - 1 for node in self.broken_rollers], :]
         self.b_broken = np.zeros((len(self.broken_rollers), 1))
 
-    def update_constraint_matrices(self, dir: Vector | Matrix) -> None:
+    def update_constraint_matrices(self, *, move_velocity: Vector | Matrix) -> None:
         self.A_loopcon = self.robot.triangle_loops @ self.robot.rigidity
-        self.b_move = unit_vector(dir.reshape(self.b_move.shape))
+        self.b_move = move_velocity.reshape(self.b_move.shape)
         thetadot = self.robot.L2th @ self.robot.rigidity
         self.A_broken = thetadot[[node - 1 for node in self.broken_rollers], :]
         self.b_broken = np.zeros((self.A_broken.shape[0], 1))
@@ -66,8 +67,8 @@ class MotionPlanner:
     robot: TrussRobot
     dt: float = 0.01
     curr_goal_idx: int = 0
-    goal_direction: Vector | None = None
     obj_str: str = 'Ldot'
+    ctrl_func: Callable[[Vector], Vector] = unit_vector
     motion_viz: MotionViz | None = None
     motion_constraints_generator: MotionConstraintsGenerator
 
@@ -100,11 +101,16 @@ class MotionPlanner:
         xd_opt = result.x.reshape(f.shape)
         return xd_opt, self.robot.rigidity @ xd_opt
 
-    def _calc_goal_direction(self) -> Vector:
-        curr_goal = self.robot.path[self.curr_goal_idx]
-        move_node_position = self.robot.move_node_pos
-        goal_direction = curr_goal - move_node_position
-        return goal_direction
+    def _get_error(self) -> Vector:
+        target = self.robot.path[self.curr_goal_idx]
+        position = self.robot.move_node_pos
+        return target - position
+
+    def _refresh_constraints(self) -> None:
+        error = self._get_error()
+        self.motion_constraints_generator.update_constraint_matrices(
+            move_velocity=self.ctrl_func(error),
+        )
 
     def _ol_step_in_direction(self, t: float) -> None:
         xd_opt, Ldot = self._step_in_direction()
@@ -120,8 +126,7 @@ class MotionPlanner:
 
     def _step_in_direction(self) -> tuple[Matrix, Matrix]:
         xd_opt, Ldot = self._get_opt_motion()
-        self.goal_direction = self._calc_goal_direction()
-        self.motion_constraints_generator.update_constraint_matrices(self.goal_direction)
+        self._refresh_constraints()
         return xd_opt, Ldot
 
     def _print_debug_info(self) -> None:
@@ -129,9 +134,8 @@ class MotionPlanner:
         print(f"Current Goal Position: {self.robot.path[self.curr_goal_idx]}")
         move_node_position = self.robot.move_node_pos
         print(f"Move Node Position: {move_node_position}")
-        print(f"Goal Direction: {self.goal_direction}")
-        if self.goal_direction is not None:
-            print(f"Goal Direction Norm: {np.linalg.norm(self.goal_direction)}")
+        print(f"Goal Direction: {self._get_error()}")
+        print(f"Goal Direction Norm: {np.linalg.norm(self._get_error())}")
         b_move = self.motion_constraints_generator.get_b_move()
         print(f"b_move: {b_move.ravel()}")
         print(f"Theta: {self.robot.theta_hist[-1].ravel()}")
@@ -149,11 +153,10 @@ class MotionPlanner:
                 self.curr_goal_idx += 1
                 continue  # Because the first point in the path is the starting position
 
-            self.goal_direction = self._calc_goal_direction()
-            self.motion_constraints_generator.update_constraint_matrices(self.goal_direction)
+            self._refresh_constraints()
             count = 0
 
-            while np.linalg.norm(self.goal_direction) > 0.01 and count < 10000:
+            while np.linalg.norm(self._get_error()) > 0.01 and count < 10000:
                 if self.motion_viz and count % self.motion_viz.refresh_rate == 0:
                     self.motion_viz.update_motion_coords(
                         move_node_position=self.robot.move_node_pos,
@@ -175,11 +178,9 @@ class MotionPlanner:
     def move_cl(self, t: float, dt: float, thetas: Matrix, *, verbose_print_rate: int = 0) -> tuple[Matrix, TrussRobot, bool]:
         self.robot.fk_position(t, dt, thetas)
 
-        if self.goal_direction is None:
-            self.goal_direction = self._calc_goal_direction()
-            self.motion_constraints_generator.update_constraint_matrices(self.goal_direction)
+        self._refresh_constraints()
 
-        if np.linalg.norm(self.goal_direction) < 0.01:
+        if np.linalg.norm(self._get_error()) < 0.01:
             self.curr_goal_idx += 1
             if self.curr_goal_idx >= len(self.robot.path):
                 print("Already at end of path")
@@ -191,8 +192,7 @@ class MotionPlanner:
                 b_move=self.motion_constraints_generator.get_b_move(),
             )
 
-        self.goal_direction = self._calc_goal_direction()
-        self.motion_constraints_generator.update_constraint_matrices(self.goal_direction)
+        self._refresh_constraints()
 
         xd_opt, _ = self._cl_step_in_direction()
 
