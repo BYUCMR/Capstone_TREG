@@ -1,11 +1,11 @@
 import numpy as np
 from typing import TypeAlias, TypeVar
 
-Vector: TypeAlias = np.ndarray[tuple[int], np.dtype[np.float64]]
-Matrix: TypeAlias = np.ndarray[tuple[int, int], np.dtype[np.float64]]
+Vector: TypeAlias = np.ndarray[tuple[int], np.dtype[np.floating]]
+Matrix: TypeAlias = np.ndarray[tuple[int, int], np.dtype[np.floating]]
 
 _ShapeT = TypeVar('_ShapeT', bound=tuple[int, ...])
-_VectorOrMatrix: TypeAlias = np.ndarray[_ShapeT, np.dtype[np.float64]]
+_VectorOrMatrix: TypeAlias = np.ndarray[_ShapeT, np.dtype[np.floating]]
 _VectorOrMatrixT = TypeVar('_VectorOrMatrixT', Vector, Matrix)
 
 
