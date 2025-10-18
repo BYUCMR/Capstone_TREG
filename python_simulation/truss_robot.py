@@ -1,5 +1,6 @@
 import numpy as np
 from abc import ABC, abstractmethod
+from itertools import pairwise
 from typing import Any, Generic, TypeVar
 
 import matplotlib.pyplot as plt
@@ -86,8 +87,6 @@ class TrussRobot:
 
         self.state_hist = [RobotState(
             pos=positions,
-            vel=np.zeros(positions.shape),
-            omega=np.zeros((self.num_rollers, 1)),
             theta=np.zeros((self.num_rollers, 1)),
         )]
         self.t_hist = [0.]
@@ -102,7 +101,11 @@ class TrussRobot:
 
     @property
     def omega(self) -> Matrix:
-        return self.state_hist[-1].omega
+        if len(self.state_hist) < 2:
+            return np.zeros_like(self.theta)
+        d_theta = self.state_hist[-1].theta - self.state_hist[-2].theta
+        d_time = self.t_hist[-1] - self.t_hist[-2]
+        return d_theta / d_time
 
     @property
     def theta_hist(self) -> list[Matrix]:
@@ -110,7 +113,10 @@ class TrussRobot:
 
     @property
     def omega_hist(self) -> list[Matrix]:
-        return [s.omega for s in self.state_hist]
+        omegas = [np.zeros_like(self.theta)]
+        for (t1, t2), (s1, s2) in zip(pairwise(self.t_hist), pairwise(self.state_hist)):
+            omegas.append((s2.theta - s1.theta) / (t2 - t1))
+        return omegas
 
     @property
     def move_node_pos(self) -> Vector:
@@ -122,8 +128,6 @@ class TrussRobot:
         xd = xd.reshape((-1, self.dim), order="F")
         state = RobotState(
             pos=self.pos + xd*dt,
-            vel=xd,
-            omega=thetad,
             theta=self.theta + dt*thetad,
         )
         self.state_hist.append(state)
@@ -137,8 +141,6 @@ class TrussRobot:
 
         state = RobotState(
             pos=self.pos + real_xd*dt,
-            vel=real_xd,
-            omega=real_thetads,
             theta=real_thetas.copy(),
         )
         self.t_hist.append(t)
