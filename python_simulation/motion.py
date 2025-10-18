@@ -129,10 +129,10 @@ class MotionPlanner:
         print(f"Goal Direction Norm: {np.linalg.norm(self._get_error())}")
         b_move = self.motion_constraints_generator.get_b_move()
         print(f"b_move: {b_move.ravel()}")
-        print(f"Theta: {self.robot.thetas.ravel()}")
-        print(f"Theta dot: {self.robot.thetads.ravel()}")
+        print(f"Theta: {self.robot.theta.ravel()}")
+        print(f"Theta dot: {self.robot.omega.ravel()}")
         p0 = sum(calc_edge_lengths(self.robot.state_hist[0].pos, self.robot.config.triangles))
-        p1 = sum(calc_edge_lengths(self.robot.positions, self.robot.config.triangles))
+        p1 = sum(calc_edge_lengths(self.robot.pos, self.robot.config.triangles))
         print(f"Perimeter: {p1}")
         print(f"Perimeter Difference: {p1 - p0}")
         print("------------------------------------------------")
@@ -167,7 +167,7 @@ class MotionPlanner:
 
             self.curr_goal_idx += 1
 
-        return self.robot.thetad_hist, self.robot
+        return self.robot.omega_hist, self.robot
 
     def move_cl(self, t: float, dt: float, thetas: Matrix, *, verbose_print_rate: int = 0) -> tuple[Matrix, TrussRobot, bool]:
         self.robot.fk_position(t, dt, thetas)

@@ -93,15 +93,15 @@ class TrussRobot:
         self.t_hist = [0.]
 
     @property
-    def positions(self) -> Matrix:
+    def pos(self) -> Matrix:
         return self.state_hist[-1].pos
 
     @property
-    def thetas(self) -> Matrix:
+    def theta(self) -> Matrix:
         return self.state_hist[-1].theta
 
     @property
-    def thetads(self) -> Matrix:
+    def omega(self) -> Matrix:
         return self.state_hist[-1].omega
 
     @property
@@ -109,41 +109,41 @@ class TrussRobot:
         return [s.theta for s in self.state_hist]
 
     @property
-    def thetad_hist(self) -> list[Matrix]:
+    def omega_hist(self) -> list[Matrix]:
         return [s.omega for s in self.state_hist]
 
     @property
     def move_node_pos(self) -> Vector:
-        return self.positions[self.config.move_node]
+        return self.pos[self.config.move_node]
 
     def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix) -> None:
         thetad = self.L2th @ self.rigidity @ xd
         self.t_hist.append(t+dt)
         xd = xd.reshape((-1, self.dim), order="F")
         state = RobotState(
-            pos=self.positions + xd*dt,
+            pos=self.pos + xd*dt,
             vel=xd,
             omega=thetad,
-            theta=self.thetas + dt*thetad,
+            theta=self.theta + dt*thetad,
         )
         self.state_hist.append(state)
-        self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
+        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
 
     def fk_position(self, t: float, dt: float, real_thetas: Matrix) -> None:
-        real_thetads = (real_thetas - self.thetas) / dt
+        real_thetads = (real_thetas - self.theta) / dt
         real_Ldot = self.B_T@real_thetads
         real_xd = self._convert_Ldot_to_xd(real_Ldot)
         real_xd = real_xd.reshape((-1, self.dim), order="F")
 
         state = RobotState(
-            pos=self.positions + real_xd*dt,
+            pos=self.pos + real_xd*dt,
             vel=real_xd,
             omega=real_thetads,
             theta=real_thetas.copy(),
         )
         self.t_hist.append(t)
         self.state_hist.append(state)
-        self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
+        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
 
     def convert_xd_to_thetad(self, xd: Matrix) -> Matrix:
         return self.L2th @ self.rigidity @ xd
@@ -171,7 +171,7 @@ class RobotPlotter(ABC, Generic[_AxesT]):
         if self._scatter is None or not self._lines or not self._labels:
             raise RuntimeError("plot_robot must be called before update_plot")
 
-        coords_xyz = self.robot.positions.T
+        coords_xyz = self.robot.pos.T
 
         if self.robot.dim == 2:
             x, y = coords_xyz[0], coords_xyz[1]
@@ -244,7 +244,7 @@ class RobotPlotter(ABC, Generic[_AxesT]):
 
 class RobotPlotter2D(RobotPlotter[Axes]):
     def plot_robot(self, ax: Axes) -> None:
-        x, y = self.robot.positions.T
+        x, y = self.robot.pos.T
 
         # Plot the points
         self._scatter = ax.scatter(x, y, color='b', s=50, label='Points')
@@ -299,7 +299,7 @@ class RobotPlotter2D(RobotPlotter[Axes]):
         xs, ys = [], []
 
         if self.robot_plotted:
-            x, y = self.robot.positions.T
+            x, y = self.robot.pos.T
             xs.append(x)
             ys.append(y)
 
@@ -337,7 +337,7 @@ class RobotPlotter2D(RobotPlotter[Axes]):
 
 class RobotPlotter3D(RobotPlotter[Axes3D]):
     def plot_robot(self, ax: Axes3D) -> None:
-        x, y, z = self.robot.positions.T
+        x, y, z = self.robot.pos.T
 
         # Plot the points
         self._scatter = ax.scatter(x, y, z, color='b', s=50, label='Points')
@@ -404,7 +404,7 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
         xs, ys, zs = [], [], []
 
         if self.robot_plotted:
-            x, y, z = self.robot.positions.T
+            x, y, z = self.robot.pos.T
             xs.append(x)
             ys.append(y)
             zs.append(z)

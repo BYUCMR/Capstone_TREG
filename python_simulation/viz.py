@@ -59,14 +59,14 @@ class MotionViz:
         self.thetad_lines = []
 
         # number of theta values
-        n_thetas = int(self.robot.thetas.size)
+        n_thetas = int(self.robot.theta.size)
         # initialize time and histories with initial theta
         t0 = float(self._get_robot_time())
         self.theta_times.append(t0)
-        initial_theta = self.robot.thetas.ravel()
+        initial_theta = self.robot.theta.ravel()
         # try to get initial thetads; fall back to zeros
         try:
-            initial_thetads = self.robot.thetads.ravel()
+            initial_thetads = self.robot.omega.ravel()
         except Exception:
             initial_thetads = np.zeros_like(initial_theta)
 
@@ -160,14 +160,14 @@ class MotionViz:
     def _append_theta_data(self) -> None:
         # Append latest time and theta values
         t = float(self._get_robot_time(default=(self.theta_times[-1] if len(self.theta_times) else 0.0)))
-        thetas = self.robot.thetas.ravel()
+        thetas = self.robot.theta.ravel()
         self.theta_times.append(t)
         for i, val in enumerate(thetas):
             self.theta_histories[i].append(float(val))
 
         # also append theta dot (thetad) values if available
         try:
-            thetads = self.robot.thetads.ravel()
+            thetads = self.robot.omega.ravel()
         except Exception:
             thetads = [0.0] * len(thetas)
 
@@ -323,7 +323,7 @@ def plot_theta_thetad(robot: TrussRobot, save_fig: bool = False, filename: str =
     fig, (ax_theta, ax_thetad) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 
     theta_hist = np.array(robot.theta_hist)
-    thetad_hist = np.array(robot.thetad_hist)
+    thetad_hist = np.array(robot.omega_hist)
 
     # Plot each joint's theta
     for i in range(theta_hist.shape[1]):
