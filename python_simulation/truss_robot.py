@@ -12,6 +12,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 from linalg import Matrix, Vector
+from state import RobotState
 from truss_config import TrussConfig, Triangles, edges
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
@@ -69,77 +70,80 @@ class TrussRobot:
 
         """
         self.config = config
-        self.positions = config.initial_pos.copy()
+        positions = config.initial_pos.copy()
 
-        self.num_nodes, self.dim = self.positions.shape
+        self.num_nodes, self.dim = positions.shape
         self.num_triangles = len(self.config.triangles)
 
         self.B_T = calc_thetas_to_lengths(self.config)
         self.num_rollers = self.B_T.shape[1]
 
         self.L2th = np.linalg.pinv(self.B_T)
-        self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
+        self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
 
         self.triangle_loops = block_diag(*[np.ones((1,3))]*self.num_triangles)
         self.support_indices = get_support_indices(self.config)
 
-        self.pos_hist = [self.positions.copy()]
-        self.xd_hist = [np.zeros(self.positions.shape)]
-        self.Ldot_hist = [np.zeros((3*self.num_triangles, 1))]
-        self.L_hist = [calc_edge_lengths(self.positions, self.config.triangles)]
-        self.thetad_hist = [np.zeros((self.L2th.shape[0], 1))]
-        self.theta_hist = [np.zeros((self.L2th.shape[0], 1))]
+        self.state_hist = [RobotState(
+            pos=positions,
+            vel=np.zeros(positions.shape),
+            omega=np.zeros((self.num_rollers, 1)),
+            theta=np.zeros((self.num_rollers, 1)),
+        )]
         self.t_hist = [0.]
+
+    @property
+    def positions(self) -> Matrix:
+        return self.state_hist[-1].pos
+
+    @property
+    def thetas(self) -> Matrix:
+        return self.state_hist[-1].theta
+
+    @property
+    def thetads(self) -> Matrix:
+        return self.state_hist[-1].omega
+
+    @property
+    def theta_hist(self) -> list[Matrix]:
+        return [s.theta for s in self.state_hist]
+
+    @property
+    def thetad_hist(self) -> list[Matrix]:
+        return [s.omega for s in self.state_hist]
 
     @property
     def move_node_pos(self) -> Vector:
         return self.positions[self.config.move_node]
 
     def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix) -> None:
-        Ldot = self.rigidity @ xd
+        thetad = self.L2th @ self.rigidity @ xd
         self.t_hist.append(t+dt)
         xd = xd.reshape((-1, self.dim), order="F")
-        self.positions += xd*dt
-
-        self.pos_hist.append(self.positions.copy())
-        self.xd_hist.append(xd.copy())
-        self.Ldot_hist.append(Ldot.copy())
-        self.thetad_hist.append(self.L2th @ Ldot)
-
-        self.L_hist.append(calc_edge_lengths(self.positions, self.config.triangles))
-        self.theta_hist.append(self.theta_hist[-1] + dt*self.thetad_hist[-1])
-
+        state = RobotState(
+            pos=self.positions + xd*dt,
+            vel=xd,
+            omega=thetad,
+            theta=self.thetas + dt*thetad,
+        )
+        self.state_hist.append(state)
         self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
 
-    def _cl_update_positions_and_rigidity(
-        self,
-        t: float,
-        positions: Matrix,
-        xd: Matrix,
-        Ldot: Matrix,
-        thetad: Matrix,
-        L: Matrix,
-        theta: Matrix,
-    ) -> None:
-        self.t_hist.append(t)
-
-        self.pos_hist.append(positions.copy())
-        self.xd_hist.append(xd.copy())
-        self.Ldot_hist.append(Ldot.copy())
-        self.thetad_hist.append(thetad.copy())
-
-        self.L_hist.append(L.copy())
-        self.theta_hist.append(theta.copy())
-
     def fk_position(self, t: float, dt: float, real_thetas: Matrix) -> None:
-        real_thetads = (real_thetas - self.theta_hist[-1]) / dt
+        real_thetads = (real_thetas - self.thetas) / dt
         real_Ldot = self.B_T@real_thetads
         real_xd = self._convert_Ldot_to_xd(real_Ldot)
         real_xd = real_xd.reshape((-1, self.dim), order="F")
-        self.positions = self.positions + real_xd*dt
-        real_L = calc_edge_lengths(self.positions, self.config.triangles)
+
+        state = RobotState(
+            pos=self.positions + real_xd*dt,
+            vel=real_xd,
+            omega=real_thetads,
+            theta=real_thetas.copy(),
+        )
+        self.t_hist.append(t)
+        self.state_hist.append(state)
         self.rigidity = calc_rigidity_matrix(self.positions, self.config.triangles)
-        self._cl_update_positions_and_rigidity(t, self.positions, real_xd, real_Ldot, real_thetads, real_L, real_thetas)
 
     def convert_xd_to_thetad(self, xd: Matrix) -> Matrix:
         return self.L2th @ self.rigidity @ xd

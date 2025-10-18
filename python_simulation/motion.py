@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from scipy.optimize import minimize
 
 from linalg import Matrix, Vector, unit_vector
-from truss_robot import TrussRobot
+from truss_robot import TrussRobot, calc_edge_lengths
 from viz import MotionViz
 
 
@@ -129,10 +129,12 @@ class MotionPlanner:
         print(f"Goal Direction Norm: {np.linalg.norm(self._get_error())}")
         b_move = self.motion_constraints_generator.get_b_move()
         print(f"b_move: {b_move.ravel()}")
-        print(f"Theta: {self.robot.theta_hist[-1].ravel()}")
-        print(f"Theta dot: {self.robot.thetad_hist[-1].ravel()}")
-        print(f"Perimeter: {sum(self.robot.L_hist[-1])}")
-        print(f"Perimeter Difference: {sum(self.robot.L_hist[-1]) - sum(self.robot.L_hist[0])}")
+        print(f"Theta: {self.robot.thetas.ravel()}")
+        print(f"Theta dot: {self.robot.thetads.ravel()}")
+        p0 = sum(calc_edge_lengths(self.robot.state_hist[0].pos, self.robot.config.triangles))
+        p1 = sum(calc_edge_lengths(self.robot.positions, self.robot.config.triangles))
+        print(f"Perimeter: {p1}")
+        print(f"Perimeter Difference: {p1 - p0}")
         print("------------------------------------------------")
 
     def move_ol(self, *, verbose_print_rate: int = 0) -> tuple[list[Matrix], TrussRobot]:

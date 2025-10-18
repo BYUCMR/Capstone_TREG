@@ -59,14 +59,14 @@ class MotionViz:
         self.thetad_lines = []
 
         # number of theta values
-        n_thetas = int(self.robot.theta_hist[-1].size)
+        n_thetas = int(self.robot.thetas.size)
         # initialize time and histories with initial theta
         t0 = float(self._get_robot_time())
         self.theta_times.append(t0)
-        initial_theta = self.robot.theta_hist[-1].ravel()
+        initial_theta = self.robot.thetas.ravel()
         # try to get initial thetads; fall back to zeros
         try:
-            initial_thetads = self.robot.thetad_hist[-1].ravel()
+            initial_thetads = self.robot.thetads.ravel()
         except Exception:
             initial_thetads = np.zeros_like(initial_theta)
 
@@ -160,14 +160,14 @@ class MotionViz:
     def _append_theta_data(self) -> None:
         # Append latest time and theta values
         t = float(self._get_robot_time(default=(self.theta_times[-1] if len(self.theta_times) else 0.0)))
-        thetas = self.robot.theta_hist[-1].ravel()
+        thetas = self.robot.thetas.ravel()
         self.theta_times.append(t)
         for i, val in enumerate(thetas):
             self.theta_histories[i].append(float(val))
 
         # also append theta dot (thetad) values if available
         try:
-            thetads = self.robot.thetad_hist[-1].ravel()
+            thetads = self.robot.thetads.ravel()
         except Exception:
             thetads = [0.0] * len(thetas)
 
