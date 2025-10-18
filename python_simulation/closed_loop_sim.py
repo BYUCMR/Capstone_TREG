@@ -19,7 +19,7 @@ ol_planner = MotionPlanner(
     motion_constraints_generator=MotionConstraintsGenerator(ol_robot),
 )
 
-thetads, ol_robot = ol_planner.move_ol()
+ol_planner.move_ol()
 
 t_hist = ol_robot.t_hist
 theta_hist = ol_robot.theta_hist
@@ -42,6 +42,6 @@ for i, (t, theta) in enumerate(zip(t_hist, theta_hist)):
     if i==0:
         continue  # Skip the first entry since it's the initial condition
     theta = theta + np.random.normal(0, 0.01, size=theta.shape)  # Add small noise to simulate measurement error
-    thetad, cl_robot, finished = cl_planner.move_cl(t=t, dt=0.01, thetas=theta, verbose_print_rate=10)
+    finished = cl_planner.move_cl(theta, t, verbose_print_rate=10)
     if finished:
         break

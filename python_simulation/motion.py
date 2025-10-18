@@ -137,17 +137,12 @@ class MotionPlanner:
         print(f"Perimeter Difference: {p1 - p0}")
         print("------------------------------------------------")
 
-    def move_ol(self, *, verbose_print_rate: int = 0) -> tuple[list[Matrix], TrussRobot]:
+    def move_ol(self, *, verbose_print_rate: int = 0) -> None:
         '''Open loop motion of the robot along its path'''
-        t = 0
-
-        for _ in range(len(self.path)):
+        for count in range(len(self.path)):
             if self.curr_goal_idx == 0:
                 self.curr_goal_idx += 1
                 continue  # Because the first point in the path is the starting position
-
-            self._refresh_constraints()
-            count = 0
 
             while np.linalg.norm(self._get_error()) > 0.01 and count < 10000:
                 if self.motion_viz and count % self.motion_viz.refresh_rate == 0:
@@ -157,28 +152,22 @@ class MotionPlanner:
                     )
 
                 xd_opt = self._step_in_direction()
-                self.robot.ol_update_and_store_positions_and_rigidity(t, self.dt, xd_opt)
+                self.robot.update_state_from_vel(xd_opt, self.dt)
 
                 if verbose_print_rate and count % verbose_print_rate == 0:
                     self._print_debug_info()
 
-                t += self.dt
-                count += 1
-
             self.curr_goal_idx += 1
 
-        return self.robot.omega_hist, self.robot
-
-    def move_cl(self, t: float, dt: float, thetas: Matrix, *, verbose_print_rate: int = 0) -> tuple[Matrix, TrussRobot, bool]:
-        self.robot.fk_position(t, dt, thetas)
-
+    def move_cl(self, thetas: Matrix, t: float, *, verbose_print_rate: int = 0) -> bool:
+        self.robot.update_state_from_theta(thetas, t)
         self._refresh_constraints()
 
         if np.linalg.norm(self._get_error()) < 0.01:
             self.curr_goal_idx += 1
             if self.curr_goal_idx >= len(self.path):
                 print("Already at end of path")
-                return np.zeros((1, self.robot.num_rollers)), self.robot, True
+                return True
 
         if self.motion_viz and self.count % self.motion_viz.refresh_rate == 0:
             self.motion_viz.update_motion_coords(
@@ -186,17 +175,11 @@ class MotionPlanner:
                 b_move=self.motion_constraints_generator.get_b_move(),
             )
 
-        self._refresh_constraints()
-
-        xd_opt = self._step_in_direction()
-
-        thetad_opt = self.robot.convert_xd_to_thetad(xd_opt)
-
         self.count += 1
         if verbose_print_rate and self.count % verbose_print_rate == 0:
             self._print_debug_info()
 
-        return thetad_opt, self.robot, False
+        return False
 
 
 if __name__ == "__main__":
@@ -215,4 +198,4 @@ if __name__ == "__main__":
         motion_constraints_generator=MotionConstraintsGenerator(ol_robot),
     )
 
-    thetads, ol_robot = ol_planner.move_ol()
+    ol_planner.move_ol()

@@ -122,43 +122,43 @@ class TrussRobot:
     def move_node_pos(self) -> Vector:
         return self.pos[self.config.move_node]
 
-    def ol_update_and_store_positions_and_rigidity(self, t: float, dt: float, xd: Matrix) -> None:
-        thetad = self.L2th @ self.rigidity @ xd
-        self.t_hist.append(t+dt)
-        xd = xd.reshape((-1, self.dim), order="F")
-        state = RobotState(
-            pos=self.pos + xd*dt,
-            theta=self.theta + dt*thetad,
+    def next_state_from_pos(self, d_pos: Matrix) -> RobotState:
+        d_theta = self.L2th @ self.rigidity @ d_pos
+        d_pos = d_pos.reshape(self.pos.shape, order='F')
+        return RobotState(
+            pos=self.pos + d_pos,
+            theta=self.theta + d_theta,
         )
-        self.state_hist.append(state)
-        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
 
-    def fk_position(self, t: float, dt: float, real_thetas: Matrix) -> None:
-        real_thetads = (real_thetas - self.theta) / dt
-        real_Ldot = self.B_T@real_thetads
-        real_xd = self._convert_Ldot_to_xd(real_Ldot)
-        real_xd = real_xd.reshape((-1, self.dim), order="F")
+    def next_state_from_theta(self, d_theta: Matrix) -> RobotState:
+        not_supports = [i for i in range(self.num_nodes*self.dim) if i not in self.support_indices]
 
-        state = RobotState(
-            pos=self.pos + real_xd*dt,
-            theta=real_thetas.copy(),
+        R_reduced = self.rigidity[:, not_supports]
+        R_inv = np.linalg.inv(R_reduced)
+        d_pos_reduced = R_inv @ self.B_T @ d_theta
+
+        d_pos = np.zeros((self.num_nodes*self.dim, 1))
+        d_pos[not_supports] = d_pos_reduced
+        d_pos = d_pos.reshape(self.pos.shape, order='F')
+
+        return RobotState(
+            pos=self.pos + d_pos,
+            theta=self.theta + d_theta,
         )
+
+    def update_state(self, state: RobotState, t: float) -> None:
         self.t_hist.append(t)
         self.state_hist.append(state)
         self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
 
-    def convert_xd_to_thetad(self, xd: Matrix) -> Matrix:
-        return self.L2th @ self.rigidity @ xd
+    def update_state_from_vel(self, vel: Matrix, dt: float) -> None:
+        state = self.next_state_from_pos(vel*dt)
+        t = self.t_hist[-1] + dt
+        self.update_state(state, t)
 
-    def _convert_Ldot_to_xd(self, Ldot: Matrix) -> Matrix:
-        xd = np.zeros((self.num_nodes*self.dim, 1))
-        rigidity_reduced = np.delete(self.rigidity, self.support_indices, axis=1)
-        xd_reduced = np.linalg.inv(rigidity_reduced) @ Ldot
-
-        value_position = [i for i in range(len(xd)) if i not in self.support_indices]
-        xd[value_position, 0] = xd_reduced[:, 0]
-
-        return xd
+    def update_state_from_theta(self, theta: Matrix, t: float) -> None:
+        state = self.next_state_from_theta(theta - self.theta)
+        self.update_state(state, t)
 
 
 class RobotPlotter(ABC, Generic[_AxesT]):
