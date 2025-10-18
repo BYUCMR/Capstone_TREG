@@ -4,7 +4,6 @@ from itertools import pairwise
 from typing import Any, Generic, TypeVar
 
 import matplotlib.pyplot as plt
-from scipy.linalg import block_diag
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
@@ -12,7 +11,7 @@ from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
-from linalg import Matrix, Vector
+from linalg import Matrix, Vector, unit_vector
 from state import RobotState
 from truss_config import TrussConfig, Triangles, edges
 
@@ -21,30 +20,25 @@ _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
 def calc_rigidity_matrix(positions: Matrix, triangles: Triangles) -> Matrix:
     num_nodes, dim = positions.shape
+    j = num_nodes * np.arange(dim)
     R = np.zeros((3*len(triangles), num_nodes*dim))
     for i, (e1, e2) in enumerate(edges(triangles)):
-        x1 = positions[e1]
-        x2 = positions[e2]
-        dist = np.linalg.norm(x1 - x2)
-        for j in range(dim):
-            rel_dist_j = (x1[j] - x2[j]) / dist
-            R[i, e1 + j*num_nodes] = rel_dist_j
-            R[i, e2 + j*num_nodes] = -rel_dist_j
+        u = unit_vector(positions[e1] - positions[e2])
+        R[i, e1 + j] = u
+        R[i, e2 + j] = -u
     return R
 
 
 def calc_edge_lengths(positions: Matrix, triangles: Triangles) -> Matrix:
-    lengths = np.zeros((3*len(triangles), 1))
-    for i, (p1, p2) in enumerate(edges(triangles)):
-        length = np.linalg.norm(positions[p1] - positions[p2])
-        lengths[i, 0] = length
-    return lengths
+    return np.array([[
+        np.linalg.norm(positions[i] - positions[j]) for i, j in edges(triangles)
+    ]])
 
 
-def calc_thetas_to_lengths(config: TrussConfig) -> Matrix:
-    triangle_incident_mat = np.array([[1, -1, 0], [0, 1, -1], [-1, 0, 1]])
-    B = block_diag(*[triangle_incident_mat]*len(config.triangles))
-    return np.delete(B, range(0, 3*len(config.triangles), 3), axis=1)
+def calc_thetas_to_lengths(num_triangles: int) -> Matrix:
+    return np.kron(
+        np.eye(num_triangles), np.array([[-1, 0], [1, -1], [0, 1]])
+    )
 
 
 def get_support_indices(config: TrussConfig) -> list[int]:
@@ -76,13 +70,13 @@ class TrussRobot:
         self.num_nodes, self.dim = positions.shape
         self.num_triangles = len(self.config.triangles)
 
-        self.B_T = calc_thetas_to_lengths(self.config)
+        self.B_T = calc_thetas_to_lengths(self.num_triangles)
         self.num_rollers = self.B_T.shape[1]
 
         self.L2th = np.linalg.pinv(self.B_T)
         self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
 
-        self.triangle_loops = block_diag(*[np.ones((1,3))]*self.num_triangles)
+        self.triangle_loops = np.kron(np.eye(self.num_triangles), np.ones((1, 3)))
         self.support_indices = get_support_indices(self.config)
 
         self.state_hist = [RobotState(
