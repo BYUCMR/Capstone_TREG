@@ -1,16 +1,16 @@
 import numpy as np
-from collections.abc import Generator, Sequence
+from collections.abc import Generator, Collection
 from dataclasses import dataclass
 from typing import Final, TypeAlias
 
 from linalg import Matrix
 
-Triangles: TypeAlias = Sequence[tuple[int, int, int]]
+Triangles: TypeAlias = Collection[tuple[int, int, int]]
 
 
 @dataclass(slots=True, kw_only=True, frozen=True)
 class TrussConfig:
-    supports: Sequence[int]
+    supports: Collection[int]
     move_node: int
     triangles: Triangles
     initial_pos: Matrix
