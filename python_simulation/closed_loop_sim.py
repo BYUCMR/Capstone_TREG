@@ -1,7 +1,7 @@
 import numpy as np
 
 import path, truss_config
-from motion import MotionConstraintsGenerator, MotionPlanner
+from motion import MotionPlanner
 from truss_robot import TrussRobot
 from viz import MotionViz, plot_theta_thetad
 
@@ -16,7 +16,6 @@ ol_robot = TrussRobot(ol_config_3d)
 ol_planner = MotionPlanner(
     robot=ol_robot,
     path=ol_robot.move_node_pos + ol_path_3d,
-    motion_constraints_generator=MotionConstraintsGenerator(ol_robot),
 )
 
 ol_planner.move_ol()
@@ -35,7 +34,6 @@ cl_planner = MotionPlanner(
     robot=cl_robot,
     path=cl_robot.move_node_pos + cl_path_3d,
     motion_viz=MotionViz(cl_robot),
-    motion_constraints_generator=MotionConstraintsGenerator(cl_robot),
 )
 
 for i, (t, theta) in enumerate(zip(t_hist, theta_hist)):

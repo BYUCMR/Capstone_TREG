@@ -76,7 +76,6 @@ class TrussRobot:
         self.L2th = np.linalg.pinv(self.B_T)
         self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
 
-        self.triangle_loops = np.kron(np.eye(self.num_triangles), np.ones((1, 3)))
         self.support_indices = get_support_indices(self.config)
 
         self.state_hist = [RobotState(
