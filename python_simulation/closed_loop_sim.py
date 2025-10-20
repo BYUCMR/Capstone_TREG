@@ -22,7 +22,7 @@ ol_planner = MotionPlanner(
 ol_planner.move_ol()
 
 t_hist = ol_robot.t_hist
-theta_hist = ol_robot.theta_hist
+theta_hist = ol_robot.roll_hist
 
 plot_theta_thetad(ol_robot, save_fig=False, filename="theta_thetad_plot.png")
 

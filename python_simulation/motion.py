@@ -40,15 +40,15 @@ class MotionConstraintsGenerator:
         self.A_loopcon = self.robot.triangle_loops @ self.robot.rigidity
         self.b_loopcon = np.zeros((len(self.A_loopcon), 1))
 
-        thetadot = self.robot.L2th @ self.robot.rigidity
-        self.A_broken = thetadot[[node - 1 for node in self.broken_rollers], :]
+        rollrate = self.robot.L2th @ self.robot.rigidity
+        self.A_broken = rollrate[[node - 1 for node in self.broken_rollers], :]
         self.b_broken = np.zeros((len(self.broken_rollers), 1))
 
     def update_constraint_matrices(self, *, move_velocity: Vector | Matrix) -> None:
         self.A_loopcon = self.robot.triangle_loops @ self.robot.rigidity
         self.b_move = move_velocity.reshape(self.b_move.shape)
-        thetadot = self.robot.L2th @ self.robot.rigidity
-        self.A_broken = thetadot[[node - 1 for node in self.broken_rollers], :]
+        rollrate = self.robot.L2th @ self.robot.rigidity
+        self.A_broken = rollrate[[node - 1 for node in self.broken_rollers], :]
         self.b_broken = np.zeros((self.A_broken.shape[0], 1))
 
     def get_constraint_matrices(self) -> tuple[Matrix, Matrix]:
@@ -129,8 +129,8 @@ class MotionPlanner:
         print(f"Goal Direction Norm: {np.linalg.norm(self._get_error())}")
         b_move = self.motion_constraints_generator.get_b_move()
         print(f"b_move: {b_move.ravel()}")
-        print(f"Theta: {self.robot.theta.ravel()}")
-        print(f"Theta dot: {self.robot.omega.ravel()}")
+        print(f"Roll dist: {self.robot.roll.ravel()}")
+        print(f"Roll rate: {self.robot.rollrate.ravel()}")
         p0 = sum(calc_edge_lengths(self.robot.state_hist[0].pos, self.robot.config.triangles))
         p1 = sum(calc_edge_lengths(self.robot.pos, self.robot.config.triangles))
         print(f"Perimeter: {p1}")
@@ -160,7 +160,7 @@ class MotionPlanner:
             self.curr_goal_idx += 1
 
     def move_cl(self, thetas: Matrix, t: float, *, verbose_print_rate: int = 0) -> bool:
-        self.robot.update_state_from_theta(thetas, t)
+        self.robot.update_state_from_roll(thetas, t)
         self._refresh_constraints()
 
         if np.linalg.norm(self._get_error()) < 0.01:

@@ -35,7 +35,7 @@ def calc_edge_lengths(positions: Matrix, triangles: Triangles) -> Matrix:
     ]])
 
 
-def calc_thetas_to_lengths(num_triangles: int) -> Matrix:
+def calc_roll_to_length(num_triangles: int) -> Matrix:
     return np.kron(
         np.eye(num_triangles), np.array([[-1, 0], [1, -1], [0, 1]])
     )
@@ -70,7 +70,7 @@ class TrussRobot:
         self.num_nodes, self.dim = positions.shape
         self.num_triangles = len(self.config.triangles)
 
-        self.B_T = calc_thetas_to_lengths(self.num_triangles)
+        self.B_T = calc_roll_to_length(self.num_triangles)
         self.num_rollers = self.B_T.shape[1]
 
         self.L2th = np.linalg.pinv(self.B_T)
@@ -81,7 +81,7 @@ class TrussRobot:
 
         self.state_hist = [RobotState(
             pos=positions,
-            theta=np.zeros((self.num_rollers, 1)),
+            roll=np.zeros((self.num_rollers, 1)),
         )]
         self.t_hist = [0.]
 
@@ -90,46 +90,46 @@ class TrussRobot:
         return self.state_hist[-1].pos
 
     @property
-    def theta(self) -> Matrix:
-        return self.state_hist[-1].theta
+    def roll(self) -> Matrix:
+        return self.state_hist[-1].roll
 
     @property
-    def omega(self) -> Matrix:
+    def rollrate(self) -> Matrix:
         if len(self.state_hist) < 2:
-            return np.zeros_like(self.theta)
-        d_theta = self.state_hist[-1].theta - self.state_hist[-2].theta
+            return np.zeros_like(self.roll)
+        d_roll = self.state_hist[-1].roll - self.state_hist[-2].roll
         d_time = self.t_hist[-1] - self.t_hist[-2]
-        return d_theta / d_time
+        return d_roll / d_time
 
     @property
-    def theta_hist(self) -> list[Matrix]:
-        return [s.theta for s in self.state_hist]
+    def roll_hist(self) -> list[Matrix]:
+        return [s.roll for s in self.state_hist]
 
     @property
-    def omega_hist(self) -> list[Matrix]:
-        omegas = [np.zeros_like(self.theta)]
+    def rollrate_hist(self) -> list[Matrix]:
+        rollrates = [np.zeros_like(self.roll)]
         for (t1, t2), (s1, s2) in zip(pairwise(self.t_hist), pairwise(self.state_hist)):
-            omegas.append((s2.theta - s1.theta) / (t2 - t1))
-        return omegas
+            rollrates.append((s2.roll - s1.roll) / (t2 - t1))
+        return rollrates
 
     @property
     def move_node_pos(self) -> Vector:
         return self.pos[self.config.move_node]
 
     def next_state_from_pos(self, d_pos: Matrix) -> RobotState:
-        d_theta = self.L2th @ self.rigidity @ d_pos
+        d_roll = self.L2th @ self.rigidity @ d_pos
         d_pos = d_pos.reshape(self.pos.shape, order='F')
         return RobotState(
             pos=self.pos + d_pos,
-            theta=self.theta + d_theta,
+            roll=self.roll + d_roll,
         )
 
-    def next_state_from_theta(self, d_theta: Matrix) -> RobotState:
+    def next_state_from_roll(self, d_roll: Matrix) -> RobotState:
         not_supports = [i for i in range(self.num_nodes*self.dim) if i not in self.support_indices]
 
         R_reduced = self.rigidity[:, not_supports]
         R_inv = np.linalg.inv(R_reduced)
-        d_pos_reduced = R_inv @ self.B_T @ d_theta
+        d_pos_reduced = R_inv @ self.B_T @ d_roll
 
         d_pos = np.zeros((self.num_nodes*self.dim, 1))
         d_pos[not_supports] = d_pos_reduced
@@ -137,7 +137,7 @@ class TrussRobot:
 
         return RobotState(
             pos=self.pos + d_pos,
-            theta=self.theta + d_theta,
+            roll=self.roll + d_roll,
         )
 
     def update_state(self, state: RobotState, t: float) -> None:
@@ -150,8 +150,8 @@ class TrussRobot:
         t = self.t_hist[-1] + dt
         self.update_state(state, t)
 
-    def update_state_from_theta(self, theta: Matrix, t: float) -> None:
-        state = self.next_state_from_theta(theta - self.theta)
+    def update_state_from_roll(self, roll: Matrix, t: float) -> None:
+        state = self.next_state_from_roll(roll - self.roll)
         self.update_state(state, t)
 
 
