@@ -40,4 +40,4 @@ for i, (t, theta) in enumerate(zip(t_hist, theta_hist)):
     if i==0:
         continue  # Skip the first entry since it's the initial condition
     theta = theta + np.random.normal(0, 0.01, size=theta.shape)  # Add small noise to simulate measurement error
-    cl_planner.move_cl(theta, t, verbose_print_rate=10)
+    cl_planner.move_cl(theta, t)

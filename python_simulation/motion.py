@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from scipy.optimize import minimize
 
 from linalg import Matrix, Vector, unit_vector
-from truss_robot import TrussRobot, calc_edge_lengths
+from truss_robot import TrussRobot
 from viz import MotionFig
 
 
@@ -117,23 +117,7 @@ class MotionPlanner:
         self._refresh_constraints()
         return xd_opt
 
-    def _print_debug_info(self) -> None:
-        print(f"Current Goal Index: {self.curr_goal_idx}")
-        print(f"Current Goal Position: {self.path[self.curr_goal_idx]}")
-        move_node_position = self.robot.move_node_pos
-        print(f"Move Node Position: {move_node_position}")
-        print(f"Goal Direction: {self._get_error()}")
-        print(f"Goal Direction Norm: {np.linalg.norm(self._get_error())}")
-        print(f"b_move: {self.b_move.ravel()}")
-        print(f"Roll dist: {self.robot.roll.ravel()}")
-        print(f"Roll rate: {self.robot.rollrate.ravel()}")
-        p0 = sum(calc_edge_lengths(self.robot.state_hist[0].pos, self.robot.config.triangles))
-        p1 = sum(calc_edge_lengths(self.robot.pos, self.robot.config.triangles))
-        print(f"Perimeter: {p1}")
-        print(f"Perimeter Difference: {p1 - p0}")
-        print("------------------------------------------------")
-
-    def move_ol(self, *, verbose_print_rate: int = 0) -> None:
+    def move_ol(self) -> None:
         # Note that the first point in the path is the starting position.
         for i in range(1, len(self.path)):
             self.curr_goal_idx = i
@@ -142,18 +126,14 @@ class MotionPlanner:
                 if self.figure is not None:
                     self.figure.update_motion_coords(self.robot.move_node_pos, self.b_move)
                     self.figure.update_plot()
-                if verbose_print_rate and j % verbose_print_rate == 0:
-                    self._print_debug_info()
                 xd_opt = self._step_in_direction()
                 self.robot.update_state_from_vel(xd_opt, self.dt)
                 j += 1
 
-    def move_cl(self, thetas: Matrix, t: float, *, verbose_print_rate: int = 0) -> None:
+    def move_cl(self, thetas: Matrix, t: float) -> None:
         if self.figure is not None:
             self.figure.update_motion_coords(self.robot.move_node_pos, self.b_move)
             self.figure.update_plot()
-        if verbose_print_rate and self.count % verbose_print_rate == 0:
-            self._print_debug_info()
         self.robot.update_state_from_roll(thetas, t)
         self._refresh_constraints()
         self.count += 1
