@@ -12,6 +12,7 @@ Triangles: TypeAlias = Collection[tuple[int, int, int]]
 class TrussConfig:
     supports: Collection[int]
     move_node: int
+    payload: []
     triangles: Triangles
     initial_pos: Matrix
 
@@ -21,6 +22,29 @@ def edges(triangles: Triangles) -> Generator[tuple[int, int]]:
         yield (n1, n2)
         yield (n2, n3)
         yield (n3 ,n1)
+
+CONFIG_3D_ROVER1: Final = TrussConfig(
+    supports=[0, 1, 6],
+    move_node=7,
+    triangles=np.array([[0,1,2],[0,3,5],[1,4,5],[6,7,8],[6,9,11],[7,10,11]]),
+    payload = [(2,8),(3,9),(4,10),(2,9),(3,10),(4,8)],
+    initial_pos=np.array([#Side 1
+    [12.879,4.003,-10.963],# Ground (0)
+    [12.879,-13.997,-10.963],# Ground (1)
+    [7.185,-4.997,-5.433],# Payload (2)
+    [7.185,-1.533,.567],# Payload (3)
+    [7.185,-8.461,.567],# Payload (4)
+    [20.229,-4.997,-3.154],# Float (5)
+    #side 2
+    [-10.709,4.003,-10.963], #Ground (6)
+    [-10.709,-13.997,-10.963],#Ground (7)
+    [-5.015,-4.997,-5.433],#Payload (8)
+    [-5.015,-1.533,.567],#Payload (9)
+    [-5.015,-8.461,.567],#Payload (10)
+    [-18.059,-4.997,-3.154] #Float (11)
+]),
+)
+
 
 
 CONFIG_3D_1: Final = TrussConfig(
