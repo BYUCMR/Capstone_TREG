@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 
 from linalg import Matrix, Vector, unit_vector
 from truss_robot import TrussRobot, calc_edge_lengths
-from viz import MotionViz
+from viz import MotionFig
 
 
 def make_constraint_matrices(
@@ -61,13 +61,14 @@ class MotionPlanner:
     curr_goal_idx: int = 0
     obj_str: str = 'Ldot'
     ctrl_func: Callable[[Vector], Vector] = unit_vector
-    motion_viz: MotionViz | None = None
+    figure: MotionFig | None = None
     constraints: tuple[Matrix, Matrix] = field(init=False)
+    count: int = 0
 
     def __post_init__(self) -> None:
         self.constraints = make_constraint_matrices(self.robot)
-        if self.motion_viz is not None:
-            self.motion_viz.init_animation(self.path)
+        if self.figure is not None:
+            self.figure.init_animation(self.path)
 
     @property
     def b_move(self) -> Vector:
@@ -114,8 +115,6 @@ class MotionPlanner:
     def _step_in_direction(self) -> Matrix:
         xd_opt = self._get_opt_motion()
         self._refresh_constraints()
-        if self.motion_viz:
-            self.motion_viz.update_plot()
         return xd_opt
 
     def _print_debug_info(self) -> None:
@@ -135,46 +134,29 @@ class MotionPlanner:
         print("------------------------------------------------")
 
     def move_ol(self, *, verbose_print_rate: int = 0) -> None:
-        '''Open loop motion of the robot along its path'''
-        for count in range(len(self.path)):
-            if self.curr_goal_idx == 0:
-                self.curr_goal_idx += 1
-                continue  # Because the first point in the path is the starting position
-
-            while np.linalg.norm(self._get_error()) > 0.01 and count < 10000:
-                if self.motion_viz and count % self.motion_viz.refresh_rate == 0:
-                    self.motion_viz.update_motion_coords(
-                        move_node_position=self.robot.move_node_pos, b_move=self.b_move
-                    )
-
+        # Note that the first point in the path is the starting position.
+        for i in range(1, len(self.path)):
+            self.curr_goal_idx = i
+            j = 0
+            while np.linalg.norm(self._get_error()) > 0.01 and j < 10000:
+                if self.figure is not None:
+                    self.figure.update_motion_coords(self.robot.move_node_pos, self.b_move)
+                    self.figure.update_plot()
+                if verbose_print_rate and j % verbose_print_rate == 0:
+                    self._print_debug_info()
                 xd_opt = self._step_in_direction()
                 self.robot.update_state_from_vel(xd_opt, self.dt)
+                j += 1
 
-                if verbose_print_rate and count % verbose_print_rate == 0:
-                    self._print_debug_info()
-
-            self.curr_goal_idx += 1
-
-    def move_cl(self, thetas: Matrix, t: float, *, verbose_print_rate: int = 0) -> bool:
-        self.robot.update_state_from_roll(thetas, t)
-        self._refresh_constraints()
-
-        if np.linalg.norm(self._get_error()) < 0.01:
-            self.curr_goal_idx += 1
-            if self.curr_goal_idx >= len(self.path):
-                print("Already at end of path")
-                return True
-
-        if self.motion_viz and self.count % self.motion_viz.refresh_rate == 0:
-            self.motion_viz.update_motion_coords(
-                move_node_position=self.robot.move_node_pos, b_move=self.b_move
-            )
-
-        self.count += 1
+    def move_cl(self, thetas: Matrix, t: float, *, verbose_print_rate: int = 0) -> None:
+        if self.figure is not None:
+            self.figure.update_motion_coords(self.robot.move_node_pos, self.b_move)
+            self.figure.update_plot()
         if verbose_print_rate and self.count % verbose_print_rate == 0:
             self._print_debug_info()
-
-        return False
+        self.robot.update_state_from_roll(thetas, t)
+        self._refresh_constraints()
+        self.count += 1
 
 
 if __name__ == "__main__":
@@ -190,7 +172,7 @@ if __name__ == "__main__":
     ol_planner = MotionPlanner(
         robot=ol_robot,
         path=ol_robot.move_node_pos + path_3d,
-        motion_viz = MotionViz(ol_robot),
+        figure = MotionFig(ol_robot),
     )
 
     ol_planner.move_ol()
