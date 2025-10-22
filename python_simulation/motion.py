@@ -40,8 +40,16 @@ def make_constraint_matrices(
     A_broken = vel2rollrate[broken_rollers]
     b_broken = np.zeros((len(broken_rollers), 1))
 
-    Aeq = np.vstack([A_move, A_lock, A_loop, A_broken])
-    beq = np.vstack([b_move, b_lock, b_loop, b_broken])
+    A_payload = np.zeros((len(robot.config.payload),num_nodes*dim))
+    j = num_nodes * np.arange(dim)
+    for i in range(len(robot.config.payload)):
+        e = robot.config.payload[i]
+        A_payload[i,e[0]+j] = 1
+        A_payload[i, e[1] + j] = -1
+    b_payload = np.zeros((len(robot.config.payload), 1))
+
+    Aeq = np.vstack([A_move, A_lock, A_loop, A_broken,A_payload])
+    beq = np.vstack([b_move, b_lock, b_loop, b_broken, b_payload])
     return Aeq, beq
 
 
@@ -173,14 +181,15 @@ if __name__ == "__main__":
     import path, truss_config
     config_3d = truss_config.CONFIG_3D_1
     config_2d = truss_config.CONFIG_2D_1
+    rover = truss_config.CONFIG_3D_ROVER1
     path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
     path_2d = path.make_path(dimension=2)
 
-    ol_robot = TrussRobot(config_2d)
+    ol_robot = TrussRobot(rover)
 
     ol_planner = MotionPlanner(
         robot=ol_robot,
-        path=ol_robot.move_node_pos + path_2d,
+        path=ol_robot.move_node_pos + path_3d,
         motion_viz = MotionViz(ol_robot),
     )
 
