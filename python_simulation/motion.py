@@ -98,7 +98,7 @@ class MotionPlanner:
             constraints=constraints,
             options={"xtol": 1e-8, "disp": False, "maxiter": 10000},
         )
-        return result.x.reshape(f.shape)
+        return 2*result.x.reshape(f.shape)
 
     def _get_error(self) -> Vector:
         target = self.path[self.curr_goal_idx]

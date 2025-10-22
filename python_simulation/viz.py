@@ -266,7 +266,7 @@ class MotionViz:
             # don't let plotting errors interrupt simulation
             pass
 
-        plt.pause(0.0001)
+        plt.pause(0.001)
 
     def _rescale_visible_axes(self) -> None:
         """Rescale theta and thetad axes to show only visible traces.
