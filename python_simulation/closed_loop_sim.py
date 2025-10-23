@@ -1,9 +1,9 @@
 import numpy as np
 
-import path, truss_config
+import path, truss_config, viz
 from motion import MotionPlanner
 from truss_robot import TrussRobot
-from viz import MotionFig, plot_theta_thetad
+from viz import plot_theta_thetad
 
 ol_config_3d = truss_config.CONFIG_3D_1
 ol_config_2d = truss_config.CONFIG_2D_1
@@ -18,7 +18,8 @@ ol_planner = MotionPlanner(
     path=ol_robot.move_node_pos + ol_path_3d,
 )
 
-ol_planner.move_ol()
+for _ in ol_planner.move_ol():
+    pass
 
 t_hist = ol_robot.t_hist
 theta_hist = ol_robot.roll_hist
@@ -33,11 +34,15 @@ cl_robot = TrussRobot(cl_config_3d)
 cl_planner = MotionPlanner(
     robot=cl_robot,
     path=cl_robot.move_node_pos + cl_path_3d,
-    figure=MotionFig(cl_robot),
 )
 
+cl_motion = cl_planner.move_cl()
+fig = viz.make_motion_fig(cl_robot, cl_planner.path)
+next(cl_motion)
+next(fig)
 for i, (t, theta) in enumerate(zip(t_hist, theta_hist)):
     if i==0:
         continue  # Skip the first entry since it's the initial condition
     theta = theta + np.random.normal(0, 0.01, size=theta.shape)  # Add small noise to simulate measurement error
-    cl_planner.move_cl(theta, t)
+    pos, vel = cl_motion.send((theta, t))
+    fig.send((pos, vel))

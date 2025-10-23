@@ -1,12 +1,12 @@
 import numpy as np
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from dataclasses import dataclass, field
 
 from scipy.optimize import minimize
 
+import viz
 from linalg import Matrix, Vector, unit_vector
 from truss_robot import TrussRobot
-from viz import MotionFig
 
 
 def make_constraint_matrices(
@@ -61,14 +61,10 @@ class MotionPlanner:
     curr_goal_idx: int = 0
     obj_str: str = 'Ldot'
     ctrl_func: Callable[[Vector], Vector] = unit_vector
-    figure: MotionFig | None = None
     constraints: tuple[Matrix, Matrix] = field(init=False)
-    count: int = 0
 
     def __post_init__(self) -> None:
         self.constraints = make_constraint_matrices(self.robot)
-        if self.figure is not None:
-            self.figure.init_animation(self.path)
 
     @property
     def b_move(self) -> Vector:
@@ -117,26 +113,24 @@ class MotionPlanner:
         self._refresh_constraints()
         return xd_opt
 
-    def move_ol(self) -> None:
+    def move_ol(self) -> Generator[tuple[Vector, Vector]]:
         # Note that the first point in the path is the starting position.
         for i in range(1, len(self.path)):
             self.curr_goal_idx = i
             j = 0
             while np.linalg.norm(self._get_error()) > 0.01 and j < 10000:
-                if self.figure is not None:
-                    self.figure.update_motion_coords(self.robot.move_node_pos, self.b_move)
-                    self.figure.update_plot()
+                yield self.robot.move_node_pos, self.b_move
                 xd_opt = self._step_in_direction()
                 self.robot.update_state_from_vel(xd_opt, self.dt)
                 j += 1
 
-    def move_cl(self, thetas: Matrix, t: float) -> None:
-        if self.figure is not None:
-            self.figure.update_motion_coords(self.robot.move_node_pos, self.b_move)
-            self.figure.update_plot()
-        self.robot.update_state_from_roll(thetas, t)
-        self._refresh_constraints()
-        self.count += 1
+    def move_cl(self) -> Generator[tuple[Vector, Vector], tuple[Matrix, float], None]:
+        count = 0
+        while True:
+            roll, t = yield self.robot.move_node_pos, self.b_move
+            count += 1
+            self.robot.update_state_from_roll(roll, t)
+            self._refresh_constraints()
 
 
 if __name__ == "__main__":
@@ -152,7 +146,9 @@ if __name__ == "__main__":
     ol_planner = MotionPlanner(
         robot=ol_robot,
         path=ol_robot.move_node_pos + path_3d,
-        figure = MotionFig(ol_robot),
     )
 
-    ol_planner.move_ol()
+    fig = viz.make_motion_fig(ol_robot, ol_planner.path)
+    next(fig)
+    for pos, vel in ol_planner.move_ol():
+        fig.send((pos, vel))
