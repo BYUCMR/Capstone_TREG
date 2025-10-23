@@ -13,12 +13,12 @@ ol_path_2d = path.make_path(dimension=2)
 
 ol_robot = TrussRobot(ol_config_3d)
 
-ol_planner = MotionPlanner(
-    robot=ol_robot,
-    path=ol_robot.move_node_pos + ol_path_3d,
-)
+ol_planner = MotionPlanner(ol_robot)
 
-for _ in ol_planner.move_ol():
+for _ in ol_planner.move_node_along_path(
+    ol_robot.config.move_node,
+    ol_robot.move_node_pos + ol_path_3d,
+):
     pass
 
 t_hist = ol_robot.t_hist
@@ -31,18 +31,13 @@ cl_config_3d = truss_config.CONFIG_3D_1
 cl_path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
 
 cl_robot = TrussRobot(cl_config_3d)
-cl_planner = MotionPlanner(
-    robot=cl_robot,
-    path=cl_robot.move_node_pos + cl_path_3d,
-)
 
-cl_motion = cl_planner.move_cl()
-fig = viz.make_motion_fig(cl_robot, cl_planner.path)
-next(cl_motion)
+fig = viz.make_motion_fig(cl_robot, cl_robot.move_node_pos + cl_path_3d)
 next(fig)
 for i, (t, theta) in enumerate(zip(t_hist, theta_hist)):
     if i==0:
         continue  # Skip the first entry since it's the initial condition
     theta = theta + np.random.normal(0, 0.01, size=theta.shape)  # Add small noise to simulate measurement error
-    pos, vel = cl_motion.send((theta, t))
-    fig.send((pos, vel))
+    cl_robot.update_state_from_roll(theta, t)
+    vel = np.array([0.] * cl_robot.dim)
+    fig.send((cl_robot.move_node_pos, vel))

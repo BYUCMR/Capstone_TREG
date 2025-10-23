@@ -1,6 +1,6 @@
 import numpy as np
 from collections.abc import Callable, Generator
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from scipy.optimize import minimize
 
@@ -12,7 +12,8 @@ from truss_robot import TrussRobot
 def make_constraint_matrices(
     robot: TrussRobot,
     *,
-    move_velocity: Vector | Matrix | None = None,
+    move_node: int | None = None,
+    node_vel: Vector | Matrix | None = None,
     broken_rollers: list[int] | None = None,
 ) -> tuple[Matrix, Matrix]:
     dim = robot.dim
@@ -20,11 +21,13 @@ def make_constraint_matrices(
 
     A_move = np.zeros((dim, dim*num_nodes))
     i = np.arange(dim)
-    A_move[i, robot.config.move_node + i*num_nodes] = 1
-    if move_velocity is None:
+    if move_node is None:
+        move_node = robot.config.move_node
+    A_move[i, move_node + i*num_nodes] = 1
+    if node_vel is None:
         b_move = np.zeros((dim, 1))
     else:
-        b_move = move_velocity.reshape((dim, 1))
+        b_move = node_vel.reshape((dim, 1))
 
     n_lock = (dim-1) * 3
     A_lock = np.zeros((n_lock, dim*num_nodes))
@@ -53,39 +56,20 @@ def make_constraint_matrices(
     return Aeq, beq
 
 
-@dataclass(kw_only=True)
+@dataclass
 class MotionPlanner:
     robot: TrussRobot
-    path: Matrix
-    dt: float = 0.01
-    curr_goal_idx: int = 0
-    obj_str: str = 'Ldot'
-    ctrl_func: Callable[[Vector], Vector] = unit_vector
-    constraints: tuple[Matrix, Matrix] = field(init=False)
 
-    def __post_init__(self) -> None:
-        self.constraints = make_constraint_matrices(self.robot)
-
-    @property
-    def b_move(self) -> Vector:
-        return self.constraints[1][0:self.robot.dim, 0]
-
-    def _get_objective(self) -> tuple[Matrix, Matrix]:
-        if self.obj_str == "Ldot":
-            obj = self.robot.rigidity
-            H = 2 * (obj.T @ obj)
-            f = np.zeros((H.shape[0], 1))
-        else:
-            raise ValueError(f"{self.obj_str!r} is an invalid objective")
-        return H, f
-
-    def _get_opt_motion(self) -> Matrix:
-        H, f = self._get_objective()
+    def _get_opt_motion(self, node: int, node_vel: Vector) -> Matrix:
+        H = 2 * (self.robot.rigidity.T @ self.robot.rigidity)
+        f = np.zeros((len(H), 1))
         def objective(xdot):
             return (0.5 * xdot.T @ H @ xdot + f.T @ xdot).ravel()
 
-        Aeq, beq = self.constraints
-        constraints = [{"type": "eq", "fun": lambda x: (Aeq @ x.T - beq.T).ravel()}]
+        A, b = make_constraint_matrices(
+            self.robot, move_node=node, node_vel=node_vel
+        )
+        constraints = [{"type": "eq", "fun": lambda x: (A @ x.T - b.T).ravel()}]
         x0 = np.zeros_like(f).ravel()
 
         result = minimize(
@@ -97,40 +81,25 @@ class MotionPlanner:
         )
         return 2*result.x.reshape(f.shape)
 
-    def _get_error(self) -> Vector:
-        target = self.path[self.curr_goal_idx]
-        position = self.robot.move_node_pos
-        return target - position
+    def move_node_toward_pos(
+        self,
+        node: int,
+        target: Vector,
+        *,
+        dt: float = 0.01,
+        ctrl_func: Callable[[Vector], Vector] = unit_vector,
+    ) -> Generator[tuple[Vector, Vector]]:
+        error = target - self.robot.pos_of(node)
+        while np.linalg.norm(error) > 0.01:
+            node_vel = ctrl_func(error)
+            yield self.robot.pos_of(node), node_vel
+            vel = self._get_opt_motion(node, node_vel)
+            self.robot.update_state_from_vel(vel, dt)
+            error = target - self.robot.pos_of(node)
 
-    def _refresh_constraints(self) -> None:
-        error = self._get_error()
-        self.constraints = make_constraint_matrices(
-            self.robot, move_velocity=self.ctrl_func(error)
-        )
-
-    def _step_in_direction(self) -> Matrix:
-        xd_opt = self._get_opt_motion()
-        self._refresh_constraints()
-        return xd_opt
-
-    def move_ol(self) -> Generator[tuple[Vector, Vector]]:
-        # Note that the first point in the path is the starting position.
-        for i in range(1, len(self.path)):
-            self.curr_goal_idx = i
-            j = 0
-            while np.linalg.norm(self._get_error()) > 0.01 and j < 10000:
-                yield self.robot.move_node_pos, self.b_move
-                xd_opt = self._step_in_direction()
-                self.robot.update_state_from_vel(xd_opt, self.dt)
-                j += 1
-
-    def move_cl(self) -> Generator[tuple[Vector, Vector], tuple[Matrix, float], None]:
-        count = 0
-        while True:
-            roll, t = yield self.robot.move_node_pos, self.b_move
-            count += 1
-            self.robot.update_state_from_roll(roll, t)
-            self._refresh_constraints()
+    def move_node_along_path(self, node: int, path: Matrix) -> Generator[tuple[Vector, Vector]]:
+        for point in path:
+            yield from self.move_node_toward_pos(node, point)
 
 
 if __name__ == "__main__":
@@ -142,13 +111,10 @@ if __name__ == "__main__":
     path_2d = path.make_path(dimension=2)
 
     ol_robot = TrussRobot(rover)
+    ol_planner = MotionPlanner(ol_robot)
 
-    ol_planner = MotionPlanner(
-        robot=ol_robot,
-        path=ol_robot.move_node_pos + path_3d,
-    )
-
-    fig = viz.make_motion_fig(ol_robot, ol_planner.path)
+    path_3d += ol_robot.move_node_pos
+    fig = viz.make_motion_fig(ol_robot, path_3d)
     next(fig)
-    for pos, vel in ol_planner.move_ol():
+    for pos, vel in ol_planner.move_node_along_path(ol_robot.config.move_node, path_3d):
         fig.send((pos, vel))

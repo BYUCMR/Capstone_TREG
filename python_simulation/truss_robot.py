@@ -115,6 +115,9 @@ class TrussRobot:
     def move_node_pos(self) -> Vector:
         return self.pos[self.config.move_node]
 
+    def pos_of(self, node: int) -> Vector:
+        return self.pos[node]
+
     def next_state_from_pos(self, d_pos: Matrix) -> RobotState:
         d_roll = self.L2th @ self.rigidity @ d_pos
         d_pos = d_pos.reshape(self.pos.shape, order='F')
