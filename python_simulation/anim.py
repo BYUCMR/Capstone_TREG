@@ -1,6 +1,6 @@
 import numpy as np
-from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar
+from collections.abc import Generator
+from typing import Any, Protocol, TypeVar
 
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
@@ -17,7 +17,22 @@ from truss_config import edges
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
 
-class RobotPlotter(ABC, Generic[_AxesT]):
+class RobotPlotter(Protocol[_AxesT]):
+    def update_plot(self) -> None: ...
+    @staticmethod
+    def plot_dot(ax: _AxesT) -> Line2D: ...
+    def plot_robot(self, ax: _AxesT) -> None: ...
+    def plot_path(self, path: Matrix, ax: _AxesT, *, fill: bool = True) -> None: ...
+    @staticmethod
+    def create_fig_ax() -> tuple[Figure, _AxesT, Axes]: ...
+    def show(self, path: Matrix, ax: _AxesT) -> None: ...
+    @staticmethod
+    def plot_arrow(ax: _AxesT, position: Vector, direction: Vector) -> Any: ...
+    @staticmethod
+    def update_dot(dot, position: Vector) -> None: ...
+
+
+class RobotPlotter2D(RobotPlotter[Axes]):
     def __init__(self, robot: Robot) -> None:
         self.robot = robot
         self._scatter = None
@@ -29,78 +44,32 @@ class RobotPlotter(ABC, Generic[_AxesT]):
         if self._scatter is None or not self._lines or not self._labels:
             raise RuntimeError("plot_robot must be called before update_plot")
 
-        coords_xyz = self.robot.pos.T
-
-        if self.robot.dim == 2:
-            x, y = coords_xyz[0], coords_xyz[1]
-            z = np.zeros_like(y)
-        if self.robot.dim == 3:
-            x, y, z = coords_xyz[0], coords_xyz[1], coords_xyz[2]
+        x, y = self.robot.pos.T
+        z = np.zeros_like(y)
 
         # Update scatter points
-        if self.robot.dim == 2:
-            self._scatter.set_offsets(np.c_[x, y])
-        if self.robot.dim == 3:
-            self._scatter._offsets3d = (x, y, z)
+        self._scatter.set_offsets(np.c_[x, y])
 
         # Update lines
         for (p1, p2), line in zip(edges(self.robot.config.triangles), self._lines):
             line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
-            if self.robot.dim == 3:
-                line.set_3d_properties([z[p1], z[p2]])
 
         # Update fills
-        if self.robot.dim == 2:
-            for (p1, p2, p3), fill in zip(self.robot.config.triangles, self._fills):
-                fill.set_xy(np.array([[x[p1], y[p1]], [x[p2], y[p2]], [x[p3], y[p3]]]))
+        for (p1, p2, p3), fill in zip(self.robot.config.triangles, self._fills):
+            fill.set_xy(np.array([[x[p1], y[p1]], [x[p2], y[p2]], [x[p3], y[p3]]]))
 
         # Update labels
         for label, xi, yi, zi in zip(self._labels, x, y, z):
             label.set_position((xi + 0.1, yi))
-            if self.robot.dim ==3:
-                label.set_3d_properties(zi, zdir='z')
 
-    def plot_dot(self, ax: _AxesT) -> Line2D:
-        dot, = ax.plot(*[[] for _ in range(self.robot.dim)], 'o', color="blue")
+    @staticmethod
+    def plot_dot(ax: Axes) -> Line2D:
+        dot, = ax.plot([], [], 'o', color="blue")
         dot.set_markerfacecolor('blue')  # fill color
         dot.set_markeredgecolor('gray')  # optional edge color
         dot.set_markersize(8)
-
         return dot
 
-    @abstractmethod
-    def plot_robot(self, ax: _AxesT) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def plot_path(self, path: Matrix, ax: _AxesT, fill: bool = True) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def create_fig_ax(self, equal_aspect: bool = True) -> tuple[Figure, _AxesT, Axes]:
-        """Create a figure and return (fig, main_axis_for_robot, axis_for_theta_history)
-
-        The extra axis is used by MotionViz to plot theta histories alongside the
-        robot visualization.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def show(self, path: Matrix, ax: _AxesT) -> None:
-        raise NotImplementedError
-
-    @staticmethod
-    @abstractmethod
-    def plot_arrow(ax: _AxesT, position: Vector, direction: Vector) -> Any:
-        raise NotImplementedError
-
-    @staticmethod
-    @abstractmethod
-    def update_dot(dot, position: Vector) -> None:
-        raise NotImplementedError
-
-
-class RobotPlotter2D(RobotPlotter[Axes]):
     def plot_robot(self, ax: Axes) -> None:
         x, y = self.robot.pos.T
 
@@ -133,51 +102,34 @@ class RobotPlotter2D(RobotPlotter[Axes]):
 
         self.robot_plotted = True
 
-    def plot_path(self, path: Matrix, ax: Axes, fill: bool = True) -> None:
+    def plot_path(self, path: Matrix, ax: Axes, *, fill: bool = True) -> None:
         x, y = path.T
         ax.plot(x, y)
-
         if fill:
             ax.fill(x, y, facecolor='red', alpha=0.5, hatch='--')
-
         self.path_plotted = True
 
-    def create_fig_ax(self) -> tuple[Figure, Axes, Axes]:
+    @staticmethod
+    def create_fig_ax() -> tuple[Figure, Axes, Axes]:
         # Create a two-panel figure: left for robot, right for theta history
         fig, (ax_robot, ax_theta) = plt.subplots(ncols=2, figsize=(10, 5))
         return fig, ax_robot, ax_theta
 
     def show(self, path: Matrix, ax: Axes) -> None:
-        if not self.robot_plotted and not self.path_plotted:
-            self.robot_plotted = False
-            self.path_plotted = False
+        if self.robot_plotted and self.path_plotted:
+            points = np.vstack([self.robot.pos, path])
+        elif self.robot_plotted and not self.path_plotted:
+            points = self.robot.pos
+        elif self.path_plotted:
+            points = path
+        else:
             plt.show()
             return
+        lower = float(np.min(points)) - 1
+        upper = float(np.max(points)) + 1
 
-        xs, ys = [], []
-
-        if self.robot_plotted:
-            x, y = self.robot.pos.T
-            xs.append(x)
-            ys.append(y)
-
-        if self.path_plotted:
-            x, y = path.T
-            xs.append(x)
-            ys.append(y)
-
-        # Flatten all arrays into one for min/max computation
-        all_x = np.concatenate(xs)
-        all_y = np.concatenate(ys)
-
-        min_all = min(np.min(all_x), np.min(all_y))
-        max_all = max(np.max(all_x), np.max(all_y))
-
-        # Set same limits
-        ax.set_xlim(min_all - 1, max_all + 1)
-        ax.set_ylim(min_all - 1, max_all + 1)
-
-        # Set box aspect to equal
+        ax.set_xlim(lower, upper)
+        ax.set_ylim(lower, upper)
         ax.set_aspect('equal')
 
         self.robot_plotted = False
@@ -186,14 +138,48 @@ class RobotPlotter2D(RobotPlotter[Axes]):
 
     @staticmethod
     def plot_arrow(ax: Axes, position: Vector, direction: Vector) -> Quiver:
-        return ax.quiver(*position.tolist(), *direction.tolist(), color='blue', linewidth=3)
+        return ax.quiver(*position, *direction, color='blue', linewidth=3)
 
     @staticmethod
-    def update_dot(dot, position) -> None:
-        dot.set_data([position[0]], [position[1]])
+    def update_dot(dot: Line2D, position: Vector) -> None:
+        dot.set_data(position.reshape(2, 1))
 
 
 class RobotPlotter3D(RobotPlotter[Axes3D]):
+    def __init__(self, robot: Robot) -> None:
+        self.robot = robot
+        self._scatter = None
+        self._lines = []
+        self._labels = []
+        self._fills = []
+
+    def update_plot(self) -> None:
+        if self._scatter is None or not self._lines or not self._labels:
+            raise RuntimeError("plot_robot must be called before update_plot")
+
+        x, y, z = self.robot.pos.T
+
+        # Update scatter points
+        self._scatter._offsets3d = (x, y, z)
+
+        # Update lines
+        for (p1, p2), line in zip(edges(self.robot.config.triangles), self._lines):
+            line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
+            line.set_3d_properties([z[p1], z[p2]])
+
+        # Update labels
+        for label, xi, yi, zi in zip(self._labels, x, y, z):
+            label.set_position((xi + 0.1, yi))
+            label.set_3d_properties(zi, zdir='z')
+
+    @staticmethod
+    def plot_dot(ax: Axes3D) -> Line2D:
+        dot, = ax.plot([], [], [], 'o', color="blue")
+        dot.set_markerfacecolor('blue')  # fill color
+        dot.set_markeredgecolor('gray')  # optional edge color
+        dot.set_markersize(8)
+        return dot
+
     def plot_robot(self, ax: Axes3D) -> None:
         x, y, z = self.robot.pos.T
 
@@ -232,60 +218,38 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
 
         self.robot_plotted = True
 
-    def plot_path(self, path: Matrix, ax: Axes3D, fill: bool = True) -> None:
+    def plot_path(self, path: Matrix, ax: Axes3D, *, fill: bool = True) -> None:
         x, y, z = path.T
         ax.scatter(x, y, z, color='r')
-
         if fill:
-            verts = [list(zip(x, y, z))]
-            poly = Poly3DCollection(verts, alpha=0.5, facecolor='red')
+            poly = Poly3DCollection([path], alpha=0.5, facecolor='red')
             ax.add_collection3d(poly)
-
         self.path_plotted = True
 
-    def create_fig_ax(self, equal_aspect: bool = True) -> tuple[Figure, Axes3D, Axes]:
+    @staticmethod
+    def create_fig_ax() -> tuple[Figure, Axes3D, Axes]:
         # Create a two-panel figure: left for robot (3D), right for theta history
         fig = plt.figure(figsize=(12, 6))
         ax_robot = fig.add_subplot(1, 2, 1, projection='3d')
         ax_theta = fig.add_subplot(1, 2, 2)
-        if equal_aspect:
-            ax_robot.set_box_aspect([1, 1, 1]) # type: ignore
+        ax_robot.set_box_aspect([1, 1, 1])
         return fig, ax_robot, ax_theta
 
     def show(self, path: Matrix, ax: Axes3D):
-        if not self.robot_plotted and not self.path_plotted:
-            self.robot_plotted = False
-            self.path_plotted = False
+        if self.robot_plotted and self.path_plotted:
+            points = np.vstack([self.robot.pos, path])
+        elif self.robot_plotted and not self.path_plotted:
+            points = self.robot.pos
+        elif self.path_plotted:
+            points = path
+        else:
             plt.show()
             return
+        lower = float(np.min(points)) - 1
+        upper = float(np.max(points)) + 1
 
-        xs, ys, zs = [], [], []
-
-        if self.robot_plotted:
-            x, y, z = self.robot.pos.T
-            xs.append(x)
-            ys.append(y)
-            zs.append(z)
-
-        if self.path_plotted:
-            x, y, z = path.T
-            xs.append(x)
-            ys.append(y)
-            zs.append(z)
-
-        # Flatten all arrays into one for min/max computation
-        all_x = np.concatenate(xs)
-        all_y = np.concatenate(ys)
-        all_z = np.concatenate(zs)
-
-        min_all = min(np.min(all_x), np.min(all_y), np.min(all_z))
-        max_all = max(np.max(all_x), np.max(all_y), np.max(all_z))
-
-        # Set same limits
-        ax.set_xlim(min_all - 1, max_all + 1)
-        ax.set_ylim(min_all - 1, max_all + 1)
-
-        # Set box aspect to equal
+        ax.set_xlim(lower, upper)
+        ax.set_ylim(lower, upper)
         ax.set_box_aspect([1, 1, 1])
 
         self.robot_plotted = False
@@ -294,11 +258,31 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
 
     @staticmethod
     def plot_arrow(ax: Axes3D, position: Vector, direction: Vector) -> Line3DCollection:
-        return ax.quiver(*position.tolist(), *direction.tolist(), color='blue', length=1, normalize=True, linewidth=6, arrow_length_ratio=0.4)
+        return ax.quiver(*position, *direction, color='blue', length=1, normalize=True, linewidth=6, arrow_length_ratio=0.4)
 
     @staticmethod
     def update_dot(dot, position: Vector) -> None:
-        dot.set_data_3d([position[0]], [position[1]], [position[2]])
+        dot.set_data_3d(position.reshape(3, 1))
+
+
+def display_robot(
+    plotter: RobotPlotter[_AxesT], *, path: Matrix, axes: _AxesT, refresh_rate: int = 10
+) -> Generator[None, tuple[Vector, Vector], None]:
+    quiver = None
+    count = -1
+    dot = plotter.plot_dot(axes)
+    plotter.plot_path(path, axes)
+    plotter.plot_robot(axes)
+    while True:
+        move_node_pos, move_node_vel = yield
+        count += 1
+        if count % refresh_rate:
+            continue
+        plotter.update_plot()
+        plotter.update_dot(dot, move_node_pos)
+        if quiver is not None:
+            quiver.remove()
+        quiver = plotter.plot_arrow(axes, move_node_pos, move_node_vel)
 
 
 if __name__ == "__main__":

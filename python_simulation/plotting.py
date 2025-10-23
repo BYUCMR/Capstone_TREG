@@ -6,29 +6,9 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from anim import RobotPlotter, RobotPlotter2D, RobotPlotter3D
+import anim
 from linalg import Matrix, Vector
 from robot import Robot
-
-
-def display_robot(
-    plotter: RobotPlotter, path: Matrix, *, axes: Axes, refresh_rate: int = 10
-) -> Generator[None, tuple[Vector, Vector], None]:
-    quiver = None
-    count = -1
-    dot = plotter.plot_dot(axes)
-    plotter.plot_path(path, axes)
-    plotter.plot_robot(axes)
-    while True:
-        move_node_pos, move_node_vel = yield
-        count += 1
-        if count % refresh_rate:
-            continue
-        plotter.update_plot()
-        plotter.update_dot(dot, move_node_pos)
-        if quiver is not None:
-            quiver.remove()
-        quiver = plotter.plot_arrow(axes, move_node_pos, move_node_vel)
 
 
 def plot_roll(
@@ -109,9 +89,9 @@ def make_motion_fig(
     refresh_rate: int = 10,
     window_size: int = 200,
 ) -> Generator[None, tuple[Vector, Vector], None]:
-    plotter = RobotPlotter3D(robot) if robot.dim == 3 else RobotPlotter2D(robot)
+    plotter = anim.RobotPlotter3D(robot) if robot.dim == 3 else anim.RobotPlotter2D(robot)
     fig, ax, ax_theta = plotter.create_fig_ax()
-    robot_display = display_robot(plotter, path, axes=ax, refresh_rate=refresh_rate)
+    robot_display = anim.display_robot(plotter, path=path, axes=ax, refresh_rate=refresh_rate)
     roll_plot = plot_roll(
         robot,
         fig=fig,
