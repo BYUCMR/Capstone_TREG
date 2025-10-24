@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from scipy.optimize import minimize
 
-import viz
 from linalg import Matrix, Vector, unit_vector
 from truss_robot import TrussRobot
 
@@ -100,21 +99,3 @@ class MotionPlanner:
     def move_node_along_path(self, node: int, path: Matrix) -> Generator[tuple[Vector, Vector]]:
         for point in path:
             yield from self.move_node_toward_pos(node, point)
-
-
-if __name__ == "__main__":
-    import path, truss_config
-    config_3d = truss_config.CONFIG_3D_1
-    config_2d = truss_config.CONFIG_2D_1
-    rover = truss_config.CONFIG_3D_ROVER1
-    path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
-    path_2d = path.make_path(dimension=2)
-
-    ol_robot = TrussRobot(rover)
-    ol_planner = MotionPlanner(ol_robot)
-
-    path_3d += ol_robot.move_node_pos
-    fig = viz.make_motion_fig(ol_robot, path_3d)
-    next(fig)
-    for pos, vel in ol_planner.move_node_along_path(ol_robot.config.move_node, path_3d):
-        fig.send((pos, vel))
