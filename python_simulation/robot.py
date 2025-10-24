@@ -156,12 +156,12 @@ class Robot:
         b_broken = np.zeros((len(broken_rollers), 1))
 
         A_payload = np.zeros((len(self.config.payload),num_nodes*dim))
-        j = num_nodes * np.arange(dim)
-        for i in range(len(self.config.payload)):
-            e = self.config.payload[i]
-            A_payload[i,e[0]+j] = 1
-            A_payload[i, e[1] + j] = -1
         b_payload = np.zeros((len(self.config.payload), 1))
+        j = num_nodes * np.arange(dim)
+        for i, (e1,e2) in enumerate(self.config.payload):
+            delta_pos = self.pos[e1]-self.pos[e2]
+            A_payload[i, e1+j] = delta_pos
+            A_payload[i, e2+j] = -delta_pos
 
         Aeq = np.vstack([A_move, A_lock, A_loop, A_broken,A_payload])
         beq = np.vstack([b_move, b_lock, b_loop, b_broken, b_payload])
@@ -182,7 +182,7 @@ class Robot:
             objective,
             np.zeros_like(f).ravel(),
             method="trust-constr",
-            constraints=[NonlinearConstraint(constraint, 0, 0)],
+            constraints=[NonlinearConstraint(constraint, 0,0)],
             options={
                 "xtol": 1e-8,
                 "disp": False,

@@ -85,27 +85,19 @@ def make_motion_fig(
     robot: Robot,
     path: Matrix,
     *,
+    plotclass = anim.RobotPlotter3D,
     shown_rollers: Iterable[SupportsIndex] | None = None,
     refresh_rate: int = 10,
     window_size: int = 200,
 ) -> Generator[None, tuple[Vector, Vector], None]:
-    plotter = anim.RobotPlotter3D(robot) if robot.dim == 3 else anim.RobotPlotter2D(robot)
+    plotter = plotclass(robot)
     fig, ax, ax_theta = plotter.create_fig_ax()
     robot_display = anim.display_robot(plotter, path=path, axes=ax, refresh_rate=refresh_rate)
-    roll_plot = plot_roll(
-        robot,
-        fig=fig,
-        axes=ax_theta,
-        shown_rollers=shown_rollers,
-        window_size=window_size,
-    )
     plt.ion()
     next(robot_display)
-    next(roll_plot)
     while True:
         move_node_pos, move_node_vel = yield
         robot_display.send((move_node_pos, move_node_vel))
-        next(roll_plot)
         plt.pause(0.001)
 
 
@@ -150,7 +142,7 @@ if __name__ == "__main__":
 
     ol_robot = Robot(rover)
     path_3d += ol_robot.move_node_pos
-    fig = make_motion_fig(ol_robot, path_3d)
+    fig = make_motion_fig(ol_robot, path_3d,plotclass=anim.RoverPlotter3D)
     next(fig)
     for pos, vel in ol_robot.move_node_along_path(ol_robot.config.move_node, path_3d):
         fig.send((pos, vel))

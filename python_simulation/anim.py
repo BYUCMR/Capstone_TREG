@@ -264,6 +264,157 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
     def update_dot(dot, position: Vector) -> None:
         dot.set_data_3d(position.reshape(3, 1))
 
+class RoverPlotter3D(RobotPlotter[Axes3D]):
+    def __init__(self, robot: Robot) -> None:
+        self.robot = robot
+        self._scatter = None
+        self._lines = []
+        self._labels = []
+        self._fills = []
+
+    def update_plot(self) -> None:
+        if self._scatter is None or not self._lines or not self._labels:
+            raise RuntimeError("plot_robot must be called before update_plot")
+
+        x, y, z = self.robot.pos.T
+
+        # Update scatter points
+        self._scatter._offsets3d = (x, y, z)
+
+        # Update lines
+        for (p1, p2), line in zip(edges(self.robot.config.triangles), self._lines):
+            line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
+            line.set_3d_properties([z[p1], z[p2]])
+
+        # Update labels
+        for label, xi, yi, zi in zip(self._labels, x, y, z):
+            label.set_position((xi + 0.1, yi))
+            label.set_3d_properties(zi, zdir='z')
+
+        #update payload
+        payload_pnts = self.robot.pos[self.payload]
+        payload_faces = [
+            [payload_pnts[0], payload_pnts[1], payload_pnts[2]],  # bottom triangle
+            [payload_pnts[3], payload_pnts[4], payload_pnts[5]],  # top triangle
+            [payload_pnts[0], payload_pnts[1], payload_pnts[4], payload_pnts[3]],  # side 1
+            [payload_pnts[1], payload_pnts[2], payload_pnts[5], payload_pnts[4]],  # side 2
+            [payload_pnts[2], payload_pnts[0], payload_pnts[3], payload_pnts[5]]  # side 3
+        ]
+        self.collection.set_verts(payload_faces)
+
+    @staticmethod
+    def plot_dot(ax: Axes3D) -> Line2D:
+        dot, = ax.plot([], [], [], 'o', color="blue")
+        dot.set_markerfacecolor('blue')  # fill color
+        dot.set_markeredgecolor('gray')  # optional edge color
+        dot.set_markersize(8)
+        return dot
+
+    def plot_robot(self, ax: Axes3D) -> None:
+        x, y, z = self.robot.pos.T
+
+        # Plot the points
+        self._scatter = ax.scatter(x, y, z, color='b', s=50, label='Points')
+
+        for line in self._lines:
+            line.remove()
+        self._lines.clear()
+
+        # Plot the edges
+        triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
+        for idx, (p1, p2) in enumerate(edges(self.robot.config.triangles)):
+            line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], triangle_colors[idx // 3], lw=6)
+            self._lines.append(line)
+
+        #plot the payload
+        payload = self.robot.config.payload
+        payload_ind = set()
+        for i in payload:
+            payload_ind.add(i[0])
+            payload_ind.add(i[1])
+
+        self.payload = list(payload_ind)
+        payload_pnts = self.robot.pos[self.payload]
+        payload_faces = [
+            [payload_pnts[0], payload_pnts[1], payload_pnts[2]],  # bottom triangle
+            [payload_pnts[3], payload_pnts[4], payload_pnts[5]],  # top triangle
+            [payload_pnts[0], payload_pnts[1], payload_pnts[4], payload_pnts[3]],  # side 1
+            [payload_pnts[1], payload_pnts[2], payload_pnts[5], payload_pnts[4]],  # side 2
+            [payload_pnts[2], payload_pnts[0], payload_pnts[3], payload_pnts[5]]  # side 3
+        ]
+        self.collection = Poly3DCollection(
+            payload_faces, facecolors='skyblue', edgecolors='k', alpha=0.8
+        )
+        ax.add_collection3d(self.collection)
+
+        for t in self._labels:
+            t.remove()
+        self._labels.clear()
+
+        for i, (xi, yi, zi) in enumerate(zip(x, y, z)):
+            label = ax.text(xi + 0.1, yi, zi, str(i + 1), fontsize=12)
+            self._labels.append(label)
+
+        # Add labels
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+
+        # Add grid and set aspect ratio
+        ax.grid(True)
+        ax.set_box_aspect([1, 1, 1])  # This ensures equal aspect ratio
+
+        # Add legend
+        ax.legend()
+
+        self.robot_plotted = True
+
+    def plot_path(self, path: Matrix, ax: Axes3D, *, fill: bool = True) -> None:
+        x, y, z = path.T
+        ax.scatter(x, y, z, color='r')
+        if fill:
+            poly = Poly3DCollection([path], alpha=0.5, facecolor='red')
+            ax.add_collection3d(poly)
+        self.path_plotted = True
+
+    @staticmethod
+    def create_fig_ax() -> tuple[Figure, Axes3D, Axes]:
+        # Create a two-panel figure: left for robot (3D), right for theta history
+        fig = plt.figure(figsize=(12, 6))
+        ax_robot = fig.add_subplot(projection='3d')
+        ax_theta = None
+        ax_robot.set_box_aspect([1, 1, 1])
+        return fig, ax_robot, ax_theta
+
+    def show(self, path: Matrix, ax: Axes3D):
+        if self.robot_plotted and self.path_plotted:
+            points = np.vstack([self.robot.pos, path])
+        elif self.robot_plotted and not self.path_plotted:
+            points = self.robot.pos
+        elif self.path_plotted:
+            points = path
+        else:
+            plt.show()
+            return
+        lower = float(np.min(points)) - 1
+        upper = float(np.max(points)) + 1
+
+        ax.set_xlim(lower, upper)
+        ax.set_ylim(lower, upper)
+        ax.set_box_aspect([1, 1, 1])
+
+        self.robot_plotted = False
+        self.path_plotted = False
+        plt.show()
+
+    @staticmethod
+    def plot_arrow(ax: Axes3D, position: Vector, direction: Vector) -> Line3DCollection:
+        return ax.quiver(*position, *direction, color='blue', length=1, normalize=True, linewidth=6, arrow_length_ratio=0.4)
+
+    @staticmethod
+    def update_dot(dot, position: Vector) -> None:
+        dot.set_data_3d(position.reshape(3, 1))
+
 
 def display_robot(
     plotter: RobotPlotter[_AxesT], *, path: Matrix, axes: _AxesT, refresh_rate: int = 10
@@ -280,9 +431,9 @@ def display_robot(
             continue
         plotter.update_plot()
         plotter.update_dot(dot, move_node_pos)
-        if quiver is not None:
-            quiver.remove()
-        quiver = plotter.plot_arrow(axes, move_node_pos, move_node_vel)
+        # if quiver is not None:
+        #     quiver.remove()
+        # quiver = plotter.plot_arrow(axes, move_node_pos, move_node_vel)
 
 
 if __name__ == "__main__":
