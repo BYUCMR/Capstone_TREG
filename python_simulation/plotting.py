@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+from anim import RobotPlotter, RobotPlotter2D, RobotPlotter3D
 from linalg import Matrix, Vector
-from motion import Robot
-from truss_robot import RobotPlotter, RobotPlotter2D, RobotPlotter3D
+from robot import Robot
 
 
 def display_robot(
@@ -161,7 +161,7 @@ def plot_theta_thetad(robot: Robot, *, save_fig: bool = False, filename: str = "
 
 if __name__ == "__main__":
     import path, truss_config
-    from motion import Robot
+    from robot import Robot
     config_3d = truss_config.CONFIG_3D_1
     config_2d = truss_config.CONFIG_2D_1
     rover = truss_config.CONFIG_3D_ROVER1

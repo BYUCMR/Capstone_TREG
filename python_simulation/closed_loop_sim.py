@@ -1,8 +1,7 @@
 import numpy as np
 
-import path, truss_config, viz
-from motion import Robot
-from viz import plot_theta_thetad
+import path, plotting, truss_config
+from robot import Robot
 
 ol_config_3d = truss_config.CONFIG_3D_1
 ol_config_2d = truss_config.CONFIG_2D_1
@@ -21,7 +20,7 @@ for _ in ol_robot.move_node_along_path(
 t_hist = ol_robot.t_hist
 theta_hist = ol_robot.roll_hist
 
-plot_theta_thetad(ol_robot, save_fig=False, filename="theta_thetad_plot.png")
+plotting.plot_theta_thetad(ol_robot, save_fig=False, filename="theta_thetad_plot.png")
 
 
 cl_config_3d = truss_config.CONFIG_3D_1
@@ -29,7 +28,7 @@ cl_path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
 
 cl_robot = Robot(cl_config_3d)
 
-fig = viz.make_motion_fig(cl_robot, cl_robot.move_node_pos + cl_path_3d)
+fig = plotting.make_motion_fig(cl_robot, cl_robot.move_node_pos + cl_path_3d)
 next(fig)
 for i, (t, theta) in enumerate(zip(t_hist, theta_hist)):
     if i==0:

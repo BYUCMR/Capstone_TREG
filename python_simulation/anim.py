@@ -11,7 +11,7 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
 from linalg import Matrix, Vector
-from motion import Robot
+from robot import Robot
 from truss_config import edges
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
