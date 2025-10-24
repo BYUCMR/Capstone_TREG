@@ -25,6 +25,16 @@ def edges(triangles: Triangles) -> Generator[tuple[int, int]]:
         yield (n3, n1)
 
 
+def get_support_indices(config: TrussConfig) -> list[int]:
+    num_nodes, dim = config.initial_pos.shape
+    support_indices: list[int] = []
+    for i, support in enumerate(config.supports):
+        for d in range(i, dim):
+            support_indices.append(support + d*num_nodes)
+    support_indices.sort()
+    return support_indices
+
+
 CONFIG_3D_ROVER1: Final = TrussConfig(
     supports=[0, 1, 6],
     move_node=7,

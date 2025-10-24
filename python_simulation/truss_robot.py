@@ -1,6 +1,5 @@
 import numpy as np
 from abc import ABC, abstractmethod
-from itertools import pairwise
 from typing import Any, Generic, TypeVar
 
 import matplotlib.pyplot as plt
@@ -11,154 +10,15 @@ from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
-from linalg import Matrix, Vector, unit_vector
-from state import RobotState
-from truss_config import TrussConfig, Triangles, edges
+from linalg import Matrix, Vector
+from motion import Robot
+from truss_config import edges
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
 
-def calc_rigidity_matrix(positions: Matrix, triangles: Triangles) -> Matrix:
-    num_nodes, dim = positions.shape
-    j = num_nodes * np.arange(dim)
-    R = np.zeros((3*len(triangles), num_nodes*dim))
-    for i, (e1, e2) in enumerate(edges(triangles)):
-        u = unit_vector(positions[e1] - positions[e2])
-        R[i, e1 + j] = u
-        R[i, e2 + j] = -u
-    return R
-
-
-def calc_edge_lengths(positions: Matrix, triangles: Triangles) -> Matrix:
-    return np.array([[
-        np.linalg.norm(positions[i] - positions[j]) for i, j in edges(triangles)
-    ]])
-
-
-def calc_roll_to_length(num_triangles: int) -> Matrix:
-    return np.kron(
-        np.eye(num_triangles), np.array([[-1, 0], [1, -1], [0, 1]])
-    )
-
-
-def get_support_indices(config: TrussConfig) -> list[int]:
-    num_nodes, dim = config.initial_pos.shape
-    support_indices: list[int] = []
-    for i, support in enumerate(config.supports):
-        for d in range(i, dim):
-            support_indices.append(support + d*num_nodes)
-    support_indices.sort()
-    return support_indices
-
-
-class TrussRobot:
-    def __init__(self, config: TrussConfig) -> None:
-        """
-        Initializes the truss robot object with specified parameters.
-
-        Args:
-            config (TrussConfig): Configuration of the robot.
-            path_type (str): Type of path for the robot to follow.
-            RPYrot (tuple[float, ...]): Roll, pitch, and yaw rotation angles (in degrees).
-            path_scale (float): Scaling factor for the path length.
-            num_sides (int): Number of sides for the path shape.
-
-        """
-        self.config = config
-        positions = config.initial_pos.copy()
-
-        self.num_nodes, self.dim = positions.shape
-        self.num_triangles = len(self.config.triangles)
-
-        self.B_T = calc_roll_to_length(self.num_triangles)
-        self.num_rollers = self.B_T.shape[1]
-
-        self.L2th = np.linalg.pinv(self.B_T)
-        self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
-
-        self.support_indices = get_support_indices(self.config)
-
-        self.state_hist = [RobotState(
-            pos=positions,
-            roll=np.zeros((self.num_rollers, 1)),
-        )]
-        self.t_hist = [0.]
-
-    @property
-    def pos(self) -> Matrix:
-        return self.state_hist[-1].pos
-
-    @property
-    def roll(self) -> Matrix:
-        return self.state_hist[-1].roll
-
-    @property
-    def rollrate(self) -> Matrix:
-        if len(self.state_hist) < 2:
-            return np.zeros_like(self.roll)
-        d_roll = self.state_hist[-1].roll - self.state_hist[-2].roll
-        d_time = self.t_hist[-1] - self.t_hist[-2]
-        return d_roll / d_time
-
-    @property
-    def roll_hist(self) -> list[Matrix]:
-        return [s.roll for s in self.state_hist]
-
-    @property
-    def rollrate_hist(self) -> list[Matrix]:
-        rollrates = [np.zeros_like(self.roll)]
-        for (t1, t2), (s1, s2) in zip(pairwise(self.t_hist), pairwise(self.state_hist)):
-            rollrates.append((s2.roll - s1.roll) / (t2 - t1))
-        return rollrates
-
-    @property
-    def move_node_pos(self) -> Vector:
-        return self.pos[self.config.move_node]
-
-    def pos_of(self, node: int) -> Vector:
-        return self.pos[node]
-
-    def next_state_from_pos(self, d_pos: Matrix) -> RobotState:
-        d_roll = self.L2th @ self.rigidity @ d_pos
-        d_pos = d_pos.reshape(self.pos.shape, order='F')
-        return RobotState(
-            pos=self.pos + d_pos,
-            roll=self.roll + d_roll,
-        )
-
-    def next_state_from_roll(self, d_roll: Matrix) -> RobotState:
-        not_supports = [i for i in range(self.num_nodes*self.dim) if i not in self.support_indices]
-
-        R_reduced = self.rigidity[:, not_supports]
-        R_inv = np.linalg.inv(R_reduced)
-        d_pos_reduced = R_inv @ self.B_T @ d_roll
-
-        d_pos = np.zeros((self.num_nodes*self.dim, 1))
-        d_pos[not_supports] = d_pos_reduced
-        d_pos = d_pos.reshape(self.pos.shape, order='F')
-
-        return RobotState(
-            pos=self.pos + d_pos,
-            roll=self.roll + d_roll,
-        )
-
-    def update_state(self, state: RobotState, t: float) -> None:
-        self.t_hist.append(t)
-        self.state_hist.append(state)
-        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
-
-    def update_state_from_vel(self, vel: Matrix, dt: float) -> None:
-        state = self.next_state_from_pos(vel*dt)
-        t = self.t_hist[-1] + dt
-        self.update_state(state, t)
-
-    def update_state_from_roll(self, roll: Matrix, t: float) -> None:
-        state = self.next_state_from_roll(roll - self.roll)
-        self.update_state(state, t)
-
-
 class RobotPlotter(ABC, Generic[_AxesT]):
-    def __init__(self, robot: TrussRobot) -> None:
+    def __init__(self, robot: Robot) -> None:
         self.robot = robot
         self._scatter = None
         self._lines = []
@@ -448,7 +308,7 @@ if __name__ == "__main__":
     path_2d = path.make_path(dimension=2)
     path_3d = path.make_path(RPYrot=(45, 30, 45))
 
-    robot = TrussRobot(config_3d)
+    robot = Robot(config_3d)
     robot_plotter = RobotPlotter3D(robot)
 
     fig, ax_robot, ax_theta = robot_plotter.create_fig_ax()

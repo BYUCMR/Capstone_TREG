@@ -7,7 +7,8 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 from linalg import Matrix, Vector
-from truss_robot import RobotPlotter, RobotPlotter2D, RobotPlotter3D, TrussRobot
+from motion import Robot
+from truss_robot import RobotPlotter, RobotPlotter2D, RobotPlotter3D
 
 
 def display_robot(
@@ -31,7 +32,7 @@ def display_robot(
 
 
 def plot_roll(
-    robot: TrussRobot,
+    robot: Robot,
     *,
     fig: Figure,
     axes: Axes,
@@ -101,7 +102,7 @@ def plot_roll(
 
 
 def make_motion_fig(
-    robot: TrussRobot,
+    robot: Robot,
     path: Matrix,
     *,
     shown_rollers: Iterable[SupportsIndex] | None = None,
@@ -128,7 +129,7 @@ def make_motion_fig(
         plt.pause(0.001)
 
 
-def plot_theta_thetad(robot: TrussRobot, *, save_fig: bool = False, filename: str = "theta_thetad_plots.png") -> None:
+def plot_theta_thetad(robot: Robot, *, save_fig: bool = False, filename: str = "theta_thetad_plots.png") -> None:
     plt.ioff()
     fig, (ax_theta, ax_thetad) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 
@@ -160,18 +161,16 @@ def plot_theta_thetad(robot: TrussRobot, *, save_fig: bool = False, filename: st
 
 if __name__ == "__main__":
     import path, truss_config
-    from motion import MotionPlanner
+    from motion import Robot
     config_3d = truss_config.CONFIG_3D_1
     config_2d = truss_config.CONFIG_2D_1
     rover = truss_config.CONFIG_3D_ROVER1
     path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
     path_2d = path.make_path(dimension=2)
 
-    ol_robot = TrussRobot(rover)
-    ol_planner = MotionPlanner(ol_robot)
-
+    ol_robot = Robot(rover)
     path_3d += ol_robot.move_node_pos
     fig = make_motion_fig(ol_robot, path_3d)
     next(fig)
-    for pos, vel in ol_planner.move_node_along_path(ol_robot.config.move_node, path_3d):
+    for pos, vel in ol_robot.move_node_along_path(ol_robot.config.move_node, path_3d):
         fig.send((pos, vel))
