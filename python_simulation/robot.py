@@ -2,7 +2,7 @@ import numpy as np
 from collections.abc import Callable, Generator
 from itertools import pairwise
 
-from scipy.optimize import minimize
+from scipy.optimize import NonlinearConstraint, minimize
 
 from linalg import Matrix, Vector, unit_vector
 from state import RobotState
@@ -170,19 +170,24 @@ class Robot:
     def _get_opt_motion(self, node: int, node_vel: Vector) -> Matrix:
         H = 2 * (self.rigidity.T @ self.rigidity)
         f = np.zeros((len(H), 1))
-        def objective(xdot):
+        A, b = self.make_constraint_matrices(move_node=node, node_vel=node_vel)
+
+        def objective(xdot: Vector) -> Vector:
             return (0.5 * xdot.T @ H @ xdot + f.T @ xdot).ravel()
 
-        A, b = self.make_constraint_matrices(move_node=node, node_vel=node_vel)
-        constraints = [{"type": "eq", "fun": lambda x: (A @ x.T - b.T).ravel()}]
-        x0 = np.zeros_like(f).ravel()
+        def constraint(xdot: Vector) -> Vector:
+            return (A @ xdot.T - b.T).ravel()
 
         result = minimize(
             objective,
-            x0,
+            np.zeros_like(f).ravel(),
             method="trust-constr",
-            constraints=constraints,
-            options={"xtol": 1e-8, "disp": False, "maxiter": 10000},
+            constraints=[NonlinearConstraint(constraint, 0, 0)],
+            options={
+                "xtol": 1e-8,
+                "disp": False,
+                "maxiter": 10000,
+            },
         )
         return 2*result.x.reshape(f.shape)
 
