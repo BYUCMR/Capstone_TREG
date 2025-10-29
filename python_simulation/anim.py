@@ -436,17 +436,34 @@ def display_robot(
         # quiver = plotter.plot_arrow(axes, move_node_pos, move_node_vel)
 
 
+def animate_rover(
+    robot: Robot,
+    path: Matrix,
+    *,
+    refresh_rate: int = 5,
+) -> Generator[None, tuple[Vector, Vector], None]:
+    plotter = RoverPlotter3D(robot)
+    fig, ax, ax_theta = plotter.create_fig_ax()
+    robot_display = display_robot(plotter, path=path, axes=ax, refresh_rate=refresh_rate)
+    plt.ion()
+    next(robot_display)
+    while True:
+        move_node_pos, move_node_vel = yield
+        robot_display.send((move_node_pos, move_node_vel))
+        plt.pause(0.001)
+
+
 if __name__ == "__main__":
     import path, truss_config
     config_2d = truss_config.CONFIG_2D_1
     config_3d = truss_config.CONFIG_3D_1
+    rover = truss_config.CONFIG_3D_ROVER1
     path_2d = path.make_path(dimension=2)
     path_3d = path.make_path(RPYrot=(45, 30, 45))
 
-    robot = Robot(config_3d)
-    robot_plotter = RobotPlotter3D(robot)
-
-    fig, ax_robot, ax_theta = robot_plotter.create_fig_ax()
-    robot_plotter.plot_robot(ax_robot)
-    robot_plotter.plot_path(robot.move_node_pos + path_3d, ax_robot)
-    robot_plotter.show(robot.move_node_pos + path_3d, ax_robot)
+    robot = Robot(rover)
+    path_3d += robot.move_node_pos
+    animation = animate_rover(robot, path_3d)
+    next(animation)
+    for pos, vel in robot.move_node_along_path(robot.config.move_node, path_3d):
+        animation.send((pos, vel))

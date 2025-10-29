@@ -189,7 +189,7 @@ class Robot:
                 "maxiter": 10000,
             },
         )
-        return 2*result.x.reshape(f.shape)
+        return result.x.reshape(f.shape)
 
     def move_node_toward_pos(
         self,
