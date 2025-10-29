@@ -2,7 +2,7 @@ import numpy as np
 from collections.abc import Callable, Generator
 from itertools import pairwise
 
-from scipy.optimize import NonlinearConstraint, minimize
+from scipy.optimize import LinearConstraint, minimize
 
 from linalg import Matrix, Vector, unit_vector
 from state import RobotState
@@ -125,9 +125,9 @@ class Robot:
         self,
         *,
         move_node: int | None = None,
-        node_vel: Vector | Matrix | None = None,
+        node_vel: Vector | None = None,
         broken_rollers: list[int] | None = None,
-    ) -> tuple[Matrix, Matrix]:
+    ) -> tuple[Matrix, Vector]:
         dim = self.dim
         num_nodes = self.num_nodes
 
@@ -137,26 +137,26 @@ class Robot:
             move_node = self.config.move_node
         A_move[i, move_node + i*num_nodes] = 1
         if node_vel is None:
-            b_move = np.zeros((dim, 1))
+            b_move = np.zeros((dim,))
         else:
-            b_move = node_vel.reshape((dim, 1))
+            b_move = node_vel.reshape((dim,))
 
         n_lock = (dim-1) * 3
         A_lock = np.zeros((n_lock, dim*num_nodes))
         A_lock[np.arange(n_lock), self.support_indices] = 1
-        b_lock = np.zeros((n_lock, 1))
+        b_lock = np.zeros((n_lock,))
 
         triangle_loops = np.kron(np.eye(self.num_triangles), np.ones((1, 3)))
         A_loop = triangle_loops @ self.rigidity
-        b_loop = np.zeros((len(A_loop), 1))
+        b_loop = np.zeros((len(A_loop),))
 
         broken_rollers = [] if broken_rollers is None else broken_rollers
         vel2rollrate = self.L2th @ self.rigidity
         A_broken = vel2rollrate[broken_rollers]
-        b_broken = np.zeros((len(broken_rollers), 1))
+        b_broken = np.zeros((len(broken_rollers),))
 
         A_payload = np.zeros((len(self.config.payload),num_nodes*dim))
-        b_payload = np.zeros((len(self.config.payload), 1))
+        b_payload = np.zeros((len(self.config.payload),))
         j = num_nodes * np.arange(dim)
         for i, (e1,e2) in enumerate(self.config.payload):
             delta_pos = self.pos[e1]-self.pos[e2]
@@ -164,32 +164,37 @@ class Robot:
             A_payload[i, e2+j] = -delta_pos
 
         Aeq = np.vstack([A_move, A_lock, A_loop, A_broken,A_payload])
-        beq = np.vstack([b_move, b_lock, b_loop, b_broken, b_payload])
+        beq = np.concat([b_move, b_lock, b_loop, b_broken, b_payload])
         return Aeq, beq
 
     def _get_opt_motion(self, node: int, node_vel: Vector) -> Matrix:
         H = 2 * (self.rigidity.T @ self.rigidity)
-        f = np.zeros((len(H), 1))
+        f = np.zeros((len(H),))
         A, b = self.make_constraint_matrices(move_node=node, node_vel=node_vel)
 
-        def objective(xdot: Vector) -> Vector:
-            return (0.5 * xdot.T @ H @ xdot + f.T @ xdot).ravel()
+        def fun(x: Vector) -> Vector:
+            return (0.5 * x.T @ H @ x + f.T @ x).ravel()
 
-        def constraint(xdot: Vector) -> Vector:
-            return (A @ xdot.T - b.T).ravel()
+        def jac(x: Vector) -> Vector:
+            return (x.T @ H + f.T).ravel()
+
+        def hess(x: Vector) -> Matrix:
+            return H
 
         result = minimize(
-            objective,
-            np.zeros_like(f).ravel(),
-            method="trust-constr",
-            constraints=[NonlinearConstraint(constraint, 0,0)],
+            fun=fun,
+            jac=jac,
+            hess=hess,
+            method='trust-constr',
+            constraints=[LinearConstraint(A, b, b)],
+            x0=np.zeros_like(f),
             options={
-                "xtol": 1e-8,
-                "disp": False,
-                "maxiter": 10000,
+                'xtol': 1e-8,
+                'disp': False,
+                'maxiter': 10000,
             },
         )
-        return result.x.reshape(f.shape)
+        return result.x.reshape((-1, 1))
 
     def move_node_toward_pos(
         self,
