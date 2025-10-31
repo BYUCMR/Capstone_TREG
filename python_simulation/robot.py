@@ -2,7 +2,7 @@ import numpy as np
 from collections.abc import Callable, Generator
 from itertools import pairwise
 
-from scipy.optimize import LinearConstraint, minimize
+import cvxpy
 
 from linalg import Matrix, Vector, unit_vector
 from state import RobotState
@@ -168,33 +168,13 @@ class Robot:
         return Aeq, beq
 
     def _get_opt_motion(self, node: int, node_vel: Vector) -> Matrix:
-        H = 2 * (self.rigidity.T @ self.rigidity)
-        f = np.zeros((len(H),))
+        v = cvxpy.Variable(self.pos.size)
         A, b = self.make_constraint_matrices(move_node=node, node_vel=node_vel)
-
-        def fun(x: Vector) -> Vector:
-            return (0.5 * x.T @ H @ x + f.T @ x).ravel()
-
-        def jac(x: Vector) -> Vector:
-            return (x.T @ H + f.T).ravel()
-
-        def hess(x: Vector) -> Matrix:
-            return H
-
-        result = minimize(
-            fun=fun,
-            jac=jac,
-            hess=hess,
-            method='trust-constr',
-            constraints=[LinearConstraint(A, b, b)],
-            x0=np.zeros_like(f),
-            options={
-                'xtol': 1e-8,
-                'disp': False,
-                'maxiter': 10000,
-            },
-        )
-        return result.x.reshape((-1, 1))
+        cost = cvxpy.sum_squares(self.rigidity @ v)
+        prob = cvxpy.Problem(cvxpy.Minimize(cost), [A @ v == b])
+        prob.solve()
+        assert v.value is not None
+        return v.value.reshape((-1, 1))
 
     def move_node_toward_pos(
         self,

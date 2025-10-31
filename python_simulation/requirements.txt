@@ -1,4 +1,3 @@
+cvxpy
 numpy
-scipy
-dill
 matplotlib
