@@ -141,7 +141,7 @@ class Robot:
         else:
             b_move = node_vel.reshape((dim,))
 
-        n_lock = (dim-1) * 3
+        n_lock = len(self.support_indices)
         A_lock = np.zeros((n_lock, dim*num_nodes))
         A_lock[np.arange(n_lock), self.support_indices] = 1
         b_lock = np.zeros((n_lock,))

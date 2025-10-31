@@ -1,17 +1,18 @@
 import numpy as np
 from collections.abc import Generator, Collection
-from dataclasses import dataclass
-from typing import Final, TypeAlias
+from dataclasses import dataclass, field
+from typing import Final, SupportsIndex, TypeAlias
 
 from linalg import Matrix
 
+Index: TypeAlias = 'SupportsIndex | slice[SupportsIndex]'
 Triangles: TypeAlias = Collection[tuple[int, int, int]]
 Edges: TypeAlias = Collection[tuple[int, int]]
 
 
 @dataclass(slots=True, kw_only=True, frozen=True)
 class TrussConfig:
-    supports: Collection[int]
+    locks: Collection[tuple[Index, Index]] = field(default_factory=list)
     move_node: int
     payload: Edges
     triangles: Triangles
@@ -25,18 +26,16 @@ def edges(triangles: Triangles) -> Generator[tuple[int, int]]:
         yield (n3, n1)
 
 
-def get_support_indices(config: TrussConfig) -> list[int]:
-    num_nodes, dim = config.initial_pos.shape
-    support_indices: list[int] = []
-    for i, support in enumerate(config.supports):
-        for d in range(i, dim):
-            support_indices.append(support + d*num_nodes)
-    support_indices.sort()
-    return support_indices
+def get_support_indices(config: TrussConfig) -> np.ndarray[tuple[int], np.dtype[np.intp]]:
+    s = np.zeros_like(config.initial_pos)
+    for lock in config.locks:
+        s[lock] = 1
+    indices, = s.ravel(order='F').nonzero()
+    return indices
 
 
 CONFIG_3D_ROVER1: Final = TrussConfig(
-    supports=[0, 1, 6],
+    locks=[(0, slice(0,3)), (1, slice(0,3)), (6, slice(0,3))],
     move_node=7,
     triangles=np.array([[0, 1, 2], [0, 3, 5], [1, 4, 5], [6, 7, 8], [6, 9, 11], [7, 10, 11]]),
     payload=[(2, 8), (3, 9), (4, 10), (2, 9), (3, 10), (4, 8),(2,3),(3,4),(2,4),(8,10),(8,9),(9,10)],
@@ -58,7 +57,7 @@ CONFIG_3D_ROVER1: Final = TrussConfig(
 )
 
 CONFIG_3D_1: Final = TrussConfig(
-    supports=[1, 5, 3],
+    locks=[(1, slice(0,3)), (5, slice(1,3)), (3, slice(2,3))],
     move_node=0,
     payload=[],
     triangles=[(0, 2, 3), (0, 4, 5), (1, 2, 4), (1, 3, 5)],
@@ -73,7 +72,7 @@ CONFIG_3D_1: Final = TrussConfig(
 )
 
 CONFIG_3D_2: Final = TrussConfig(
-    supports=[1, 5, 3],
+    locks=[(1, slice(0,3)), (5, slice(1,3)), (3, slice(2,3))],
     move_node=0,
     payload=[],
     triangles=[(0, 2, 4), (0, 3, 5), (1, 2, 3), (1, 4, 5)],
@@ -88,7 +87,7 @@ CONFIG_3D_2: Final = TrussConfig(
 )
 
 CONFIG_2D_1: Final = TrussConfig(
-    supports=[0, 1],
+    locks=[(0, slice(0,2)), (1, slice(1,2))],
     move_node=2,
     payload=[],
     triangles=[(0, 1, 2)],
@@ -100,7 +99,7 @@ CONFIG_2D_1: Final = TrussConfig(
 )
 
 CONFIG_2D_2: Final = TrussConfig(
-    supports=[0, 3],
+    locks=[(0, slice(0,2)), (3, slice(1,2))],
     move_node=5,
     payload=[],
     triangles=[(0, 1, 2), (1, 3, 4), (2, 4, 5)],
