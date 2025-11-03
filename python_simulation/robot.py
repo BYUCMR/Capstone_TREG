@@ -31,6 +31,11 @@ def calc_roll_to_length(num_triangles: int) -> Matrix:
         np.eye(num_triangles), np.array([[-1, 0], [1, -1], [0, 1]])
     )
 
+def calc_length_to_roll(num_triangles: int) -> Matrix:
+    return np.kron(
+        np.eye(num_triangles), np.array([[-2, 1, 1,], [-1, -1, 2]]) / 3
+    )
+
 
 class Robot:
     def __init__(self, config: TrussConfig) -> None:
@@ -39,7 +44,7 @@ class Robot:
         self.num_nodes, self.dim = positions.shape
         self.num_triangles = len(config.triangles)
         self.B_T = calc_roll_to_length(self.num_triangles)
-        self.L2th = np.linalg.pinv(self.B_T)
+        self.L2th = calc_length_to_roll(self.num_triangles)
         self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
         self.support_indices = get_support_indices(self.config)
         self.num_rollers = self.B_T.shape[1]
