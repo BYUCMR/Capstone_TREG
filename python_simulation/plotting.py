@@ -30,8 +30,8 @@ def plot_roll(
     def get_data() -> tuple[Vector, Matrix, Matrix]:
         window = slice(max(0, last-window_size), last)
         t = np.array(robot.t_hist[window])
-        roll = np.hstack(robot.roll_hist[window])[shown_rollers]
-        rollrate = np.hstack(robot.rollrate_hist[window])[shown_rollers]
+        roll = np.column_stack(robot.roll_hist[window])[shown_rollers]
+        rollrate = np.column_stack(robot.rollrate_hist[window])[shown_rollers]
         return t, roll, rollrate
 
     # Theta history plot (right subplot) and theta-dot subplot below it
