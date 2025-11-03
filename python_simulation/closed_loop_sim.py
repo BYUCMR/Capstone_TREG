@@ -29,7 +29,6 @@ cl_path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
 cl_robot = Robot(cl_config_3d)
 
 fig = plotting.make_motion_fig(cl_robot, cl_robot.move_node_pos + cl_path_3d)
-next(fig)
 for i, (t, theta) in enumerate(zip(t_hist, theta_hist)):
     if i==0:
         continue  # Skip the first entry since it's the initial condition

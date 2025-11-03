@@ -7,10 +7,12 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 import anim
+from gentools import auto_initialize
 from linalg import Matrix, Vector
 from robot import Robot
 
 
+@auto_initialize
 def plot_roll(
     robot: Robot,
     *,
@@ -81,6 +83,7 @@ def plot_roll(
             ax_thetad.set_ylim(dvmin-0.1, dvmax+0.1)
 
 
+@auto_initialize
 def make_motion_fig(
     robot: Robot,
     path: Matrix,
@@ -100,8 +103,6 @@ def make_motion_fig(
         window_size=window_size,
     )
     plt.ion()
-    next(robot_display)
-    next(roll_plot)
     while True:
         move_node_pos, move_node_vel = yield
         robot_display.send((move_node_pos, move_node_vel))
@@ -151,6 +152,5 @@ if __name__ == "__main__":
     ol_robot = Robot(config_2d)
     path_2d += ol_robot.move_node_pos
     fig = make_motion_fig(ol_robot, path_2d)
-    next(fig)
     for pos, vel in ol_robot.move_node_along_path(ol_robot.config.move_node, path_2d):
         fig.send((pos, vel))

@@ -10,6 +10,7 @@ from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
+from gentools import auto_initialize
 from linalg import Matrix, Vector
 from robot import Robot
 from truss_config import edges
@@ -416,6 +417,7 @@ class RoverPlotter3D(RobotPlotter[Axes3D]):
         dot.set_data_3d(position.reshape(3, 1))
 
 
+@auto_initialize
 def display_robot(
     plotter: RobotPlotter[_AxesT], *, path: Matrix, axes: _AxesT, refresh_rate: int = 10
 ) -> Generator[None, tuple[Vector, Vector], None]:
@@ -436,6 +438,7 @@ def display_robot(
         # quiver = plotter.plot_arrow(axes, move_node_pos, move_node_vel)
 
 
+@auto_initialize
 def animate_rover(
     robot: Robot,
     path: Matrix,
@@ -446,7 +449,6 @@ def animate_rover(
     fig, ax, ax_theta = plotter.create_fig_ax()
     robot_display = display_robot(plotter, path=path, axes=ax, refresh_rate=refresh_rate)
     plt.ion()
-    next(robot_display)
     while True:
         move_node_pos, move_node_vel = yield
         robot_display.send((move_node_pos, move_node_vel))
@@ -464,6 +466,5 @@ if __name__ == "__main__":
     robot = Robot(rover)
     path_3d += robot.move_node_pos
     animation = animate_rover(robot, path_3d)
-    next(animation)
     for pos, vel in robot.move_node_along_path(robot.config.move_node, path_3d):
         animation.send((pos, vel))
