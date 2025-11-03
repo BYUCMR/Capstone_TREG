@@ -141,16 +141,13 @@ def plot_theta_thetad(robot: Robot, *, save_fig: bool = False, filename: str = "
 
 
 if __name__ == "__main__":
-    import path, truss_config
+    from path import make_path
     from robot import Robot
-    config_3d = truss_config.CONFIG_3D_1
-    config_2d = truss_config.CONFIG_2D_1
-    rover = truss_config.CONFIG_3D_ROVER1
-    path_3d = path.make_path(RPYrot=(90., -45.0, 45.0))
-    path_2d = path.make_path(dimension=2)
+    from truss_config import CONFIG_2D_1 as config
+    path = make_path(dimension=2)
+    path += config.initial_pos[config.move_node]
 
-    ol_robot = Robot(config_2d)
-    path_2d += ol_robot.move_node_pos
-    fig = make_motion_fig(ol_robot, path_2d)
-    for pos, vel in ol_robot.move_node_along_path(ol_robot.config.move_node, path_2d):
+    robot = Robot(config)
+    fig = make_motion_fig(robot, path)
+    for pos, vel in robot.move_node_along_path(config.move_node, path):
         fig.send((pos, vel))

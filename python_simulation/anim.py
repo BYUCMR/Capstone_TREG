@@ -456,15 +456,12 @@ def animate_rover(
 
 
 if __name__ == "__main__":
-    import path, truss_config
-    config_2d = truss_config.CONFIG_2D_1
-    config_3d = truss_config.CONFIG_3D_1
-    rover = truss_config.CONFIG_3D_ROVER1
-    path_2d = path.make_path(dimension=2)
-    path_3d = path.make_path(RPYrot=(45, 30, 45))
+    from path import make_path
+    from truss_config import CONFIG_3D_ROVER1 as config
+    path = make_path(RPYrot=(45, 30, 45))
+    path += config.initial_pos[config.move_node]
 
-    robot = Robot(rover)
-    path_3d += robot.move_node_pos
-    animation = animate_rover(robot, path_3d)
-    for pos, vel in robot.move_node_along_path(robot.config.move_node, path_3d):
+    robot = Robot(config)
+    animation = animate_rover(robot, path)
+    for pos, vel in robot.move_node_along_path(config.move_node, path):
         animation.send((pos, vel))

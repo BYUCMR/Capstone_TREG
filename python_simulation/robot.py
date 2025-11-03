@@ -81,10 +81,6 @@ class Robot:
             rollrates.append((s2.roll - s1.roll) / (t2 - t1))
         return rollrates
 
-    @property
-    def move_node_pos(self) -> Vector:
-        return self.pos[self.config.move_node]
-
     def pos_of(self, node: int) -> Vector:
         return self.pos[node]
 
