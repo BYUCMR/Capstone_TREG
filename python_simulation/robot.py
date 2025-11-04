@@ -38,6 +38,16 @@ def calc_length_to_roll(num_triangles: int) -> Matrix:
     )
 
 
+def calc_length_constraints(
+    num_triangles: int, *, broken_rollers: list[int] | None = None
+) -> Matrix:
+    A = np.kron(np.eye(num_triangles), np.ones((1, 3)))
+    if broken_rollers:
+        length_to_roll = calc_length_to_roll(num_triangles)
+        A = np.vstack([A, length_to_roll[broken_rollers]])
+    return A
+
+
 class Robot(Protocol):
     config: TrussConfig
     dim: int
@@ -107,8 +117,10 @@ class RobotInverse(RollHistRobot):
         self.config = config
         positions = config.initial_pos.copy()
         self.num_nodes, self.dim = positions.shape
-        self.L2th = calc_length_to_roll(len(config.triangles))
+        num_triangles = len(config.triangles)
+        self.L2th = calc_length_to_roll(num_triangles)
         self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
+        self.length_constraint = calc_length_constraints(num_triangles)
         self.support_indices = get_support_indices(self.config)
         self.num_rollers = self.L2th.shape[0]
         self.state_hist = [RobotState(
@@ -167,7 +179,6 @@ class RobotInverse(RollHistRobot):
         *,
         move_node: int | None = None,
         node_vel: Vector | None = None,
-        broken_rollers: list[int] | None = None,
     ) -> tuple[Matrix, Vector]:
         dim = self.dim
         num_nodes = self.num_nodes
@@ -187,14 +198,8 @@ class RobotInverse(RollHistRobot):
         A_lock[np.arange(n_lock), self.support_indices] = 1
         b_lock = np.zeros((n_lock,))
 
-        triangle_loops = np.kron(np.eye(len(self.config.triangles)), np.ones((1, 3)))
-        A_loop = triangle_loops @ self.rigidity
-        b_loop = np.zeros((len(A_loop),))
-
-        broken_rollers = [] if broken_rollers is None else broken_rollers
-        vel2rollrate = self.L2th @ self.rigidity
-        A_broken = vel2rollrate[broken_rollers]
-        b_broken = np.zeros((len(broken_rollers),))
+        A_length = self.length_constraint @ self.rigidity
+        b_length = np.zeros((len(A_length),))
 
         A_payload = np.zeros((len(self.config.payload),num_nodes*dim))
         b_payload = np.zeros((len(self.config.payload),))
@@ -204,8 +209,8 @@ class RobotInverse(RollHistRobot):
             A_payload[i, e1+j] = delta_pos
             A_payload[i, e2+j] = -delta_pos
 
-        Aeq = np.vstack([A_move, A_lock, A_loop, A_broken,A_payload])
-        beq = np.concat([b_move, b_lock, b_loop, b_broken, b_payload])
+        Aeq = np.vstack([A_move, A_lock, A_length, A_payload])
+        beq = np.concat([b_move, b_lock, b_length, b_payload])
         return Aeq, beq
 
     def _get_opt_motion(self, node: int, node_vel: Vector) -> Vector:
