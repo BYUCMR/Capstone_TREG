@@ -475,10 +475,11 @@ def animate_robot(
 
 
 if __name__ == "__main__":
+    from linalg import roll_pitch_yaw
     from path import make_path
     from robot import RobotInverse
     from truss_config import CONFIG_3D_ROVER1 as config
-    path = make_path(RPYrot=(45, 30, 45))
+    path = make_path(xform=roll_pitch_yaw(np.pi/4, np.pi/6, np.pi/4))
     path += config.initial_pos[config.move_node]
 
     robot = RobotInverse(config)

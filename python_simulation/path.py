@@ -1,13 +1,13 @@
 import numpy as np
 
-from linalg import Matrix, clean_matrix, rot2D, rotx, roty, rotz
+from linalg import Matrix, rot2D, rotz
 
 
 def make_path(
     *,
     shape: str = 'polygon',
     dimension: int = 3,
-    RPYrot: tuple[float, ...] | None = None,
+    xform: Matrix = np.eye(3),
     length: float = 1,
     num_sides: int = 4,
 ) -> Matrix:
@@ -37,22 +37,11 @@ def make_path(
         raise ValueError(f"{shape!r} is not a supported path type")
 
     if dimension == 2:
-        if RPYrot is None:
-            r = 0
-        else:
-            r, = (np.deg2rad(angle) for angle in RPYrot)
-        xform = rot2D(r)
-    elif dimension == 3:
-        if RPYrot is None:
-            r, p, y = 0, 0, 0
-        else:
-            r, p, y = (np.deg2rad(angle) for angle in RPYrot)
-        xform = rotz(r) @ roty(p) @ rotx(y)
-    else:
+        xform = xform[0:2, 0:2]
+    elif dimension != 3:
         raise ValueError(f"{dimension!r} is not a valid number of spatial dimensions")
 
-    transformed_path = (xform @ path.T).T
-    return clean_matrix(transformed_path)
+    return np.matvec(xform, path)
 
 
 def _generate_polygon_path(dim: int, length: float, num_sides: int) -> Matrix:
@@ -68,18 +57,14 @@ def _generate_polygon_path(dim: int, length: float, num_sides: int) -> Matrix:
     """
     if num_sides < 3:
         raise Exception("Polygon path must have three or more sides")
-
-    rot_angle_for_each_side = 2*np.pi / num_sides
+    corner_angle = 2*np.pi / num_sides
     path = np.zeros((num_sides + 1, dim))
-
+    path[1, 0] = length
     rot_func = rotz if dim == 3 else rot2D
-
-    path[1,0] = length
-
     for i in range(2, num_sides+1):
-        path[i,:] = (rot_func(rot_angle_for_each_side*(i-1))@(path[1,:]).T) + path[i-1,:]
-
-    return clean_matrix(path)
+        xform = rot_func(corner_angle * (i-1))
+        path[i,:] = xform @ (path[1,:]).T + path[i-1,:]
+    return path
 
 
 def _generate_inscribed_polygon_path(dim: int, length: float, num_sides: int) -> Matrix:
@@ -95,24 +80,13 @@ def _generate_inscribed_polygon_path(dim: int, length: float, num_sides: int) ->
     """
     if num_sides < 3:
         raise Exception("Polygon path must have three or more sides")
-
-    rot_angle_for_each_side = 2*np.pi / num_sides
-    path = np.zeros((num_sides + 1, dim))
-
+    corner_angle = 2*np.pi / num_sides
     rot_func = rotz if dim == 3 else rot2D
-
-    angle_from_base_corner_to_centroid = (np.pi - rot_angle_for_each_side) / 2.0
-
-    initial_radius_vector = np.zeros((1, dim))
-    initial_radius_vector[0,0] = length / 2.0
-    vector_from_corner_to_centroid = (rot_func(angle_from_base_corner_to_centroid)@initial_radius_vector.T).T
-
-    vector_from_centroid_to_corner = -vector_from_corner_to_centroid
-
-    for i in range(1, num_sides+1):
-        path[i,:] = vector_from_corner_to_centroid + (rot_func(rot_angle_for_each_side*i)@vector_from_centroid_to_corner.T).T
-
-    return clean_matrix(path)
+    corner = np.zeros(dim)
+    corner[0] = -length / 2
+    path = np.vstack([rot_func(np.pi/2 + corner_angle*(i-0.5)) @ corner for i in range(num_sides+1)])
+    path -= path[0]
+    return path
 
 
 def _generate_line_path(dim: int, length: float) -> Matrix:
@@ -128,8 +102,7 @@ def _generate_line_path(dim: int, length: float) -> Matrix:
     path = np.zeros((4, dim))
     path[1,0] = length / 2.0
     path[2,0] = -length / 2.0
-
-    return clean_matrix(path)
+    return path
 
 
 def _generate_thin_y_path(dim: int, length: float) -> Matrix:

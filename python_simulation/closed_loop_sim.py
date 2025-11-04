@@ -1,11 +1,12 @@
 import numpy as np
 
 import anim, plotting
+from linalg import roll_pitch_yaw
 from path import make_path
 from robot import RobotForward, RobotInverse
 from truss_config import CONFIG_3D_1 as config
 
-path = make_path(RPYrot=(90., -45.0, 45.0))
+path = make_path(xform=roll_pitch_yaw(np.pi/2, -np.pi/4, np.pi/4))
 path += config.initial_pos[config.move_node]
 
 ol_robot = RobotInverse(config)
