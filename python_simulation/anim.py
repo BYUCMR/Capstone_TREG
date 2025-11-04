@@ -25,7 +25,9 @@ class RobotPlotter(Protocol[_AxesT]):
     def plot_robot(self, ax: _AxesT) -> None: ...
     def plot_path(self, path: Matrix, ax: _AxesT, *, fill: bool = True) -> None: ...
     @staticmethod
-    def create_fig_ax() -> tuple[Figure, _AxesT, Axes]: ...
+    def create_fig_ax() -> tuple[Figure, _AxesT]: ...
+    @staticmethod
+    def create_fig_ax_theta() -> tuple[Figure, _AxesT, Axes]: ...
     def show(self, path: Matrix, ax: _AxesT) -> None: ...
     @staticmethod
     def plot_arrow(ax: _AxesT, position: Vector, direction: Vector) -> Any: ...
@@ -111,7 +113,11 @@ class RobotPlotter2D(RobotPlotter[Axes]):
         self.path_plotted = True
 
     @staticmethod
-    def create_fig_ax() -> tuple[Figure, Axes, Axes]:
+    def create_fig_ax() -> tuple[Figure, Axes]:
+        return plt.subplots(ncols=1, figsize=(10, 5))
+
+    @staticmethod
+    def create_fig_ax_theta() -> tuple[Figure, Axes, Axes]:
         # Create a two-panel figure: left for robot, right for theta history
         fig, (ax_robot, ax_theta) = plt.subplots(ncols=2, figsize=(10, 5))
         return fig, ax_robot, ax_theta
@@ -228,7 +234,14 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
         self.path_plotted = True
 
     @staticmethod
-    def create_fig_ax() -> tuple[Figure, Axes3D, Axes]:
+    def create_fig_ax() -> tuple[Figure, Axes3D]:
+        fig = plt.figure(figsize=(12, 6))
+        ax_robot = fig.add_subplot(projection='3d')
+        ax_robot.set_box_aspect([1, 1, 1])
+        return fig, ax_robot
+
+    @staticmethod
+    def create_fig_ax_theta() -> tuple[Figure, Axes3D, Axes]:
         # Create a two-panel figure: left for robot (3D), right for theta history
         fig = plt.figure(figsize=(12, 6))
         ax_robot = fig.add_subplot(1, 2, 1, projection='3d')
@@ -379,11 +392,18 @@ class RoverPlotter3D(RobotPlotter[Axes3D]):
         self.path_plotted = True
 
     @staticmethod
-    def create_fig_ax() -> tuple[Figure, Axes3D, Axes]:
-        # Create a two-panel figure: left for robot (3D), right for theta history
+    def create_fig_ax() -> tuple[Figure, Axes3D]:
         fig = plt.figure(figsize=(12, 6))
         ax_robot = fig.add_subplot(projection='3d')
-        ax_theta = None
+        ax_robot.set_box_aspect([1, 1, 1])
+        return fig, ax_robot
+
+    @staticmethod
+    def create_fig_ax_theta() -> tuple[Figure, Axes3D, Axes]:
+        # Create a two-panel figure: left for robot (3D), right for theta history
+        fig = plt.figure(figsize=(12, 6))
+        ax_robot = fig.add_subplot(1, 2, 1, projection='3d')
+        ax_theta = fig.add_subplot(1, 2, 2)
         ax_robot.set_box_aspect([1, 1, 1])
         return fig, ax_robot, ax_theta
 
@@ -439,14 +459,13 @@ def display_robot(
 
 
 @auto_initialize
-def animate_rover(
-    robot: Robot,
+def animate_robot(
+    plotter: RobotPlotter,
     path: Matrix,
     *,
     refresh_rate: int = 5,
 ) -> Generator[None, tuple[Vector, Vector], None]:
-    plotter = RoverPlotter3D(robot)
-    fig, ax, ax_theta = plotter.create_fig_ax()
+    fig, ax = plotter.create_fig_ax()
     robot_display = display_robot(plotter, path=path, axes=ax, refresh_rate=refresh_rate)
     plt.ion()
     while True:
@@ -462,6 +481,7 @@ if __name__ == "__main__":
     path += config.initial_pos[config.move_node]
 
     robot = Robot(config)
-    animation = animate_rover(robot, path)
+    plotter = RoverPlotter3D(robot)
+    animation = animate_robot(plotter, path)
     for pos, vel in robot.move_node_along_path(config.move_node, path):
         animation.send((pos, vel))

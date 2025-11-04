@@ -93,7 +93,7 @@ def make_motion_fig(
     window_size: int = 200,
 ) -> Generator[None, tuple[Vector, Vector], None]:
     plotter = anim.RobotPlotter3D(robot) if robot.dim == 3 else anim.RobotPlotter2D(robot)
-    fig, ax, ax_theta = plotter.create_fig_ax()
+    fig, ax, ax_theta = plotter.create_fig_ax_theta()
     robot_display = anim.display_robot(plotter, path=path, axes=ax, refresh_rate=refresh_rate)
     roll_plot = plot_roll(
         robot,
