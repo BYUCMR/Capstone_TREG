@@ -1,6 +1,7 @@
 import numpy as np
 from collections.abc import Callable, Generator
 from itertools import pairwise
+from typing import Protocol
 
 import cvxpy
 
@@ -37,17 +38,79 @@ def calc_length_to_roll(num_triangles: int) -> Matrix:
     )
 
 
-class Robot:
+class Robot(Protocol):
+    config: TrussConfig
+    dim: int
+    num_rollers: int
+    @property
+    def pos(self) -> Matrix: ...
+    @property
+    def roll(self) -> Vector: ...
+
+
+class RollHistRobot(Robot):
+    t_hist: list[float]
+    @property
+    def roll_hist(self) -> list[Vector]: ...
+    @property
+    def rollrate_hist(self) -> list[Vector]: ...
+
+
+class RobotForward(Robot):
     def __init__(self, config: TrussConfig) -> None:
         self.config = config
         positions = config.initial_pos.copy()
         self.num_nodes, self.dim = positions.shape
-        self.num_triangles = len(config.triangles)
-        self.B_T = calc_roll_to_length(self.num_triangles)
-        self.L2th = calc_length_to_roll(self.num_triangles)
+        self.B_T = calc_roll_to_length(len(config.triangles))
         self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
         self.support_indices = get_support_indices(self.config)
         self.num_rollers = self.B_T.shape[1]
+        self.state = RobotState(
+            pos=positions,
+            roll=np.zeros((self.num_rollers,)),
+        )
+
+    @property
+    def pos(self) -> Matrix:
+        return self.state.pos
+
+    @property
+    def roll(self) -> Vector:
+        return self.state.roll
+
+    def pos_of(self, node: int) -> Vector:
+        return self.pos[node]
+
+    def next_state_from_roll(self, d_roll: Vector) -> RobotState:
+        not_supports = [i for i in range(self.num_nodes*self.dim) if i not in self.support_indices]
+
+        R_reduced = self.rigidity[:, not_supports]
+        R_inv = np.linalg.inv(R_reduced)
+        d_pos_reduced = R_inv @ self.B_T @ d_roll
+
+        d_pos = np.zeros((self.num_nodes*self.dim,))
+        d_pos[not_supports] = d_pos_reduced
+        d_pos_mat = d_pos.reshape(self.pos.shape, order='F')
+
+        return RobotState(
+            pos=self.pos + d_pos_mat,
+            roll=self.roll + d_roll,
+        )
+
+    def update_state_from_roll(self, roll: Vector) -> None:
+        self.state = self.next_state_from_roll(roll - self.roll)
+        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
+
+
+class RobotInverse(RollHistRobot):
+    def __init__(self, config: TrussConfig) -> None:
+        self.config = config
+        positions = config.initial_pos.copy()
+        self.num_nodes, self.dim = positions.shape
+        self.L2th = calc_length_to_roll(len(config.triangles))
+        self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
+        self.support_indices = get_support_indices(self.config)
+        self.num_rollers = self.L2th.shape[0]
         self.state_hist = [RobotState(
             pos=positions,
             roll=np.zeros((self.num_rollers,)),
@@ -92,35 +155,12 @@ class Robot:
             roll=self.roll + d_roll,
         )
 
-    def next_state_from_roll(self, d_roll: Vector) -> RobotState:
-        not_supports = [i for i in range(self.num_nodes*self.dim) if i not in self.support_indices]
-
-        R_reduced = self.rigidity[:, not_supports]
-        R_inv = np.linalg.inv(R_reduced)
-        d_pos_reduced = R_inv @ self.B_T @ d_roll
-
-        d_pos = np.zeros((self.num_nodes*self.dim,))
-        d_pos[not_supports] = d_pos_reduced
-        d_pos_mat = d_pos.reshape(self.pos.shape, order='F')
-
-        return RobotState(
-            pos=self.pos + d_pos_mat,
-            roll=self.roll + d_roll,
-        )
-
-    def update_state(self, state: RobotState, t: float) -> None:
-        self.t_hist.append(t)
-        self.state_hist.append(state)
-        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
-
     def update_state_from_vel(self, vel: Vector, dt: float) -> None:
         state = self.next_state_from_pos(vel*dt)
         t = self.t_hist[-1] + dt
-        self.update_state(state, t)
-
-    def update_state_from_roll(self, roll: Vector, t: float) -> None:
-        state = self.next_state_from_roll(roll - self.roll)
-        self.update_state(state, t)
+        self.t_hist.append(t)
+        self.state_hist.append(state)
+        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
 
     def make_constraint_matrices(
         self,
@@ -147,7 +187,7 @@ class Robot:
         A_lock[np.arange(n_lock), self.support_indices] = 1
         b_lock = np.zeros((n_lock,))
 
-        triangle_loops = np.kron(np.eye(self.num_triangles), np.ones((1, 3)))
+        triangle_loops = np.kron(np.eye(len(self.config.triangles)), np.ones((1, 3)))
         A_loop = triangle_loops @ self.rigidity
         b_loop = np.zeros((len(A_loop),))
 

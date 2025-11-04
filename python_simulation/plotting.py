@@ -9,12 +9,12 @@ from matplotlib.figure import Figure
 import anim
 from gentools import auto_initialize
 from linalg import Matrix, Vector
-from robot import Robot
+from robot import RollHistRobot
 
 
 @auto_initialize
 def plot_roll(
-    robot: Robot,
+    robot: RollHistRobot,
     *,
     fig: Figure,
     axes: Axes,
@@ -85,7 +85,7 @@ def plot_roll(
 
 @auto_initialize
 def make_motion_fig(
-    robot: Robot,
+    robot: RollHistRobot,
     path: Matrix,
     *,
     shown_rollers: Iterable[SupportsIndex] | None = None,
@@ -110,7 +110,7 @@ def make_motion_fig(
         plt.pause(0.001)
 
 
-def plot_theta_thetad(robot: Robot, *, save_fig: bool = False, filename: str = "theta_thetad_plots.png") -> None:
+def plot_theta_thetad(robot: RollHistRobot, *, save_fig: bool = False, filename: str = "theta_thetad_plots.png") -> None:
     plt.ioff()
     fig, (ax_theta, ax_thetad) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
 
@@ -142,12 +142,12 @@ def plot_theta_thetad(robot: Robot, *, save_fig: bool = False, filename: str = "
 
 if __name__ == "__main__":
     from path import make_path
-    from robot import Robot
+    from robot import RobotInverse
     from truss_config import CONFIG_2D_1 as config
     path = make_path(dimension=2)
     path += config.initial_pos[config.move_node]
 
-    robot = Robot(config)
+    robot = RobotInverse(config)
     fig = make_motion_fig(robot, path)
     for pos, vel in robot.move_node_along_path(config.move_node, path):
         fig.send((pos, vel))

@@ -476,11 +476,12 @@ def animate_robot(
 
 if __name__ == "__main__":
     from path import make_path
+    from robot import RobotInverse
     from truss_config import CONFIG_3D_ROVER1 as config
     path = make_path(RPYrot=(45, 30, 45))
     path += config.initial_pos[config.move_node]
 
-    robot = Robot(config)
+    robot = RobotInverse(config)
     plotter = RoverPlotter3D(robot)
     animation = animate_robot(plotter, path)
     for pos, vel in robot.move_node_along_path(config.move_node, path):

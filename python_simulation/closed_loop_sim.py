@@ -2,29 +2,26 @@ import numpy as np
 
 import anim, plotting
 from path import make_path
-from robot import Robot
+from robot import RobotForward, RobotInverse
 from truss_config import CONFIG_3D_1 as config
 
 path = make_path(RPYrot=(90., -45.0, 45.0))
 path += config.initial_pos[config.move_node]
 
-ol_robot = Robot(config)
+ol_robot = RobotInverse(config)
 
 for _ in ol_robot.move_node_along_path(config.move_node, path):
     pass
 
-t_hist = ol_robot.t_hist
-theta_hist = ol_robot.roll_hist
-
 plotting.plot_theta_thetad(ol_robot, save_fig=False, filename="theta_thetad_plot.png")
 
 
-cl_robot = Robot(config)
+cl_robot = RobotForward(config)
 cl_plotter = anim.RobotPlotter3D(cl_robot)
 
 animation = anim.animate_robot(cl_plotter, path)
-for t, theta in zip(t_hist, theta_hist):
-    theta = theta + np.random.normal(0, 0.01, size=theta.shape)  # Add small noise to simulate measurement error
-    cl_robot.update_state_from_roll(theta, t)
+for roll in ol_robot.roll_hist:
+    roll += np.random.normal(0, 0.01, size=roll.shape)  # Add small noise to simulate measurement error
+    cl_robot.update_state_from_roll(roll)
     vel = np.array([0.] * cl_robot.dim)
     animation.send((cl_robot.pos_of(config.move_node), vel))
