@@ -7,24 +7,24 @@ from linalg import Matrix
 
 Index: TypeAlias = 'SupportsIndex | slice[SupportsIndex]'
 Lock: TypeAlias = tuple[Index, Index]
-Triangles: TypeAlias = Collection[tuple[int, int, int]]
-Edges: TypeAlias = Collection[tuple[int, int]]
+Link: TypeAlias = tuple[int, int]
+Triangle: TypeAlias = tuple[int, int, int]
 
 
 @dataclass(slots=True, kw_only=True, frozen=True)
 class TrussConfig:
     locks: Collection[Lock] = field(default_factory=list)
     move_node: int
-    payload: Edges
-    triangles: Triangles
+    payload: Collection[Link]
+    triangles: Collection[Triangle]
     initial_pos: Matrix
 
-
-def edges(triangles: Triangles) -> Generator[tuple[int, int]]:
-    for (n1, n2, n3) in triangles:
-        yield (n1, n2)
-        yield (n2, n3)
-        yield (n3, n1)
+    @property
+    def links(self) -> Generator[Link]:
+        for (n1, n2, n3) in self.triangles:
+            yield (n1, n2)
+            yield (n2, n3)
+            yield (n3, n1)
 
 
 CONFIG_3D_ROVER1: Final = TrussConfig(

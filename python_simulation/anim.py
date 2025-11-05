@@ -13,7 +13,6 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from gentools import auto_initialize
 from linalg import Matrix, Vector
 from robot import Robot
-from truss_config import edges
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
@@ -54,7 +53,7 @@ class RobotPlotter2D(RobotPlotter[Axes]):
         self._scatter.set_offsets(np.c_[x, y])
 
         # Update lines
-        for (p1, p2), line in zip(edges(self.robot.config.triangles), self._lines):
+        for (p1, p2), line in zip(self.robot.config.links, self._lines):
             line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
 
         # Update fills
@@ -81,7 +80,7 @@ class RobotPlotter2D(RobotPlotter[Axes]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(edges(self.robot.config.triangles)):
+        for idx, (p1, p2) in enumerate(self.robot.config.links):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], triangle_colors[idx // 3], lw=3)
             self._lines.append(line)
 
@@ -170,7 +169,7 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
         self._scatter._offsets3d = (x, y, z)
 
         # Update lines
-        for (p1, p2), line in zip(edges(self.robot.config.triangles), self._lines):
+        for (p1, p2), line in zip(self.robot.config.links, self._lines):
             line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
             line.set_3d_properties([z[p1], z[p2]])
 
@@ -199,7 +198,7 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(edges(self.robot.config.triangles)):
+        for idx, (p1, p2) in enumerate(self.robot.config.links):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], triangle_colors[idx // 3], lw=6)
             self._lines.append(line)
 
@@ -296,7 +295,7 @@ class RoverPlotter3D(RobotPlotter[Axes3D]):
         self._scatter._offsets3d = (x, y, z)
 
         # Update lines
-        for (p1, p2), line in zip(edges(self.robot.config.triangles), self._lines):
+        for (p1, p2), line in zip(self.robot.config.links, self._lines):
             line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
             line.set_3d_properties([z[p1], z[p2]])
 
@@ -336,7 +335,7 @@ class RoverPlotter3D(RobotPlotter[Axes3D]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(edges(self.robot.config.triangles)):
+        for idx, (p1, p2) in enumerate(self.robot.config.links):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], triangle_colors[idx // 3], lw=6)
             self._lines.append(line)
 

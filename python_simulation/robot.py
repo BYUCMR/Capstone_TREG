@@ -7,23 +7,25 @@ import cvxpy
 
 from linalg import Matrix, Vector, unit_vector
 from state import RobotState
-from truss_config import Lock, Triangles, TrussConfig, edges
+from truss_config import Link, Lock, TrussConfig
 
 
-def calc_rigidity_matrix(positions: Matrix, triangles: Triangles) -> Matrix:
-    num_nodes, dim = positions.shape
+def calc_rigidity_matrix(link: Iterable[Link], positions: Matrix) -> Matrix:
+    dim = positions.shape[1]
     j = np.arange(dim)
-    R = np.zeros((3*len(triangles), num_nodes*dim))
-    for i, (e1, e2) in enumerate(edges(triangles)):
-        u = unit_vector(positions[e1] - positions[e2])
-        R[i, dim*e1 + j] = u
-        R[i, dim*e2 + j] = -u
-    return R
+    rows: list[Vector] = []
+    for n1, n2 in link:
+        row = np.zeros(positions.size)
+        u = unit_vector(positions[n1] - positions[n2])
+        row[dim*n1 + j] = u
+        row[dim*n2 + j] = -u
+        rows.append(row)
+    return np.array(rows)
 
 
-def calc_edge_lengths(positions: Matrix, triangles: Triangles) -> Matrix:
+def calc_link_lengths(positions: Matrix, links: Iterable[Link]) -> Matrix:
     return np.array([[
-        np.linalg.norm(positions[i] - positions[j]) for i, j in edges(triangles)
+        np.linalg.norm(positions[i] - positions[j]) for i, j in links
     ]])
 
 
@@ -80,7 +82,7 @@ class RobotForward(Robot):
         positions = config.initial_pos.copy()
         self.num_nodes, self.dim = positions.shape
         self.B_T = calc_roll_to_length(len(config.triangles))
-        self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
+        self.rigidity = calc_rigidity_matrix(self.config.links, positions)
         self.num_rollers = self.B_T.shape[1]
         self.state = RobotState(
             pos=positions,
@@ -119,7 +121,7 @@ class RobotForward(Robot):
 
     def update_state_from_roll(self, roll: Vector) -> None:
         self.state = self.next_state_from_roll(roll - self.roll)
-        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
+        self.rigidity = calc_rigidity_matrix(self.config.links, self.pos)
 
 
 class RobotInverse(RollHistRobot):
@@ -129,7 +131,7 @@ class RobotInverse(RollHistRobot):
         self.num_nodes, self.dim = positions.shape
         num_triangles = len(config.triangles)
         self.L2th = calc_length_to_roll(num_triangles)
-        self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
+        self.rigidity = calc_rigidity_matrix(self.config.links, positions)
         self.length_constraint = calc_length_constraints(num_triangles)
         self.num_rollers = self.L2th.shape[0]
         self.state_hist = [RobotState(
@@ -181,7 +183,7 @@ class RobotInverse(RollHistRobot):
         t = self.t_hist[-1] + dt
         self.t_hist.append(t)
         self.state_hist.append(state)
-        self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
+        self.rigidity = calc_rigidity_matrix(self.config.links, self.pos)
 
     def make_constraint_matrices(self, motion: Matrix) -> tuple[Matrix, Vector]:
         dim = self.dim
