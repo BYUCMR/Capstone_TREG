@@ -1,5 +1,5 @@
 import numpy as np
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Iterable
 from itertools import pairwise
 from typing import Protocol
 
@@ -7,7 +7,7 @@ import cvxpy
 
 from linalg import Matrix, Vector, unit_vector
 from state import RobotState
-from truss_config import Triangles, TrussConfig, edges, get_support_indices
+from truss_config import Lock, Triangles, TrussConfig, edges
 
 
 def calc_rigidity_matrix(positions: Matrix, triangles: Triangles) -> Matrix:
@@ -48,6 +48,14 @@ def calc_length_constraints(
     return A
 
 
+def make_move_contraint(motion: Matrix) -> tuple[Matrix, Vector]:
+    i = ~np.isnan(motion)
+    b = motion[i]
+    A = np.zeros((b.size, i.size))
+    A[:, i.flat] = np.eye(len(A))
+    return A, b
+
+
 class Robot(Protocol):
     config: TrussConfig
     dim: int
@@ -73,7 +81,6 @@ class RobotForward(Robot):
         self.num_nodes, self.dim = positions.shape
         self.B_T = calc_roll_to_length(len(config.triangles))
         self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
-        self.support_indices = get_support_indices(self.config)
         self.num_rollers = self.B_T.shape[1]
         self.state = RobotState(
             pos=positions,
@@ -92,7 +99,10 @@ class RobotForward(Robot):
         return self.pos[node]
 
     def next_state_from_roll(self, d_roll: Vector) -> RobotState:
-        not_supports = [i for i in range(self.num_nodes*self.dim) if i not in self.support_indices]
+        s = np.ones_like(self.pos, dtype=np.bool)
+        for lock in self.config.locks:
+            s[lock] = False
+        not_supports = np.flatnonzero(s)
 
         R_reduced = self.rigidity[:, not_supports]
         R_inv = np.linalg.inv(R_reduced)
@@ -121,7 +131,6 @@ class RobotInverse(RollHistRobot):
         self.L2th = calc_length_to_roll(num_triangles)
         self.rigidity = calc_rigidity_matrix(positions, self.config.triangles)
         self.length_constraint = calc_length_constraints(num_triangles)
-        self.support_indices = get_support_indices(self.config)
         self.num_rollers = self.L2th.shape[0]
         self.state_hist = [RobotState(
             pos=positions,
@@ -174,29 +183,11 @@ class RobotInverse(RollHistRobot):
         self.state_hist.append(state)
         self.rigidity = calc_rigidity_matrix(self.pos, self.config.triangles)
 
-    def make_constraint_matrices(
-        self,
-        *,
-        move_node: int | None = None,
-        node_vel: Vector | None = None,
-    ) -> tuple[Matrix, Vector]:
+    def make_constraint_matrices(self, motion: Matrix) -> tuple[Matrix, Vector]:
         dim = self.dim
         num_nodes = self.num_nodes
 
-        A_move = np.zeros((dim, dim*num_nodes))
-        i = np.arange(dim)
-        if move_node is None:
-            move_node = self.config.move_node
-        A_move[i, dim*move_node + i] = 1
-        if node_vel is None:
-            b_move = np.zeros((dim,))
-        else:
-            b_move = node_vel.reshape((dim,))
-
-        n_lock = len(self.support_indices)
-        A_lock = np.zeros((n_lock, dim*num_nodes))
-        A_lock[np.arange(n_lock), self.support_indices] = 1
-        b_lock = np.zeros((n_lock,))
+        A_move, b_move = make_move_contraint(motion)
 
         A_length = self.length_constraint @ self.rigidity
         b_length = np.zeros((len(A_length),))
@@ -209,13 +200,13 @@ class RobotInverse(RollHistRobot):
             A_payload[i, dim*e1 + j] = delta_pos
             A_payload[i, dim*e2 + j] = -delta_pos
 
-        Aeq = np.vstack([A_move, A_lock, A_length, A_payload])
-        beq = np.concat([b_move, b_lock, b_length, b_payload])
+        Aeq = np.vstack([A_move, A_length, A_payload])
+        beq = np.concat([b_move, b_length, b_payload])
         return Aeq, beq
 
-    def _get_opt_motion(self, node: int, node_vel: Vector) -> Vector:
+    def get_optimal_motion(self, motion: Matrix) -> Vector:
         v = cvxpy.Variable(self.pos.size)
-        A, b = self.make_constraint_matrices(move_node=node, node_vel=node_vel)
+        A, b = self.make_constraint_matrices(motion)
         cost = cvxpy.sum_squares(self.rigidity @ v)
         prob = cvxpy.Problem(cvxpy.Minimize(cost), [A @ v == b])
         prob.solve()
@@ -228,16 +219,19 @@ class RobotInverse(RollHistRobot):
         target: Vector,
         *,
         dt: float = 0.01,
+        locks: Iterable[Lock] = (),
         ctrl_func: Callable[[Vector], Vector] = unit_vector,
     ) -> Generator[tuple[Vector, Vector]]:
-        error = target - self.pos_of(node)
-        while np.linalg.norm(error) > 0.01:
+        motion = np.full_like(self.pos, np.nan)
+        for lock in locks:
+            motion[lock] = 0.
+        while np.linalg.norm(error := target - self.pos_of(node)) > 0.01:
             node_vel = ctrl_func(error)
             yield self.pos_of(node), node_vel
-            vel = self._get_opt_motion(node, node_vel)
+            motion[node] = node_vel
+            vel = self.get_optimal_motion(motion)
             self.update_state_from_vel(vel, dt)
-            error = target - self.pos_of(node)
 
     def move_node_along_path(self, node: int, path: Matrix) -> Generator[tuple[Vector, Vector]]:
         for point in path:
-            yield from self.move_node_toward_pos(node, point)
+            yield from self.move_node_toward_pos(node, point, locks=self.config.locks)

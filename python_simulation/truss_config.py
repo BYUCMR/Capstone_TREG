@@ -6,13 +6,14 @@ from typing import Final, SupportsIndex, TypeAlias
 from linalg import Matrix
 
 Index: TypeAlias = 'SupportsIndex | slice[SupportsIndex]'
+Lock: TypeAlias = tuple[Index, Index]
 Triangles: TypeAlias = Collection[tuple[int, int, int]]
 Edges: TypeAlias = Collection[tuple[int, int]]
 
 
 @dataclass(slots=True, kw_only=True, frozen=True)
 class TrussConfig:
-    locks: Collection[tuple[Index, Index]] = field(default_factory=list)
+    locks: Collection[Lock] = field(default_factory=list)
     move_node: int
     payload: Edges
     triangles: Triangles
@@ -24,14 +25,6 @@ def edges(triangles: Triangles) -> Generator[tuple[int, int]]:
         yield (n1, n2)
         yield (n2, n3)
         yield (n3, n1)
-
-
-def get_support_indices(config: TrussConfig) -> np.ndarray[tuple[int], np.dtype[np.intp]]:
-    s = np.zeros_like(config.initial_pos)
-    for lock in config.locks:
-        s[lock] = 1
-    indices, = s.ravel().nonzero()
-    return indices
 
 
 CONFIG_3D_ROVER1: Final = TrussConfig(
