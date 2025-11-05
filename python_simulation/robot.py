@@ -12,12 +12,12 @@ from truss_config import Triangles, TrussConfig, edges, get_support_indices
 
 def calc_rigidity_matrix(positions: Matrix, triangles: Triangles) -> Matrix:
     num_nodes, dim = positions.shape
-    j = num_nodes * np.arange(dim)
+    j = np.arange(dim)
     R = np.zeros((3*len(triangles), num_nodes*dim))
     for i, (e1, e2) in enumerate(edges(triangles)):
         u = unit_vector(positions[e1] - positions[e2])
-        R[i, e1 + j] = u
-        R[i, e2 + j] = -u
+        R[i, dim*e1 + j] = u
+        R[i, dim*e2 + j] = -u
     return R
 
 
@@ -100,7 +100,7 @@ class RobotForward(Robot):
 
         d_pos = np.zeros((self.num_nodes*self.dim,))
         d_pos[not_supports] = d_pos_reduced
-        d_pos_mat = d_pos.reshape(self.pos.shape, order='F')
+        d_pos_mat = d_pos.reshape(self.pos.shape)
 
         return RobotState(
             pos=self.pos + d_pos_mat,
@@ -161,7 +161,7 @@ class RobotInverse(RollHistRobot):
 
     def next_state_from_pos(self, d_pos: Vector) -> RobotState:
         d_roll = self.L2th @ self.rigidity @ d_pos
-        d_pos_mat = d_pos.reshape(self.pos.shape, order='F')
+        d_pos_mat = d_pos.reshape(self.pos.shape)
         return RobotState(
             pos=self.pos + d_pos_mat,
             roll=self.roll + d_roll,
@@ -187,7 +187,7 @@ class RobotInverse(RollHistRobot):
         i = np.arange(dim)
         if move_node is None:
             move_node = self.config.move_node
-        A_move[i, move_node + i*num_nodes] = 1
+        A_move[i, dim*move_node + i] = 1
         if node_vel is None:
             b_move = np.zeros((dim,))
         else:
@@ -203,11 +203,11 @@ class RobotInverse(RollHistRobot):
 
         A_payload = np.zeros((len(self.config.payload),num_nodes*dim))
         b_payload = np.zeros((len(self.config.payload),))
-        j = num_nodes * np.arange(dim)
+        j = np.arange(dim)
         for i, (e1,e2) in enumerate(self.config.payload):
             delta_pos = self.pos[e1]-self.pos[e2]
-            A_payload[i, e1+j] = delta_pos
-            A_payload[i, e2+j] = -delta_pos
+            A_payload[i, dim*e1 + j] = delta_pos
+            A_payload[i, dim*e2 + j] = -delta_pos
 
         Aeq = np.vstack([A_move, A_lock, A_length, A_payload])
         beq = np.concat([b_move, b_lock, b_length, b_payload])

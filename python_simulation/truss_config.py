@@ -30,7 +30,7 @@ def get_support_indices(config: TrussConfig) -> np.ndarray[tuple[int], np.dtype[
     s = np.zeros_like(config.initial_pos)
     for lock in config.locks:
         s[lock] = 1
-    indices, = s.ravel(order='F').nonzero()
+    indices, = s.ravel().nonzero()
     return indices
 
 
