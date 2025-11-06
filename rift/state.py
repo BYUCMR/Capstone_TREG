@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from linalg import Matrix, Vector
+from .linalg import Matrix, Vector
 
 
 @dataclass(slots=True, kw_only=True, frozen=True)

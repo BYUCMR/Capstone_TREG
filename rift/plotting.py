@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-import anim
-from gentools import auto_initialize
-from linalg import Matrix, Vector
-from robot import RollHistRobot
+from . import anim
+from .gentools import auto_initialize
+from .linalg import Matrix, Vector
+from .robot import RollHistRobot
 
 
 @auto_initialize
@@ -138,16 +138,3 @@ def plot_theta_thetad(robot: RollHistRobot, *, save_fig: bool = False, filename:
     if save_fig:
         fig.savefig(filename, dpi=150)
     plt.show()
-
-
-if __name__ == "__main__":
-    from path import make_path
-    from robot import RobotInverse
-    from truss_config import CONFIG_2D_1 as config
-    path = make_path(dimension=2)
-    path += config.initial_pos[config.move_node]
-
-    robot = RobotInverse(config)
-    fig = make_motion_fig(robot, path)
-    for pos, vel in robot.move_node_along_path(config.move_node, path):
-        fig.send((pos, vel))

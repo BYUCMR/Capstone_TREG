@@ -10,9 +10,9 @@ from matplotlib.quiver import Quiver
 from mpl_toolkits.mplot3d.art3d import Line3DCollection, Poly3DCollection
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
-from gentools import auto_initialize
-from linalg import Matrix, Vector
-from robot import Robot
+from .gentools import auto_initialize
+from .linalg import Matrix, Vector
+from .robot import Robot
 import plotly.graph_objects as go
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
@@ -410,16 +410,3 @@ def animate_robot(
         move_node_pos, move_node_vel = yield
         robot_display.send((move_node_pos, move_node_vel))
         plt.pause(0.001)
-
-
-if __name__ == "__main__":
-    from linalg import roll_pitch_yaw
-    from path import make_path
-    from robot import RobotInverse
-    from truss_config import CONFIG_3D_ROVER1 as config
-    path = make_path(xform=roll_pitch_yaw(np.pi/4, np.pi/6, np.pi/4))
-    path += config.initial_pos[config.move_node]
-
-    robot = RobotInverse(config)
-    plotter = RoverPlotter3D(robot)
-    plotter.update_plot(path)

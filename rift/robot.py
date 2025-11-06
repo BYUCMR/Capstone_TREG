@@ -5,9 +5,9 @@ from typing import Protocol
 
 import cvxpy
 
-from linalg import Matrix, Vector, unit_vector
-from state import RobotState
-from truss_config import Link, Lock, TrussConfig
+from .linalg import Matrix, Vector, unit_vector
+from .state import RobotState
+from .truss_config import Link, Lock, TrussConfig
 
 
 def calc_rigidity_matrix(link: Iterable[Link], positions: Matrix) -> Matrix:

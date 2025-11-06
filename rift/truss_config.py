@@ -3,7 +3,7 @@ from collections.abc import Generator, Collection
 from dataclasses import dataclass, field
 from typing import Final, SupportsIndex, TypeAlias
 
-from linalg import Matrix
+from .linalg import Matrix
 
 Index: TypeAlias = 'SupportsIndex | slice[SupportsIndex]'
 Lock: TypeAlias = tuple[Index, Index]

@@ -1,13 +1,16 @@
+import pathlib, sys
+sys.path.append(str(pathlib.Path.cwd()))
+
 import dash
 import numpy as np
 from dash import dcc, html
 import plotly.graph_objects as go
 
-from anim import RoverPlotter3D
-from linalg import roll_pitch_yaw
-from path import make_path
-from robot import RobotInverse
-from truss_config import CONFIG_3D_ROVER1 as config
+from rift.anim import RoverPlotter3D
+from rift.linalg import roll_pitch_yaw
+from rift.path import make_path
+from rift.robot import RobotInverse
+from rift.truss_config import CONFIG_3D_ROVER1 as config
 
 path = make_path(xform=roll_pitch_yaw(np.pi/4, np.pi/6, np.pi/4))
 path += config.initial_pos[config.move_node]
