@@ -29,23 +29,33 @@ def calc_link_lengths(positions: Matrix, links: Iterable[Link]) -> Matrix:
     ]])
 
 
-def calc_roll_to_length(num_triangles: int) -> Matrix:
-    return np.kron(
+def calc_roll_to_length(num_triangles: int, num_body_links: int = 0) -> Matrix:
+    M = np.kron(
         np.eye(num_triangles), np.array([[-1, 0], [1, -1], [0, 1]])
     )
+    return np.vstack([M, np.zeros((num_body_links, M.shape[1]))])
 
-def calc_length_to_roll(num_triangles: int) -> Matrix:
-    return np.kron(
+def calc_length_to_roll(num_triangles: int, num_body_links: int = 0) -> Matrix:
+    M = np.kron(
         np.eye(num_triangles), np.array([[-2, 1, 1,], [-1, -1, 2]]) / 3
     )
+    return np.hstack([M, np.zeros((M.shape[0], num_body_links))])
 
 
 def calc_length_constraints(
-    num_triangles: int, *, broken_rollers: list[int] | None = None
+    num_triangles: int,
+    num_body_links: int = 0,
+    *,
+    broken_rollers: list[int] | None = None
 ) -> Matrix:
     A = np.kron(np.eye(num_triangles), np.ones((1, 3)))
+    if num_body_links:
+        A = np.block([
+            [A, np.zeros((A.shape[0], num_body_links))],
+            [np.zeros((num_body_links, A.shape[1])), np.eye(num_body_links)],
+        ])
     if broken_rollers:
-        length_to_roll = calc_length_to_roll(num_triangles)
+        length_to_roll = calc_length_to_roll(num_triangles, num_body_links)
         A = np.vstack([A, length_to_roll[broken_rollers]])
     return A
 
@@ -81,8 +91,8 @@ class RobotForward(Robot):
         self.config = config
         positions = config.initial_pos.copy()
         self.num_nodes, self.dim = positions.shape
-        self.B_T = calc_roll_to_length(len(config.triangles))
-        self.rigidity = calc_rigidity_matrix(self.config.links, positions)
+        self.B_T = calc_roll_to_length(len(config.triangles), len(config.payload))
+        self.rigidity = calc_rigidity_matrix(self.config.all_links, positions)
         self.num_rollers = self.B_T.shape[1]
         self.state = RobotState(
             pos=positions,
@@ -121,7 +131,7 @@ class RobotForward(Robot):
 
     def update_state_from_roll(self, roll: Vector) -> None:
         self.state = self.next_state_from_roll(roll - self.roll)
-        self.rigidity = calc_rigidity_matrix(self.config.links, self.pos)
+        self.rigidity = calc_rigidity_matrix(self.config.all_links, self.pos)
 
 
 class RobotInverse(RollHistRobot):
@@ -130,9 +140,10 @@ class RobotInverse(RollHistRobot):
         positions = config.initial_pos.copy()
         self.num_nodes, self.dim = positions.shape
         num_triangles = len(config.triangles)
-        self.L2th = calc_length_to_roll(num_triangles)
-        self.rigidity = calc_rigidity_matrix(self.config.links, positions)
-        self.length_constraint = calc_length_constraints(num_triangles)
+        num_body_links = len(config.payload)
+        self.L2th = calc_length_to_roll(num_triangles, num_body_links)
+        self.rigidity = calc_rigidity_matrix(self.config.all_links, positions)
+        self.length_constraint = calc_length_constraints(num_triangles, num_body_links)
         self.num_rollers = self.L2th.shape[0]
         self.state_hist = [RobotState(
             pos=positions,
@@ -183,27 +194,16 @@ class RobotInverse(RollHistRobot):
         t = self.t_hist[-1] + dt
         self.t_hist.append(t)
         self.state_hist.append(state)
-        self.rigidity = calc_rigidity_matrix(self.config.links, self.pos)
+        self.rigidity = calc_rigidity_matrix(self.config.all_links, self.pos)
 
     def make_constraint_matrices(self, motion: Matrix) -> tuple[Matrix, Vector]:
-        dim = self.dim
-        num_nodes = self.num_nodes
-
         A_move, b_move = make_move_contraint(motion)
 
         A_length = self.length_constraint @ self.rigidity
         b_length = np.zeros((len(A_length),))
 
-        A_payload = np.zeros((len(self.config.payload),num_nodes*dim))
-        b_payload = np.zeros((len(self.config.payload),))
-        j = np.arange(dim)
-        for i, (e1,e2) in enumerate(self.config.payload):
-            delta_pos = self.pos[e1]-self.pos[e2]
-            A_payload[i, dim*e1 + j] = delta_pos
-            A_payload[i, dim*e2 + j] = -delta_pos
-
-        Aeq = np.vstack([A_move, A_length, A_payload])
-        beq = np.concat([b_move, b_length, b_payload])
+        Aeq = np.vstack([A_move, A_length])
+        beq = np.concat([b_move, b_length])
         return Aeq, beq
 
     def get_optimal_motion(self, motion: Matrix) -> Vector:

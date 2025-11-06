@@ -26,6 +26,11 @@ class TrussConfig:
             yield (n2, n3)
             yield (n3, n1)
 
+    @property
+    def all_links(self) -> Generator[Link]:
+        yield from self.links
+        yield from self.payload
+
 
 CONFIG_3D_ROVER1: Final = TrussConfig(
     locks=[(0, slice(0,3)), (1, slice(0,3)), (6, slice(0,3))],
