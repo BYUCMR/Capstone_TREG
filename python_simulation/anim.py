@@ -13,6 +13,7 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from gentools import auto_initialize
 from linalg import Matrix, Vector
 from robot import Robot
+import plotly.graph_objects as go
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
 
@@ -277,163 +278,101 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
     def update_dot(dot, position: Vector) -> None:
         dot.set_data_3d(position.reshape(3, 1))
 
-class RoverPlotter3D(RobotPlotter[Axes3D]):
+
+class RoverPlotter3D:
     def __init__(self, robot: Robot) -> None:
         self.robot = robot
-        self._scatter = None
-        self._lines = []
-        self._labels = []
-        self._fills = []
 
-    def update_plot(self) -> None:
-        if self._scatter is None or not self._lines or not self._labels:
-            raise RuntimeError("plot_robot must be called before update_plot")
-
-        x, y, z = self.robot.pos.T
-
-        # Update scatter points
-        self._scatter._offsets3d = (x, y, z)
-
-        # Update lines
-        for (p1, p2), line in zip(self.robot.config.links, self._lines):
-            line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
-            line.set_3d_properties([z[p1], z[p2]])
-
-        # Update labels
-        for label, xi, yi, zi in zip(self._labels, x, y, z):
-            label.set_position((xi + 0.1, yi))
-            label.set_3d_properties(zi, zdir='z')
-
-        #update payload
-        payload_pnts = self.robot.pos[self.payload]
-        payload_faces = [
-            [payload_pnts[0], payload_pnts[1], payload_pnts[2]],  # bottom triangle
-            [payload_pnts[3], payload_pnts[4], payload_pnts[5]],  # top triangle
-            [payload_pnts[0], payload_pnts[1], payload_pnts[4], payload_pnts[3]],  # side 1
-            [payload_pnts[1], payload_pnts[2], payload_pnts[5], payload_pnts[4]],  # side 2
-            [payload_pnts[2], payload_pnts[0], payload_pnts[3], payload_pnts[5]]  # side 3
-        ]
-        self.collection.set_verts(payload_faces)
-
-    @staticmethod
-    def plot_dot(ax: Axes3D) -> Line2D:
-        dot, = ax.plot([], [], [], 'o', color="blue")
-        dot.set_markerfacecolor('blue')  # fill color
-        dot.set_markeredgecolor('gray')  # optional edge color
-        dot.set_markersize(8)
-        return dot
-
-    def plot_robot(self, ax: Axes3D) -> None:
-        x, y, z = self.robot.pos.T
-
-        # Plot the points
-        self._scatter = ax.scatter(x, y, z, color='b', s=50, label='Points')
-
-        for line in self._lines:
-            line.remove()
-        self._lines.clear()
-
-        # Plot the edges
-        triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.robot.config.links):
-            line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], triangle_colors[idx // 3], lw=6)
-            self._lines.append(line)
-
-        #plot the payload
+    def plot_payload(self) -> tuple[list[go.Scatter3d], go.Mesh3d]:
         payload = self.robot.config.payload
-        payload_ind = set()
+        payload_ind = set[int]()
         for i in payload:
             payload_ind.add(i[0])
             payload_ind.add(i[1])
 
-        self.payload = list(payload_ind)
-        payload_pnts = self.robot.pos[self.payload]
-        payload_faces = [
-            [payload_pnts[0], payload_pnts[1], payload_pnts[2]],  # bottom triangle
-            [payload_pnts[3], payload_pnts[4], payload_pnts[5]],  # top triangle
-            [payload_pnts[0], payload_pnts[1], payload_pnts[4], payload_pnts[3]],  # side 1
-            [payload_pnts[1], payload_pnts[2], payload_pnts[5], payload_pnts[4]],  # side 2
-            [payload_pnts[2], payload_pnts[0], payload_pnts[3], payload_pnts[5]]  # side 3
-        ]
-        self.collection = Poly3DCollection(
-            payload_faces, facecolors='skyblue', edgecolors='k', alpha=0.8
+        payload_pnts = self.robot.pos[list(payload_ind)]
+        x = payload_pnts[:, 0]  # First column
+        y = payload_pnts[:, 1]  # Second column
+        z = payload_pnts[:, 2]
+        payload_faces = [[0, 1, 2], [3, 4, 5],
+                         [0, 3, 5], [0, 2, 5],
+                         [1, 4, 5], [1, 2, 5],
+                         [0, 1, 4], [0, 3, 4]]
+
+        index_map = {v: i for i, v in enumerate(payload_ind)}
+
+        # Replace each value in the pairs with its corresponding index
+        payload_edges = [(index_map[a], index_map[b]) for a, b in payload]
+
+        edge_lines: list[go.Scatter3d] = []
+        for e in payload_edges:
+            edge_lines.append(
+                go.Scatter3d(
+                    x=[x[e[0]], x[e[1]]],
+                    y=[y[e[0]], y[e[1]]],
+                    z=[z[e[0]], z[e[1]]],
+                    mode='lines',
+                    line=dict(color='black', width=4),
+                    showlegend=False
+                )
+            )
+
+        mesh = go.Mesh3d(
+            x=x, y=y, z=z,
+            i=[f[0] for f in payload_faces],
+            j=[f[1] for f in payload_faces],
+            k=[f[2] for f in payload_faces],
+            color='lightblue',
+            opacity=1,
+            flatshading=True,
+            name='Prism'
         )
-        ax.add_collection3d(self.collection)
+        return edge_lines, mesh
 
-        for t in self._labels:
-            t.remove()
-        self._labels.clear()
+    def plot_triangles(self) -> list[go.Scatter3d]:
+        triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
+        traces: list[go.Scatter3d] = []
+        for t, (v0, v1, v2) in enumerate(self.robot.config.triangles):
+            x = [self.robot.pos[v0][0], self.robot.pos[v1][0], self.robot.pos[v2][0], self.robot.pos[v0][0]]
+            y = [self.robot.pos[v0][1], self.robot.pos[v1][1], self.robot.pos[v2][1], self.robot.pos[v0][1]]
+            z = [self.robot.pos[v0][2], self.robot.pos[v1][2], self.robot.pos[v2][2], self.robot.pos[v0][2]]
 
-        for i, (xi, yi, zi) in enumerate(zip(x, y, z)):
-            label = ax.text(xi + 0.1, yi, zi, str(i + 1), fontsize=12)
-            self._labels.append(label)
+            trace = go.Scatter3d(
+                x=x, y=y, z=z,
+                mode='lines',
+                line=dict(color=triangle_colors.get(t, 'gray'), width=6),
+                marker=dict(size=5, color=triangle_colors.get(t, 'gray')),
+                showlegend=False
+            )
+            traces.append(trace)
+        return traces
 
-        # Add labels
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
+    def plot_path(self, r_path: Matrix) -> go.Scatter3d:
+        x, y, z = r_path.T
+        path_points = go.Scatter3d(
+            x=x, y=y, z=z,
+            mode='lines+markers',
+            line=dict(color='black', width=6),
+            marker=dict(size=5, color='black', symbol='circle'),
+            name='Path'
+        )
+        return path_points
 
-        # Add grid and set aspect ratio
-        ax.grid(True)
-        ax.set_box_aspect([1, 1, 1])  # This ensures equal aspect ratio
-
-        # Add legend
-        ax.legend()
-
-        self.robot_plotted = True
-
-    def plot_path(self, path: Matrix, ax: Axes3D, *, fill: bool = True) -> None:
-        x, y, z = path.T
-        ax.scatter(x, y, z, color='r')
-        if fill:
-            poly = Poly3DCollection([path], alpha=0.5, facecolor='red')
-            ax.add_collection3d(poly)
-        self.path_plotted = True
-
-    @staticmethod
-    def create_fig_ax() -> tuple[Figure, Axes3D]:
-        fig = plt.figure(figsize=(12, 6))
-        ax_robot = fig.add_subplot(projection='3d')
-        ax_robot.set_box_aspect([1, 1, 1])
-        return fig, ax_robot
-
-    @staticmethod
-    def create_fig_ax_theta() -> tuple[Figure, Axes3D, Axes]:
-        # Create a two-panel figure: left for robot (3D), right for theta history
-        fig = plt.figure(figsize=(12, 6))
-        ax_robot = fig.add_subplot(1, 2, 1, projection='3d')
-        ax_theta = fig.add_subplot(1, 2, 2)
-        ax_robot.set_box_aspect([1, 1, 1])
-        return fig, ax_robot, ax_theta
-
-    def show(self, path: Matrix, ax: Axes3D):
-        if self.robot_plotted and self.path_plotted:
-            points = np.vstack([self.robot.pos, path])
-        elif self.robot_plotted and not self.path_plotted:
-            points = self.robot.pos
-        elif self.path_plotted:
-            points = path
-        else:
-            plt.show()
-            return
-        lower = float(np.min(points)) - 1
-        upper = float(np.max(points)) + 1
-
-        ax.set_xlim(lower, upper)
-        ax.set_ylim(lower, upper)
-        ax.set_box_aspect([1, 1, 1])
-
-        self.robot_plotted = False
-        self.path_plotted = False
-        plt.show()
-
-    @staticmethod
-    def plot_arrow(ax: Axes3D, position: Vector, direction: Vector) -> Line3DCollection:
-        return ax.quiver(*position, *direction, color='blue', length=1, normalize=True, linewidth=6, arrow_length_ratio=0.4)
-
-    @staticmethod
-    def update_dot(dot, position: Vector) -> None:
-        dot.set_data_3d(position.reshape(3, 1))
+    def update_plot(self,robot_path) -> None:
+        triangle_scatter = self.plot_triangles()
+        payload_edges, payload_mesh = self.plot_payload()
+        path_scatter = self.plot_path(robot_path)
+        fig = go.Figure(data=[payload_mesh,path_scatter] + payload_edges+triangle_scatter)
+        fig.update_layout(
+            scene=dict(
+                xaxis_title='X',
+                yaxis_title='Y',
+                zaxis_title='Z',
+                aspectmode='data'
+            ),
+            title="3D Rectangular Prism with Random Colored Lines Outside"
+        )
+        fig.show()
 
 
 @auto_initialize
@@ -483,6 +422,4 @@ if __name__ == "__main__":
 
     robot = RobotInverse(config)
     plotter = RoverPlotter3D(robot)
-    animation = animate_robot(plotter, path)
-    for pos, vel in robot.move_node_along_path(config.move_node, path):
-        animation.send((pos, vel))
+    plotter.update_plot(path)
