@@ -23,7 +23,7 @@ def plot_roll(
 ) -> Generator[None]:
     last = 1
     if shown_rollers is None:
-        shown_rollers = np.arange(robot.num_rollers)
+        shown_rollers = np.arange(robot.roll.size)
     else:
         shown_rollers = np.array(shown_rollers)
 

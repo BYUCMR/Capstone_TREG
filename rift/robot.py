@@ -70,8 +70,8 @@ def make_move_contraint(motion: Matrix) -> tuple[Matrix, Vector]:
 
 class Robot(Protocol):
     config: TrussConfig
-    dim: int
-    num_rollers: int
+    @property
+    def dim(self) -> int: ...
     @property
     def pos(self) -> Matrix: ...
     @property
@@ -90,14 +90,13 @@ class RobotForward(Robot):
     def __init__(self, config: TrussConfig) -> None:
         self.config = config
         positions = config.initial_pos.copy()
-        self.num_nodes, self.dim = positions.shape
         self.B_T = calc_roll_to_length(len(config.triangles), len(config.payload))
         self.rigidity = calc_rigidity_matrix(self.config.all_links, positions)
-        self.num_rollers = self.B_T.shape[1]
-        self.state = RobotState(
-            pos=positions,
-            roll=np.zeros((self.num_rollers,)),
-        )
+        self.state = RobotState(pos=positions, roll=np.zeros(self.B_T.shape[1]))
+
+    @property
+    def dim(self) -> int:
+        return self.state.pos.shape[1]
 
     @property
     def pos(self) -> Matrix:
@@ -120,7 +119,7 @@ class RobotForward(Robot):
         R_inv = np.linalg.inv(R_reduced)
         d_pos_reduced = R_inv @ self.B_T @ d_roll
 
-        d_pos = np.zeros((self.num_nodes*self.dim,))
+        d_pos = np.zeros(self.pos.size)
         d_pos[not_supports] = d_pos_reduced
         d_pos_mat = d_pos.reshape(self.pos.shape)
 
@@ -138,18 +137,17 @@ class RobotInverse(RollHistRobot):
     def __init__(self, config: TrussConfig) -> None:
         self.config = config
         positions = config.initial_pos.copy()
-        self.num_nodes, self.dim = positions.shape
         num_triangles = len(config.triangles)
         num_body_links = len(config.payload)
         self.L2th = calc_length_to_roll(num_triangles, num_body_links)
         self.rigidity = calc_rigidity_matrix(self.config.all_links, positions)
         self.length_constraint = calc_length_constraints(num_triangles, num_body_links)
-        self.num_rollers = self.L2th.shape[0]
-        self.state_hist = [RobotState(
-            pos=positions,
-            roll=np.zeros((self.num_rollers,)),
-        )]
+        self.state_hist = [RobotState(pos=positions, roll=np.zeros(self.L2th.shape[0]))]
         self.t_hist = [0.]
+
+    @property
+    def dim(self) -> int:
+        return self.state_hist[-1].pos.shape[1]
 
     @property
     def pos(self) -> Matrix:
