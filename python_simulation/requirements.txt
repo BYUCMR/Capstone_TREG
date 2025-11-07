@@ -1,3 +1,5 @@
 cvxpy
+dash
 numpy
 matplotlib
+plotly

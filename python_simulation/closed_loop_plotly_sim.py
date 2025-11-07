@@ -1,12 +1,15 @@
 import dash
+import numpy as np
 from dash import dcc, html
-from python_simulation.path import make_path
-from python_simulation.anim import RoverPlotter3D
-from python_simulation.robot import RobotInverse
-from truss_config import CONFIG_3D_ROVER1 as config
 import plotly.graph_objects as go
 
-path = make_path(RPYrot=(45, 30, 45))
+from anim import RoverPlotter3D
+from linalg import roll_pitch_yaw
+from path import make_path
+from robot import RobotInverse
+from truss_config import CONFIG_3D_ROVER1 as config
+
+path = make_path(xform=roll_pitch_yaw(np.pi/4, np.pi/6, np.pi/4))
 path += config.initial_pos[config.move_node]
 robot = RobotInverse(config)
 plot = RoverPlotter3D(robot)
