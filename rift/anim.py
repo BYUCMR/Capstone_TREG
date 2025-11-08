@@ -54,11 +54,12 @@ class RobotPlotter2D(RobotPlotter[Axes]):
         self._scatter.set_offsets(np.c_[x, y])
 
         # Update lines
-        for (p1, p2), line in zip(self.robot.config.links, self._lines):
+        for (p1, p2), line in zip(self.robot.config.triangles.links, self._lines):
             line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
 
         # Update fills
-        for (p1, p2, p3), fill in zip(self.robot.config.triangles, self._fills):
+        for tri, fill in zip(self.robot.config.triangles, self._fills):
+            p1, p2, p3, _ = tri.nodes
             fill.set_xy(np.array([[x[p1], y[p1]], [x[p2], y[p2]], [x[p3], y[p3]]]))
 
         # Update labels
@@ -81,11 +82,12 @@ class RobotPlotter2D(RobotPlotter[Axes]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.robot.config.links):
+        for idx, (p1, p2) in enumerate(self.robot.config.triangles.links):
             line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], triangle_colors[idx // 3], lw=3)
             self._lines.append(line)
 
-        for idx, (p1, p2, p3) in enumerate(self.robot.config.triangles):
+        for idx, tri in enumerate(self.robot.config.triangles):
+            p1, p2, p3, _ = tri.nodes
             self._fills.append(ax.fill([x[p1], x[p2], x[p3]], [y[p1], y[p2], y[p3]], triangle_colors[idx], alpha=0.2)[0])
 
         for i, (xi, yi) in enumerate(zip(x, y)):
@@ -170,7 +172,7 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
         self._scatter._offsets3d = (x, y, z)
 
         # Update lines
-        for (p1, p2), line in zip(self.robot.config.links, self._lines):
+        for (p1, p2), line in zip(self.robot.config.triangles.links, self._lines):
             line.set_data([x[p1], x[p2]], [y[p1], y[p2]])
             line.set_3d_properties([z[p1], z[p2]])
 
@@ -199,9 +201,11 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
 
         # Plot the edges
         triangle_colors = {0: 'b-', 1: 'r-', 2: 'k-', 3: 'g-', 4: 'c-', 5:'m-', 6: 'y-'}
-        for idx, (p1, p2) in enumerate(self.robot.config.links):
-            line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], triangle_colors[idx // 3], lw=6)
-            self._lines.append(line)
+        for i, triangle in enumerate(self.robot.config.triangles):
+            color = triangle_colors[i]
+            for p1, p2 in triangle.links:
+                line, = ax.plot([x[p1], x[p2]], [y[p1], y[p2]], [z[p1], z[p2]], color, lw=6)
+                self._lines.append(line)
 
         for t in self._labels:
             t.remove()
@@ -287,7 +291,7 @@ class RoverPlotter3D:
         payload = self.robot.config.payload
         payload_ind = set[int]()
         for i in payload:
-            payload_ind.update(i)
+            payload_ind.update(i.nodes)
 
         payload_pnts = self.robot.pos[list(payload_ind)]
         x = payload_pnts[:, 0]  # First column
@@ -301,7 +305,7 @@ class RoverPlotter3D:
         index_map = {v: i for i, v in enumerate(payload_ind)}
 
         # Replace each value in the pairs with its corresponding index
-        payload_edges = [(index_map[a], index_map[b]) for a, b in payload]
+        payload_edges = [(index_map[a], index_map[b]) for a, b in payload.links]
 
         edge_lines: list[go.Scatter3d] = []
         for e in payload_edges:
@@ -331,7 +335,8 @@ class RoverPlotter3D:
     def plot_triangles(self) -> list[go.Scatter3d]:
         triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
         traces: list[go.Scatter3d] = []
-        for t, (v0, v1, v2) in enumerate(self.robot.config.triangles):
+        for t, tri in enumerate(self.robot.config.triangles):
+            v0, v1, v2, _ = tri.nodes
             x, y, z = ([self.robot.pos[v][i] for v in (v0, v1, v2, v0)] for i in range(3))
             trace = go.Scatter3d(
                 x=x, y=y, z=z,

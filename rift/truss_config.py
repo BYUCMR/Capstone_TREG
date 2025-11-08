@@ -1,9 +1,10 @@
 import numpy as np
-from collections.abc import Generator, Collection
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from typing import Final, SupportsIndex, TypeAlias
 
 from .linalg import Matrix
+from .tubetruss import TubeTruss
 
 Index: TypeAlias = 'SupportsIndex | slice[SupportsIndex]'
 Lock: TypeAlias = tuple[Index, Index]
@@ -11,32 +12,24 @@ Link: TypeAlias = tuple[int, int]
 Triangle: TypeAlias = tuple[int, int, int]
 
 
+bars = TubeTruss.make_bars
+tris = TubeTruss.make_tris
+
+
 @dataclass(slots=True, kw_only=True, frozen=True)
 class TrussConfig:
-    locks: Collection[Lock] = field(default_factory=list)
+    locks: Collection[Lock] = ()
     move_node: int
-    payload: Collection[Link]
-    triangles: Collection[Triangle]
+    payload: TubeTruss = field(default_factory=TubeTruss)
+    triangles: TubeTruss = field(default_factory=TubeTruss)
     initial_pos: Matrix
-
-    @property
-    def links(self) -> Generator[Link]:
-        for (n1, n2, n3) in self.triangles:
-            yield (n1, n2)
-            yield (n2, n3)
-            yield (n3, n1)
-
-    @property
-    def all_links(self) -> Generator[Link]:
-        yield from self.links
-        yield from self.payload
 
 
 CONFIG_3D_ROVER1: Final = TrussConfig(
     locks=[(0, slice(0,3)), (1, slice(0,3)), (6, slice(0,3))],
     move_node=7,
-    triangles=np.array([[0, 1, 2], [0, 3, 5], [1, 4, 5], [6, 7, 8], [6, 9, 11], [7, 10, 11]]),
-    payload=[(2, 8), (3, 9), (4, 10), (2, 9), (3, 10), (4, 8),(2,3),(3,4),(2,4),(8,10),(8,9),(9,10)],
+    triangles=tris([(0, 1, 2), (0, 3, 5), (1, 4, 5), (6, 7, 8), (6, 9, 11), (7, 10, 11)]),
+    payload=bars([(2,8), (3,9), (4,10), (2,9), (3,10), (4,8), (2,3), (3,4), (2,4), (8,10), (8,9), (9,10)]),
     initial_pos=np.array([  # Side 1
         [12.879, 4.003, -10.963],  # Ground (0)
         [12.879, -13.997, -10.963],  # Ground (1)
@@ -57,8 +50,7 @@ CONFIG_3D_ROVER1: Final = TrussConfig(
 CONFIG_3D_1: Final = TrussConfig(
     locks=[(1, slice(0,3)), (5, slice(1,3)), (3, slice(2,3))],
     move_node=0,
-    payload=[],
-    triangles=[(0, 2, 3), (0, 4, 5), (1, 2, 4), (1, 3, 5)],
+    triangles=tris([(0, 2, 3), (0, 4, 5), (1, 2, 4), (1, 3, 5)]),
     initial_pos=np.array([
         [7.07106781, 4.0824829, 5.77350269],
         [0., 0., 0.],
@@ -72,8 +64,7 @@ CONFIG_3D_1: Final = TrussConfig(
 CONFIG_3D_2: Final = TrussConfig(
     locks=[(1, slice(0,3)), (5, slice(1,3)), (3, slice(2,3))],
     move_node=0,
-    payload=[],
-    triangles=[(0, 2, 4), (0, 3, 5), (1, 2, 3), (1, 4, 5)],
+    triangles=tris([(0, 2, 4), (0, 3, 5), (1, 2, 3), (1, 4, 5)]),
     initial_pos=np.array([
         [7.07106781, 4.0824829, 5.77350269],
         [0., 0., 0.],
@@ -87,8 +78,7 @@ CONFIG_3D_2: Final = TrussConfig(
 CONFIG_2D_1: Final = TrussConfig(
     locks=[(0, slice(0,2)), (1, slice(1,2))],
     move_node=2,
-    payload=[],
-    triangles=[(0, 1, 2)],
+    triangles=tris([(0, 1, 2)]),
     initial_pos=np.array([
         [0., 0.],
         [7.07106781, 0.],
@@ -99,8 +89,7 @@ CONFIG_2D_1: Final = TrussConfig(
 CONFIG_2D_2: Final = TrussConfig(
     locks=[(0, slice(0,2)), (3, slice(1,2))],
     move_node=5,
-    payload=[],
-    triangles=[(0, 1, 2), (1, 3, 4), (2, 4, 5)],
+    triangles=tris([(0, 1, 2), (1, 3, 4), (2, 4, 5)]),
     initial_pos=np.array([
         [0., 0.],
         [7.07106781, 0.],

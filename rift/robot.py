@@ -5,59 +5,10 @@ from typing import Protocol
 
 import cvxpy
 
+from . import tubetruss
 from .linalg import Matrix, Vector, unit_vector
 from .state import RobotState
-from .truss_config import Link, Lock, TrussConfig
-
-
-def calc_rigidity_matrix(link: Iterable[Link], positions: Matrix) -> Matrix:
-    dim = positions.shape[1]
-    j = np.arange(dim)
-    rows: list[Vector] = []
-    for n1, n2 in link:
-        row = np.zeros(positions.size)
-        u = unit_vector(positions[n1] - positions[n2])
-        row[dim*n1 + j] = u
-        row[dim*n2 + j] = -u
-        rows.append(row)
-    return np.array(rows)
-
-
-def calc_link_lengths(positions: Matrix, links: Iterable[Link]) -> Matrix:
-    return np.array([[
-        np.linalg.norm(positions[i] - positions[j]) for i, j in links
-    ]])
-
-
-def calc_roll_to_length(num_triangles: int, num_body_links: int = 0) -> Matrix:
-    M = np.kron(
-        np.eye(num_triangles), np.array([[-1, 0], [1, -1], [0, 1]])
-    )
-    return np.vstack([M, np.zeros((num_body_links, M.shape[1]))])
-
-def calc_length_to_roll(num_triangles: int, num_body_links: int = 0) -> Matrix:
-    M = np.kron(
-        np.eye(num_triangles), np.array([[-2, 1, 1,], [-1, -1, 2]]) / 3
-    )
-    return np.hstack([M, np.zeros((M.shape[0], num_body_links))])
-
-
-def calc_length_constraints(
-    num_triangles: int,
-    num_body_links: int = 0,
-    *,
-    broken_rollers: list[int] | None = None
-) -> Matrix:
-    A = np.kron(np.eye(num_triangles), np.ones((1, 3)))
-    if num_body_links:
-        A = np.block([
-            [A, np.zeros((A.shape[0], num_body_links))],
-            [np.zeros((num_body_links, A.shape[1])), np.eye(num_body_links)],
-        ])
-    if broken_rollers:
-        length_to_roll = calc_length_to_roll(num_triangles, num_body_links)
-        A = np.vstack([A, length_to_roll[broken_rollers]])
-    return A
+from .truss_config import Lock, TrussConfig
 
 
 def make_move_contraint(motion: Matrix) -> tuple[Matrix, Vector]:
@@ -89,10 +40,11 @@ class RollHistRobot(Robot):
 class RobotForward(Robot):
     def __init__(self, config: TrussConfig) -> None:
         self.config = config
+        self.structure = config.triangles + config.payload
         positions = config.initial_pos.copy()
-        self.B_T = calc_roll_to_length(len(config.triangles), len(config.payload))
-        self.rigidity = calc_rigidity_matrix(self.config.all_links, positions)
+        self.B_T = tubetruss.get_incidence(self.structure)
         self.state = RobotState(pos=positions, roll=np.zeros(self.B_T.shape[1]))
+        self.rigidity = tubetruss.get_rigidity(self.structure, self.state)
 
     @property
     def dim(self) -> int:
@@ -130,20 +82,19 @@ class RobotForward(Robot):
 
     def update_state_from_roll(self, roll: Vector) -> None:
         self.state = self.next_state_from_roll(roll - self.roll)
-        self.rigidity = calc_rigidity_matrix(self.config.all_links, self.pos)
+        self.rigidity = tubetruss.get_rigidity(self.structure, self.state)
 
 
 class RobotInverse(RollHistRobot):
     def __init__(self, config: TrussConfig) -> None:
         self.config = config
+        self.structure = config.triangles + config.payload
         positions = config.initial_pos.copy()
-        num_triangles = len(config.triangles)
-        num_body_links = len(config.payload)
-        self.L2th = calc_length_to_roll(num_triangles, num_body_links)
-        self.rigidity = calc_rigidity_matrix(self.config.all_links, positions)
-        self.length_constraint = calc_length_constraints(num_triangles, num_body_links)
+        self.L2th = tubetruss.get_incidence_inv(self.structure)
+        self.length_constraint = tubetruss.get_length_constraint(self.structure)
         self.state_hist = [RobotState(pos=positions, roll=np.zeros(self.L2th.shape[0]))]
         self.t_hist = [0.]
+        self.rigidity = tubetruss.get_rigidity(self.structure, self.state_hist[0])
 
     @property
     def dim(self) -> int:
@@ -192,7 +143,7 @@ class RobotInverse(RollHistRobot):
         t = self.t_hist[-1] + dt
         self.t_hist.append(t)
         self.state_hist.append(state)
-        self.rigidity = calc_rigidity_matrix(self.config.all_links, self.pos)
+        self.rigidity = tubetruss.get_rigidity(self.structure, state)
 
     def make_constraint_matrices(self, motion: Matrix) -> tuple[Matrix, Vector]:
         A_move, b_move = make_move_contraint(motion)
