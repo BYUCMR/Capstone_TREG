@@ -95,6 +95,10 @@ class RobotInverse(RollHistRobot):
         return self.state_hist[-1].pos.shape[1]
 
     @property
+    def state(self) -> RobotState:
+        return self.state_hist[-1]
+
+    @property
     def pos(self) -> Matrix:
         return self.state_hist[-1].pos
 
