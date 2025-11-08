@@ -2,6 +2,7 @@ import numpy as np
 from collections.abc import Generator
 from typing import Any, Protocol, TypeVar
 
+import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -13,9 +14,30 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from .gentools import auto_initialize
 from .linalg import Matrix, Vector
 from .robot import Robot
-import plotly.graph_objects as go
+from .tubetruss import Tube
 
 _AxesT = TypeVar('_AxesT', Axes, Axes3D)
+
+
+def draw_tube(tube: Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> go.Scatter3d:
+    x, y, z = ([pos[v][i] for v in tube.nodes] for i in range(3))
+    return go.Scatter3d(
+        x=x, y=y, z=z,
+        mode='lines',
+        line=dict(width=width, color=color),
+        showlegend=False,
+    )
+
+
+def draw_path(path: Matrix) -> go.Scatter3d:
+    x, y, z = path.T
+    return go.Scatter3d(
+        x=x, y=y, z=z,
+        mode='lines+markers',
+        line=dict(width=6, color='black'),
+        marker=dict(size=5, color='black', symbol='circle'),
+        name='Path',
+    )
 
 
 class RobotPlotter(Protocol[_AxesT]):
@@ -287,7 +309,13 @@ class RoverPlotter3D:
     def __init__(self, robot: Robot) -> None:
         self.robot = robot
 
-    def plot_payload(self) -> tuple[list[go.Scatter3d], go.Mesh3d]:
+    def plot_payload_edges(self) -> list[go.Scatter3d]:
+        payload = self.robot.config.payload
+        pos = self.robot.pos
+        return [draw_tube(e, pos, color='black', width=4) for e in payload]
+
+
+    def plot_payload(self) -> go.Mesh3d:
         payload = self.robot.config.payload
         payload_ind = set[int]()
         for i in payload:
@@ -302,25 +330,7 @@ class RoverPlotter3D:
                          [1, 4, 5], [1, 2, 5],
                          [0, 1, 4], [0, 3, 4]]
 
-        index_map = {v: i for i, v in enumerate(payload_ind)}
-
-        # Replace each value in the pairs with its corresponding index
-        payload_edges = [(index_map[a], index_map[b]) for a, b in payload.links]
-
-        edge_lines: list[go.Scatter3d] = []
-        for e in payload_edges:
-            edge_lines.append(
-                go.Scatter3d(
-                    x=[x[e[0]], x[e[1]]],
-                    y=[y[e[0]], y[e[1]]],
-                    z=[z[e[0]], z[e[1]]],
-                    mode='lines',
-                    line=dict(color='black', width=4),
-                    showlegend=False
-                )
-            )
-
-        mesh = go.Mesh3d(
+        return go.Mesh3d(
             x=x, y=y, z=z,
             i=[f[0] for f in payload_faces],
             j=[f[1] for f in payload_faces],
@@ -330,38 +340,21 @@ class RoverPlotter3D:
             flatshading=True,
             name='Prism'
         )
-        return edge_lines, mesh
 
     def plot_triangles(self) -> list[go.Scatter3d]:
         triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
         traces: list[go.Scatter3d] = []
         for t, tri in enumerate(self.robot.config.triangles):
-            v0, v1, v2, _ = tri.nodes
-            x, y, z = ([self.robot.pos[v][i] for v in (v0, v1, v2, v0)] for i in range(3))
-            trace = go.Scatter3d(
-                x=x, y=y, z=z,
-                mode='lines',
-                line=dict(color=triangle_colors.get(t, 'gray'), width=6),
-                marker=dict(size=5, color=triangle_colors.get(t, 'gray')),
-                showlegend=False
-            )
+            color = triangle_colors.get(t, 'gray')
+            trace = draw_tube(tri, self.robot.pos, color=color)
             traces.append(trace)
         return traces
 
-    def plot_path(self, r_path: Matrix) -> go.Scatter3d:
-        x, y, z = r_path.T
-        return go.Scatter3d(
-            x=x, y=y, z=z,
-            mode='lines+markers',
-            line=dict(color='black', width=6),
-            marker=dict(size=5, color='black', symbol='circle'),
-            name='Path'
-        )
-
     def generate_data(self, path: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
-        payload_scatter, payload_mesh = self.plot_payload()
+        payload_scatter = self.plot_payload_edges()
+        payload_mesh = self.plot_payload()
         triangle_scatter = self.plot_triangles()
-        path_scatter = self.plot_path(path)
+        path_scatter = draw_path(path)
         return [payload_mesh, path_scatter, *payload_scatter, *triangle_scatter]
 
 
