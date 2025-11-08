@@ -287,8 +287,7 @@ class RoverPlotter3D:
         payload = self.robot.config.payload
         payload_ind = set[int]()
         for i in payload:
-            payload_ind.add(i[0])
-            payload_ind.add(i[1])
+            payload_ind.update(i)
 
         payload_pnts = self.robot.pos[list(payload_ind)]
         x = payload_pnts[:, 0]  # First column
@@ -333,10 +332,7 @@ class RoverPlotter3D:
         triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
         traces: list[go.Scatter3d] = []
         for t, (v0, v1, v2) in enumerate(self.robot.config.triangles):
-            x = [self.robot.pos[v0][0], self.robot.pos[v1][0], self.robot.pos[v2][0], self.robot.pos[v0][0]]
-            y = [self.robot.pos[v0][1], self.robot.pos[v1][1], self.robot.pos[v2][1], self.robot.pos[v0][1]]
-            z = [self.robot.pos[v0][2], self.robot.pos[v1][2], self.robot.pos[v2][2], self.robot.pos[v0][2]]
-
+            x, y, z = ([self.robot.pos[v][i] for v in (v0, v1, v2, v0)] for i in range(3))
             trace = go.Scatter3d(
                 x=x, y=y, z=z,
                 mode='lines',
@@ -349,30 +345,19 @@ class RoverPlotter3D:
 
     def plot_path(self, r_path: Matrix) -> go.Scatter3d:
         x, y, z = r_path.T
-        path_points = go.Scatter3d(
+        return go.Scatter3d(
             x=x, y=y, z=z,
             mode='lines+markers',
             line=dict(color='black', width=6),
             marker=dict(size=5, color='black', symbol='circle'),
             name='Path'
         )
-        return path_points
 
-    def update_plot(self,robot_path) -> None:
+    def generate_data(self, path: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
+        payload_scatter, payload_mesh = self.plot_payload()
         triangle_scatter = self.plot_triangles()
-        payload_edges, payload_mesh = self.plot_payload()
-        path_scatter = self.plot_path(robot_path)
-        fig = go.Figure(data=[payload_mesh,path_scatter] + payload_edges+triangle_scatter)
-        fig.update_layout(
-            scene=dict(
-                xaxis_title='X',
-                yaxis_title='Y',
-                zaxis_title='Z',
-                aspectmode='data'
-            ),
-            title="3D Rectangular Prism with Random Colored Lines Outside"
-        )
-        fig.show()
+        path_scatter = self.plot_path(path)
+        return [payload_mesh, path_scatter, *payload_scatter, *triangle_scatter]
 
 
 @auto_initialize
