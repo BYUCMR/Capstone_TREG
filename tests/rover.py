@@ -1,9 +1,7 @@
 import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
-import dash
 import numpy as np
-from dash import dcc, html
 import plotly.graph_objects as go
 
 from rift.anim import RoverPlotter3D
@@ -55,8 +53,6 @@ def initialize_fig(plotter: RoverPlotter3D, path: Matrix) -> go.Figure:
     )
 
 
-app = dash.Dash(__name__)
-
 fig = initialize_fig(plot, path)
 frames = [go.Frame(data=plot.generate_data(path))]
 
@@ -64,12 +60,6 @@ for pos, vel in robot.move_node_along_path(config.move_node, path):
     frames.append(go.Frame(data=plot.generate_data(path)))
 
 fig.frames = frames
-app.layout = html.Div([
-    dcc.Graph(
-        id="the-plot",
-        figure=fig  # <--- just put the whole animated figure here
-    )
-])
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    fig.show()
