@@ -41,10 +41,11 @@ class RobotForward(Robot):
     def __init__(self, config: TrussConfig) -> None:
         self.config = config
         self.structure = config.triangles + config.payload
-        positions = config.initial_pos.copy()
-        self.B_T = tubetruss.get_incidence(self.structure)
-        self.state = RobotState(pos=positions, roll=np.zeros(self.B_T.shape[1]))
-        self.rigidity = tubetruss.get_rigidity(self.structure, self.state)
+        self.incidence = tubetruss.get_incidence(self.structure)
+        self.state = RobotState(
+            pos=config.initial_pos.copy(),
+            roll=np.zeros(self.incidence.shape[1]),
+        )
 
     @property
     def dim(self) -> int:
@@ -61,28 +62,21 @@ class RobotForward(Robot):
     def pos_of(self, node: int) -> Vector:
         return self.pos[node]
 
-    def next_state_from_roll(self, d_roll: Vector) -> RobotState:
-        s = np.ones_like(self.pos, dtype=np.bool)
-        for lock in self.config.locks:
-            s[lock] = False
-        not_supports = np.flatnonzero(s)
+    def update_state(self, roll: Vector, *, locks: Iterable[Lock] = ()) -> None:
+        can_move = np.ones_like(self.pos, dtype=np.bool)
+        for lock in locks:
+            can_move[lock] = False
+        unlocked_indices = np.flatnonzero(can_move)
 
-        R_reduced = self.rigidity[:, not_supports]
+        R = tubetruss.get_rigidity(self.structure, self.state)
+        R_reduced = R[:, unlocked_indices]
         R_inv = np.linalg.inv(R_reduced)
-        d_pos_reduced = R_inv @ self.B_T @ d_roll
+        d_pos_reduced = R_inv @ self.incidence @ (roll - self.roll)
 
-        d_pos = np.zeros(self.pos.size)
-        d_pos[not_supports] = d_pos_reduced
-        d_pos_mat = d_pos.reshape(self.pos.shape)
+        d_pos = np.zeros_like(self.pos)
+        d_pos.put(unlocked_indices, d_pos_reduced)
 
-        return RobotState(
-            pos=self.pos + d_pos_mat,
-            roll=self.roll + d_roll,
-        )
-
-    def update_state_from_roll(self, roll: Vector) -> None:
-        self.state = self.next_state_from_roll(roll - self.roll)
-        self.rigidity = tubetruss.get_rigidity(self.structure, self.state)
+        self.state = RobotState(roll=roll, pos=self.pos + d_pos)
 
 
 class RobotInverse(RollHistRobot):

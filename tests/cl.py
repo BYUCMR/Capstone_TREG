@@ -26,6 +26,6 @@ cl_plotter = anim.RobotPlotter3D(cl_robot)
 animation = anim.animate_robot(cl_plotter, path)
 for roll in ol_robot.roll_hist:
     roll += np.random.normal(0, 0.01, size=roll.shape)  # Add small noise to simulate measurement error
-    cl_robot.update_state_from_roll(roll)
+    cl_robot.update_state(roll, locks=config.locks)
     vel = np.array([0.] * cl_robot.dim)
     animation.send((cl_robot.pos_of(config.move_node), vel))
