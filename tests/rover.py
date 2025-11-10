@@ -28,18 +28,22 @@ def initialize_fig(plotter: RoverPlotter3D, state: RobotState, path: Matrix) -> 
                 )]
             )],
             scene=dict(
+                aspectmode='cube',
                 bgcolor='white',
                 xaxis=dict(
+                    range=(-20, 30),
                     backgroundcolor='white',
                     gridcolor='lightgray',
                     zerolinecolor='lightgray',
                 ),
                 yaxis=dict(
+                    range=(-25, 25),
                     backgroundcolor='white',
                     gridcolor='lightgray',
                     zerolinecolor='lightgray',
                 ),
                 zaxis=dict(
+                    range=(-2, 48),
                     backgroundcolor='white',
                     gridcolor='lightgray',
                     zerolinecolor='lightgray',
