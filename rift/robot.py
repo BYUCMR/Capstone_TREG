@@ -3,7 +3,7 @@ from collections.abc import Callable, Generator, Iterable
 from itertools import pairwise
 from typing import Protocol
 
-import cvxpy
+import qpsolvers
 
 from . import tubetruss
 from .linalg import Matrix, Vector, unit_vector
@@ -154,13 +154,12 @@ class RobotInverse(RollHistRobot):
         return Aeq, beq
 
     def get_optimal_motion(self, motion: Matrix) -> Vector:
-        v = cvxpy.Variable(self.pos.size)
+        H = self.rigidity.T @ self.rigidity
+        f = np.zeros(self.pos.size)
         A, b = self.make_constraint_matrices(motion)
-        cost = cvxpy.sum_squares(self.rigidity @ v)
-        prob = cvxpy.Problem(cvxpy.Minimize(cost), [A @ v == b])
-        prob.solve()
-        assert v.value is not None
-        return v.value
+        v = qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver='piqp')
+        assert v is not None
+        return v
 
     def move_node_toward_pos(
         self,

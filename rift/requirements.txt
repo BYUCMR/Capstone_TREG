@@ -1,4 +1,4 @@
-cvxpy
 numpy
 matplotlib
 plotly
+qpsolvers[piqp]
