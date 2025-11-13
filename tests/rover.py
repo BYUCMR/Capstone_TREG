@@ -4,17 +4,17 @@ sys.path.append(str(pathlib.Path.cwd()))
 import numpy as np
 import plotly.graph_objects as go
 
-from rift.anim import RoverPlotter3D
+import rift.anim
 from rift.linalg import Matrix, roll_pitch_yaw
 from rift.path import make_path
 from rift.robot import RobotInverse
 from rift.state import RobotState
-from rift.truss_config import CONFIG_3D_ROVER1 as config
+from rift.truss_config import CONFIG_3D_ROVER1 as config, TrussConfig
 
 
-def initialize_fig(plotter: RoverPlotter3D, state: RobotState, path: Matrix) -> go.Figure:
+def initialize_fig(config: TrussConfig, state: RobotState, path: Matrix) -> go.Figure:
     return go.Figure(
-        data=plotter.generate_data(state, path),
+        data=rift.anim.generate_data(config, state, path),
         layout=go.Layout(
             updatemenus=[dict(
                 type='buttons',
@@ -57,12 +57,11 @@ def main():
     path = make_path(xform=roll_pitch_yaw(np.pi/4, np.pi/6, np.pi/4))
     path += config.initial_pos[config.move_node]
     robot = RobotInverse(config)
-    plot = RoverPlotter3D(config)
 
-    fig = initialize_fig(plot, robot.state, path)
-    frames = [go.Frame(data=plot.generate_data(robot.state, path))]
+    fig = initialize_fig(config, robot.state, path)
+    frames = [go.Frame(data=rift.anim.generate_data(config, robot.state, path))]
     for path in robot.crawl():
-        frames.append(go.Frame(data=plot.generate_data(robot.state, path)))
+        frames.append(go.Frame(data=rift.anim.generate_data(config, robot.state, path)))
     fig.frames = frames
     fig.show()
 

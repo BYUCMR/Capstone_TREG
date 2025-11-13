@@ -307,57 +307,52 @@ class RobotPlotter3D(RobotPlotter[Axes3D]):
         dot.set_data_3d(position.reshape(3, 1))
 
 
-class RoverPlotter3D:
-    def __init__(self, config: TrussConfig) -> None:
-        self.config = config
-
-    def plot_payload_edges(self, state: RobotState) -> list[go.Scatter3d]:
-        payload = self.config.payload
-        pos = state.pos
-        return [draw_tube(e, pos, color='black', width=4) for e in payload]
+def plot_payload_edges(config: TrussConfig, state: RobotState) -> list[go.Scatter3d]:
+    return [draw_tube(e, state.pos, color='black', width=4) for e in config.payload]
 
 
-    def plot_payload(self, state: RobotState) -> go.Mesh3d:
-        payload = self.config.payload
-        payload_ind = set[int]()
-        for i in payload:
-            payload_ind.update(i.nodes)
+def plot_payload(config: TrussConfig, state: RobotState) -> go.Mesh3d:
+    payload_ind = set[int]()
+    for i in config.payload:
+        payload_ind.update(i.nodes)
 
-        payload_pnts = state.pos[list(payload_ind)]
-        x = payload_pnts[:, 0]  # First column
-        y = payload_pnts[:, 1]  # Second column
-        z = payload_pnts[:, 2]
-        payload_faces = [[0, 1, 2], [3, 4, 5],
-                         [0, 3, 5], [0, 2, 5],
-                         [1, 4, 5], [1, 2, 5],
-                         [0, 1, 4], [0, 3, 4]]
+    payload_pnts = state.pos[list(payload_ind)]
+    x = payload_pnts[:, 0]  # First column
+    y = payload_pnts[:, 1]  # Second column
+    z = payload_pnts[:, 2]
+    payload_faces = [[0, 1, 2], [3, 4, 5],
+                        [0, 3, 5], [0, 2, 5],
+                        [1, 4, 5], [1, 2, 5],
+                        [0, 1, 4], [0, 3, 4]]
 
-        return go.Mesh3d(
-            x=x, y=y, z=z,
-            i=[f[0] for f in payload_faces],
-            j=[f[1] for f in payload_faces],
-            k=[f[2] for f in payload_faces],
-            color='lightblue',
-            opacity=1,
-            flatshading=True,
-            name='Prism'
-        )
+    return go.Mesh3d(
+        x=x, y=y, z=z,
+        i=[f[0] for f in payload_faces],
+        j=[f[1] for f in payload_faces],
+        k=[f[2] for f in payload_faces],
+        color='lightblue',
+        opacity=1,
+        flatshading=True,
+        name='Prism'
+    )
 
-    def plot_triangles(self, state: RobotState) -> list[go.Scatter3d]:
-        triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
-        traces: list[go.Scatter3d] = []
-        for t, tri in enumerate(self.config.triangles):
-            color = triangle_colors.get(t, 'gray')
-            trace = draw_tube(tri, state.pos, color=color)
-            traces.append(trace)
-        return traces
 
-    def generate_data(self, state: RobotState, path: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
-        payload_scatter = self.plot_payload_edges(state)
-        payload_mesh = self.plot_payload(state)
-        triangle_scatter = self.plot_triangles(state)
-        path_scatter = draw_path(path)
-        return [payload_mesh, path_scatter, *payload_scatter, *triangle_scatter]
+def plot_triangles(config: TrussConfig, state: RobotState) -> list[go.Scatter3d]:
+    triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
+    traces: list[go.Scatter3d] = []
+    for t, tri in enumerate(config.triangles):
+        color = triangle_colors.get(t, 'gray')
+        trace = draw_tube(tri, state.pos, color=color)
+        traces.append(trace)
+    return traces
+
+
+def generate_data(config: TrussConfig, state: RobotState, path: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
+    payload_scatter = plot_payload_edges(config, state)
+    payload_mesh = plot_payload(config, state)
+    triangle_scatter = plot_triangles(config, state)
+    path_scatter = draw_path(path)
+    return [payload_mesh, path_scatter, *payload_scatter, *triangle_scatter]
 
 
 @auto_initialize
