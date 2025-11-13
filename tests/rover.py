@@ -22,7 +22,7 @@ def initialize_fig(plotter: RoverPlotter3D, state: RobotState, path: Matrix) -> 
                     label='Play',
                     method='animate',
                     args=[None, dict(
-                        frame=dict(duration=50, redraw=True),
+                        frame=dict(duration=10, redraw=True),
                         transition=dict(duration=0),
                     )]
                 )]
@@ -61,7 +61,7 @@ def main():
 
     fig = initialize_fig(plot, robot.state, path)
     frames = [go.Frame(data=plot.generate_data(robot.state, path))]
-    for pos, vel in robot.move_node_along_path(config.move_node, path):
+    for path in robot.crawl():
         frames.append(go.Frame(data=plot.generate_data(robot.state, path)))
     fig.frames = frames
     fig.show()

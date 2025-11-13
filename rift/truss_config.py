@@ -20,6 +20,7 @@ tris = TubeTruss.make_tris
 class TrussConfig:
     locks: Collection[Lock] = ()
     move_node: int
+    keep_level: tuple[int, int] | None = None
     payload: TubeTruss = field(default_factory=TubeTruss)
     triangles: TubeTruss = field(default_factory=TubeTruss)
     initial_pos: Matrix
@@ -28,6 +29,7 @@ class TrussConfig:
 CONFIG_3D_ROVER1: Final = TrussConfig(
     locks=[(0, slice(0,3)), (1, slice(0,3)), (6, slice(0,3))],
     move_node=7,
+    keep_level=(2, 8),
     triangles=tris([(0, 1, 2), (0, 3, 5), (1, 4, 5), (6, 7, 8), (6, 9, 11), (7, 10, 11)]),
     payload=bars([(2,8), (3,9), (4,10), (2,9), (3,10), (4,8), (2,3), (3,4), (2,4), (8,10), (8,9), (9,10)]),
     initial_pos=np.array([

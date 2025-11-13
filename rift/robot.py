@@ -145,6 +145,12 @@ class RobotInverse(RollHistRobot):
 
     def make_constraint_matrices(self, motion: Matrix) -> tuple[Matrix, Vector]:
         A_move, b_move = make_move_contraint(motion)
+        if self.config.keep_level is not None:
+            A_level = np.zeros((1, self.pos.size))
+            A_level[0, 3*self.config.keep_level[0]+2] =  1
+            A_level[0, 3*self.config.keep_level[1]+2] = -1
+            A_move = np.vstack([A_move, A_level])
+            b_move = np.concat([b_move, [0.]])
 
         A_length = self.length_constraint @ self.rigidity
         b_length = np.zeros((len(A_length),))
@@ -183,3 +189,19 @@ class RobotInverse(RollHistRobot):
     def move_node_along_path(self, node: int, path: Matrix) -> Generator[tuple[Vector, Vector]]:
         for point in path:
             yield from self.move_node_toward_pos(node, point, locks=self.config.locks)
+
+    def crawl(self, angle: float = 0) -> Generator[Matrix]:
+        step_up = np.array([np.cos(angle), np.sin(angle), 1.])
+        step_down = np.array([np.cos(angle), np.sin(angle), -1.])
+        step_forward = step_up + step_down
+        feet = (0, 7, 6, 1)
+        for foot in feet:
+            locks = [(other_foot, slice(0,3)) for other_foot in feet if foot != other_foot]
+            path = np.vstack([
+                self.pos_of(foot),
+                self.pos_of(foot)+step_up,
+                self.pos_of(foot)+step_forward,
+            ])
+            for point in path:
+                for _ in self.move_node_toward_pos(foot, point, locks=locks):
+                    yield path
