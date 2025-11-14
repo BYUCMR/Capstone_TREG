@@ -31,9 +31,3 @@ def rotz(theta: float) -> Matrix:
 
 def roll_pitch_yaw(r: float = 0, p: float = 0, y: float = 0) -> Matrix:
     return rotz(r) @ roty(p) @ rotx(y)
-
-
-def rot2D(theta: float) -> Matrix:
-    return np.array([[np.cos(theta), -np.sin(theta)],
-                     [np.sin(theta),  np.cos(theta)]])
-

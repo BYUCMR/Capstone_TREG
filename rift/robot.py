@@ -1,6 +1,5 @@
 import numpy as np
 from collections.abc import Callable, Generator, Iterable
-from itertools import pairwise
 from typing import Protocol
 
 import qpsolvers
@@ -20,36 +19,20 @@ def make_move_contraint(motion: Matrix) -> tuple[Matrix, Vector]:
 
 
 class Robot(Protocol):
-    config: TrussConfig
-    @property
-    def dim(self) -> int: ...
     @property
     def pos(self) -> Matrix: ...
     @property
     def roll(self) -> Vector: ...
 
 
-class RollHistRobot(Robot):
-    t_hist: list[float]
-    @property
-    def roll_hist(self) -> list[Vector]: ...
-    @property
-    def rollrate_hist(self) -> list[Vector]: ...
-
-
-class RobotForward(Robot):
+class RobotForward:
     def __init__(self, config: TrussConfig) -> None:
-        self.config = config
         self.structure = config.triangles + config.payload
         self.incidence = tubetruss.get_incidence(self.structure)
         self.state = RobotState(
             pos=config.initial_pos.copy(),
             roll=np.zeros(self.incidence.shape[1]),
         )
-
-    @property
-    def dim(self) -> int:
-        return self.state.pos.shape[1]
 
     @property
     def pos(self) -> Matrix:
@@ -79,7 +62,7 @@ class RobotForward(Robot):
         self.state = RobotState(roll=roll, pos=self.pos + d_pos)
 
 
-class RobotInverse(RollHistRobot):
+class RobotInverse:
     def __init__(self, config: TrussConfig) -> None:
         self.config = config
         self.structure = config.triangles + config.payload
@@ -89,10 +72,6 @@ class RobotInverse(RollHistRobot):
         self.state_hist = [RobotState(pos=positions, roll=np.zeros(self.L2th.shape[0]))]
         self.t_hist = [0.]
         self.rigidity = tubetruss.get_rigidity(self.structure, self.state_hist[0])
-
-    @property
-    def dim(self) -> int:
-        return self.state_hist[-1].pos.shape[1]
 
     @property
     def state(self) -> RobotState:
@@ -105,25 +84,6 @@ class RobotInverse(RollHistRobot):
     @property
     def roll(self) -> Vector:
         return self.state_hist[-1].roll
-
-    @property
-    def rollrate(self) -> Vector:
-        if len(self.state_hist) < 2:
-            return np.zeros_like(self.roll)
-        d_roll = self.state_hist[-1].roll - self.state_hist[-2].roll
-        d_time = self.t_hist[-1] - self.t_hist[-2]
-        return d_roll / d_time
-
-    @property
-    def roll_hist(self) -> list[Vector]:
-        return [s.roll for s in self.state_hist]
-
-    @property
-    def rollrate_hist(self) -> list[Vector]:
-        rollrates = [np.zeros_like(self.roll)]
-        for (t1, t2), (s1, s2) in zip(pairwise(self.t_hist), pairwise(self.state_hist)):
-            rollrates.append((s2.roll - s1.roll) / (t2 - t1))
-        return rollrates
 
     def pos_of(self, node: int) -> Vector:
         return self.pos[node]
@@ -185,10 +145,6 @@ class RobotInverse(RollHistRobot):
             motion[node] = node_vel
             vel = self.get_optimal_motion(motion)
             self.update_state_from_vel(vel, dt)
-
-    def move_node_along_path(self, node: int, path: Matrix) -> Generator[tuple[Vector, Vector]]:
-        for point in path:
-            yield from self.move_node_toward_pos(node, point, locks=self.config.locks)
 
     def crawl(self, angle: float = 0) -> Generator[Matrix]:
         step_up = np.array([np.cos(angle), np.sin(angle), 1.])
