@@ -1,5 +1,6 @@
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from functools import cached_property
 from itertools import pairwise
 from typing import Collection, Self, cast
 
@@ -18,7 +19,7 @@ type Node = int
 type Link = tuple[Node, Node]
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class Tube:
     start: Node
     rollers: tuple[Node, ...]
@@ -46,7 +47,7 @@ class Tube:
             yield self.start, self.stop
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True)
 class TubeTruss:
     tubes: Collection[Tube] = ()
 
@@ -67,6 +68,25 @@ class TubeTruss:
     def links(self) -> Iterator[Link]:
         for tube in self.tubes:
             yield from tube.links
+
+    @cached_property
+    def incidence(self) -> Matrix:
+        """See `get_incidence`."""
+        return get_incidence(self)
+
+    @cached_property
+    def incidence_inv(self) -> Matrix:
+        """See `get_incidence_inv`."""
+        return get_incidence_inv(self)
+
+    @cached_property
+    def length_constraint(self) -> Matrix:
+        """See `get_length_constraint`."""
+        return get_length_constraint(self)
+
+    def rigidity_at(self, state: RobotState) -> Matrix:
+        """See `get_rigidity`."""
+        return get_rigidity(self, state)
 
     def __iter__(self) -> Iterator[Tube]:
         return iter(self.tubes)
