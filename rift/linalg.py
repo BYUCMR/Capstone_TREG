@@ -3,6 +3,7 @@ from typing import TypeAlias
 
 Vector: TypeAlias = np.ndarray[tuple[int], np.dtype[np.floating]]
 Matrix: TypeAlias = np.ndarray[tuple[int, int], np.dtype[np.floating]]
+MatrixStack: TypeAlias = np.ndarray[tuple[int, int, int], np.dtype[np.floating]]
 
 
 def unit_vector[V: (Vector, Matrix)](v: V) -> V:

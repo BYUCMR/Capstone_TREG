@@ -59,7 +59,7 @@ class RobotForward:
             can_move[lock] = False
         unlocked_indices = np.flatnonzero(can_move)
 
-        R = self.structure.rigidity_at(self.state)
+        R = self.structure.norm_rigidity_at(self.state)
         R_reduced = R[:, unlocked_indices]
         R_inv = np.linalg.inv(R_reduced)
         d_pos_reduced = R_inv @ self.structure.incidence @ (roll - self.roll)
@@ -75,7 +75,7 @@ class RobotInverse:
         self.keep_level = config.keep_level
         self.structure = config.triangles + config.payload
         self.state = initial_state(config)
-        self.rigidity = self.structure.rigidity_at(self.state)
+        self.rigidity = self.structure.norm_rigidity_at(self.state)
 
     @property
     def pos(self) -> Matrix:
@@ -92,7 +92,7 @@ class RobotInverse:
             pos=self.pos + d_pos_mat,
             roll=self.roll + d_roll,
         )
-        self.rigidity = self.structure.rigidity_at(self.state)
+        self.rigidity = self.structure.norm_rigidity_at(self.state)
 
     def make_constraint_matrices(self, motion: Matrix) -> tuple[Matrix, Vector]:
         A_move, b_move = make_move_contraint(motion)

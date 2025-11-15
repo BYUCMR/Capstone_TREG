@@ -7,7 +7,7 @@ from typing import Collection, Self, cast
 import numpy as np
 from scipy.linalg import block_diag as _scipy_block_diag
 
-from .linalg import Matrix, Vector, unit_vector
+from .linalg import Matrix, MatrixStack, Vector
 from .state import RobotState
 
 
@@ -84,9 +84,18 @@ class TubeTruss:
         """See `get_length_constraint`."""
         return get_length_constraint(self)
 
+    @cached_property
+    def rigidity_multiplier(self) -> MatrixStack:
+        """See `get_rigidity_multiplier`."""
+        return get_rigidity_multiplier(self)
+
     def rigidity_at(self, state: RobotState) -> Matrix:
         """See `get_rigidity`."""
-        return get_rigidity(self, state)
+        return self.rigidity_multiplier @ state.pos.ravel()
+
+    def norm_rigidity_at(self, state: RobotState) -> Matrix:
+        """See `normalize_rigidity`."""
+        return normalize_rigidity(self.rigidity_at(state))
 
     def __iter__(self) -> Iterator[Tube]:
         return iter(self.tubes)
@@ -103,19 +112,51 @@ class TubeTruss:
 def get_rigidity(structure: TubeTruss, state: RobotState) -> Matrix:
     """Return the rigidity matrix of a tube structure in a given state.
 
-    This matrix converts a column of node velocities into a column of the rate of
-    change of the length of each link.
+    This matrix converts a column of node velocities into a column comprising
+    the length of each link times its rate of change.
     """
     dim = state.pos.shape[1]
     j = np.arange(dim)
     rows: list[Vector] = []
     for n1, n2 in structure.links:
         row = np.zeros(state.pos.size)
-        u = unit_vector(state.pos[n1] - state.pos[n2])
-        row[dim*n1 + j] = u
-        row[dim*n2 + j] = -u
+        v = state.pos[n1] - state.pos[n2]
+        row[dim*n1 + j] =  v
+        row[dim*n2 + j] = -v
         rows.append(row)
     return np.array(rows)
+
+
+def get_rigidity_multiplier(structure: TubeTruss, *, dim: int = 3) -> MatrixStack:
+    """Return a 3-D matrix that can be used to calculate a rigidity matrix.
+
+    This matrix converts a vector of node positions into a rigidity matrix.
+    The rigidity matrix converts a column of node velocities into a column
+    comprising the length of each link times its rate of change.
+    """
+    n_nodes = 1 + max(structure.nodes)
+    layers: list[Matrix] = []
+    for n1, n2 in structure.links:
+        layer = np.zeros((n_nodes, n_nodes))
+        layer[n1, n1] =  1
+        layer[n1, n2] = -1
+        layer[n2, n2] =  1
+        layer[n2, n1] = -1
+        layers.append(layer)
+    # We could skip the Kronecker product here and replace
+    # `R @ pos.ravel()` with `(R @ pos).reshape(-1, pos.size)`
+    # later on, but this keeps the interface simpler.
+    return np.kron(np.array(layers), np.eye(dim))
+
+
+def normalize_rigidity(rigidity: Matrix) -> Matrix:
+    """Return a normalized copy of a rigidity matrix.
+
+    This matrix converts a column of node velocities into a column comprising
+    the rate of change of the length of each link.
+    """
+    norms = np.linalg.vector_norm(rigidity, axis=1, keepdims=True)
+    return np.sqrt(2.) * rigidity / norms
 
 
 def get_incidence(structure: TubeTruss) -> Matrix:
