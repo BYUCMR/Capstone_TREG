@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 import rift.anim
 from rift.robot import RobotInverse
 from rift.state import RobotState
-from rift.truss_config import CONFIG_3D_ROVER1 as config, TrussConfig
+from rift.truss_config import CONFIG_ROVER as config, TrussConfig
 
 
 def initialize_fig(config: TrussConfig, state: RobotState) -> go.Figure:
@@ -29,19 +29,19 @@ def initialize_fig(config: TrussConfig, state: RobotState) -> go.Figure:
                 aspectmode='cube',
                 bgcolor='white',
                 xaxis=dict(
-                    range=(-20, 30),
+                    range=(-8, 12),
                     backgroundcolor='white',
                     gridcolor='lightgray',
                     zerolinecolor='lightgray',
                 ),
                 yaxis=dict(
-                    range=(-25, 25),
+                    range=(-10, 10),
                     backgroundcolor='white',
                     gridcolor='lightgray',
                     zerolinecolor='lightgray',
                 ),
                 zaxis=dict(
-                    range=(-2, 48),
+                    range=(-1, 19),
                     backgroundcolor='white',
                     gridcolor='lightgray',
                     zerolinecolor='lightgray',

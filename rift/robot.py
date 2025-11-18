@@ -130,8 +130,8 @@ class RobotInverse:
             self.update_state(vel * step.dt)
 
     def crawl(self, angle: float = 0, *, dt: float = 0.01) -> Generator[Matrix]:
-        step_up = np.array([np.cos(angle), np.sin(angle), 1.])
-        step_down = np.array([np.cos(angle), np.sin(angle), -1.])
+        step_up = 0.4*np.array([np.cos(angle), np.sin(angle), 1.])
+        step_down = 0.4*np.array([np.cos(angle), np.sin(angle), -1.])
         step_forward = step_up + step_down
         feet = (0, 7, 6, 1)
         for foot in feet:

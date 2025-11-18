@@ -80,6 +80,7 @@ class TrussConfig:
     initial_pos: Matrix
 
 
+CONFIG_ROVER: Final = rover_builder(2, 6, 12, 0, 4, 4)
 CONFIG_3D_ROVER1: Final = TrussConfig(
     keep_level=(2, 8),
     triangles=tris([(0, 1, 2), (0, 3, 5), (1, 4, 5), (6, 7, 8), (6, 9, 11), (7, 10, 11)]),
