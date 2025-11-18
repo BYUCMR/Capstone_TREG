@@ -1,3 +1,4 @@
+import math
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from functools import cached_property
@@ -156,7 +157,7 @@ def normalize_rigidity(rigidity: Matrix) -> Matrix:
     the rate of change of the length of each link.
     """
     norms = np.linalg.vector_norm(rigidity, axis=1, keepdims=True)
-    return np.sqrt(2.) * rigidity / norms
+    return math.sqrt(2.) * rigidity / norms
 
 
 def get_incidence(structure: TubeTruss) -> Matrix:

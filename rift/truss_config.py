@@ -1,19 +1,17 @@
-import numpy as np
 import math
-
-from aiohttp import Payload
-from scipy.optimize import fsolve
-from collections.abc import Collection
 from dataclasses import dataclass, field
-from typing import Final, SupportsIndex, TypeAlias
+from typing import Final, SupportsIndex
+
+import numpy as np
+from scipy.optimize import fsolve
 
 from .linalg import Matrix
 from .tubetruss import TubeTruss
 
-Index: TypeAlias = 'SupportsIndex | slice[SupportsIndex]'
-Lock: TypeAlias = tuple[Index, Index]
-Link: TypeAlias = tuple[int, int]
-Triangle: TypeAlias = tuple[int, int, int]
+type Index = SupportsIndex | slice[SupportsIndex]
+type Lock = tuple[Index, Index]
+type Link = tuple[int, int]
+type Triangle = tuple[int, int, int]
 
 bars = TubeTruss.make_bars
 tris = TubeTruss.make_tris
@@ -27,16 +25,8 @@ def rover_builder(h, P_p, P, theta, w_p, w_f, initial_guess=[12, 12]):
     # width of payload
     # width of feet
 
-    def distance_3d(p1, p2):
-        return math.sqrt(
-            (p2[0] - p1[0]) ** 2 +
-            (p2[1] - p1[1]) ** 2 +
-            (p2[2] - p1[2]) ** 2
-        )
-
-    L = P / 3
     L_p = P_p / 3
-    theta = theta * math.pi / 180
+    theta = math.radians(theta)
     h_tb = math.sqrt(((P - w_f) / 2) ** 2 - (w_f / 2) ** 2)
 
     # ground right
@@ -58,22 +48,16 @@ def rover_builder(h, P_p, P, theta, w_p, w_f, initial_guess=[12, 12]):
 
     def equations(vars):
         y, z = vars
-        eq1 = P - distance_3d(p0, p3) - distance_3d(p3, (0, y, z)) - distance_3d(p0, (0, y, z))
-        eq2 = distance_3d(p3, (0, y, z)) - distance_3d(p0, (0, y, z))
-
+        eq1 = P - math.dist(p0, p3) - math.dist(p3, (0, y, z)) - math.dist(p0, (0, y, z))
+        eq2 = math.dist(p3, (0, y, z)) - math.dist(p0, (0, y, z))
         return [eq1, eq2]
 
-    solution, info,ier,msg = fsolve(equations, initial_guess,full_output=True)
-    try:
-        if ier != 1:
-            raise RuntimeError(f"Fsolve failed to converge, no valid solution. Try different starting configuration.")
-        if solution[0] < 0 or solution[1] < 0:
-            raise ValueError(
-                "Invalid solution. Floating node is at negative position. Please provide a different initial guess.")
-    except RuntimeError as e:
-        print(e)
-    except ValueError as e:
-        print(e)
+    solution, info, ier, msg = fsolve(equations, initial_guess,full_output=True)
+    if ier != 1:
+        raise RuntimeError("Fsolve failed to converge, no valid solution. Try different starting configuration.")
+    if solution[0] < 0 or solution[1] < 0:
+        raise ValueError(
+            "Invalid solution. Floating node is at negative position. Please provide a different initial guess.")
 
     p5 = [0, solution[0], solution[1]]
     p11 = [0, -solution[0], solution[1]]
