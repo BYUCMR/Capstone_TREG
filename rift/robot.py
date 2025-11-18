@@ -1,5 +1,6 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
+from functools import partial
 from typing import Protocol, Self
 
 import numpy as np
@@ -27,6 +28,14 @@ def make_move_contraint(motion: Matrix) -> tuple[Matrix, Vector]:
     A = np.zeros((b.size, i.size))
     A[:, i.flat] = np.eye(len(A))
     return A, b
+
+
+def step_arc(t: Vector, d: float = 1.0) -> Matrix:
+    k = d / len(t)
+    u = np.full_like(t, k)
+    v = np.zeros_like(t)
+    w = 2. * k * (0.5-t)
+    return np.array([u, v, w])
 
 
 class Robot(Protocol):
@@ -118,30 +127,21 @@ class RobotInverse:
         assert v is not None
         return v
 
-    def take_step(self, step: steps.Step) -> Generator[tuple[Vector, Vector]]:
-        motion = np.full_like(self.pos, np.nan)
-        for lock in step.locks:
-            motion[lock] = 0.
-        while np.linalg.norm(error := step.target - self.pos[step.node]) > step.tol:
-            node_vel = step.ctrl_func(error)
-            yield self.pos[step.node], node_vel
-            motion[step.node] = node_vel
-            vel = self.get_optimal_motion(motion)
-            self.update_state(vel * step.dt)
+    def take_substep(self, motion: Matrix) -> None:
+        d_pos = self.get_optimal_motion(motion)
+        self.update_state(d_pos)
 
-    def crawl(self, angle: float = 0, *, dt: float = 0.01) -> Generator[Matrix]:
-        step_up = 0.4*np.array([np.cos(angle), np.sin(angle), 1.])
-        step_down = 0.4*np.array([np.cos(angle), np.sin(angle), -1.])
-        step_forward = step_up + step_down
+    def take_step(self, step: steps.Step, *, resolution: int = 10) -> Generator[Matrix]:
+        motion = steps.make_motion_array(step, self.pos.shape, resolution=resolution)
+        path = self.pos[step.node] + np.cumsum(motion[:, step.node, :], axis=0)
+        for frame in motion:
+            self.take_substep(frame)
+            yield path
+
+    def crawl(self, step_length: float = 0.8, *, resolution: int = 50) -> Generator[Matrix]:
         feet = (0, 7, 6, 1)
         for foot in feet:
             locks = [(other_foot, slice(0,3)) for other_foot in feet if foot != other_foot]
-            path = np.vstack([
-                self.pos[foot],
-                self.pos[foot]+step_up,
-                self.pos[foot]+step_forward,
-            ])
-            for point in path:
-                step = steps.Step(node=foot, target=point, locks=locks, dt=dt)
-                for _ in self.take_step(step):
-                    yield path
+            arc = partial(step_arc, d=step_length)
+            step = steps.Step(foot, arc, locks)
+            yield from self.take_step(step, resolution=resolution)

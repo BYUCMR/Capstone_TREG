@@ -20,9 +20,8 @@ def draw_path(path: Matrix) -> go.Scatter3d:
     x, y, z = path.T
     return go.Scatter3d(
         x=x, y=y, z=z,
-        mode='lines+markers',
+        mode='lines',
         line=dict(width=6, color='black'),
-        marker=dict(size=5, color='black', symbol='circle'),
         name='Path',
     )
 
