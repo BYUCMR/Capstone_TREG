@@ -7,8 +7,8 @@ from itertools import pairwise
 import numpy as np
 
 from rift.gentools import expend
-from rift.robot import RobotInverse, SingularityError, step_arc
-from rift.steps import Step
+from rift.robot import RobotInverse, SingularityError
+from rift.steps import make_step_array, parabola
 from rift.truss_config import CONFIG_ROVER as config
 
 
@@ -65,12 +65,19 @@ def measure_max_step_length(*, dx: float = 0.01, resolution: int) -> float:
     robot = RobotInverse(config)
     initial_state = robot.state
     initial_rigidity = robot.rigidity
-    locks = [(1, slice(0,3)), (6, slice(0,3)), (7, slice(0,3))]
     step_length = dx
     while True:
-        step = Step(0, partial(step_arc, d=step_length), locks)
+        arc = partial(parabola, d=step_length)
+        step = make_step_array(
+            robot.pos.shape,
+            (0, arc),
+            (1, 0.),
+            (6, 0.),
+            (7, 0.),
+            resolution=resolution,
+        )
         try:
-            expend(robot.take_step(step, resolution=resolution))
+            expend(robot.take_step(step))
         except SingularityError:
             break
         step_length += dx

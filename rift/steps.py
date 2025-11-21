@@ -1,28 +1,41 @@
-from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from collections.abc import Callable
 
 import numpy as np
 
 from .linalg import Matrix, MatrixStack, Vector
-from .truss_config import Lock
 from .tubetruss import Node
 
 
-@dataclass(slots=True, frozen=True)
-class Step:
-    node: Node
-    velocity: float | Vector | Callable[[Vector], Matrix]
-    locks: Iterable[Lock] = ()
+type StepVelocity = float | Vector | Callable[[Vector], Matrix]
 
 
-def make_motion_array(step: Step, shape: tuple[int, int], resolution: int = 10) -> MatrixStack:
+def parabola(t: Vector, d: float = 1.0) -> Matrix:
+    k = d / len(t)
+    u = np.full_like(t, k)
+    v = np.zeros_like(t)
+    w = 2. * k * (0.5-t)
+    return np.column_stack([u, v, w])
+
+
+def make_step_array(
+    shape: tuple[int, int],
+    *commands: *tuple[tuple[Node, StepVelocity], ...],
+    resolution: int = 10,
+) -> MatrixStack:
     t = np.linspace(0., 1., resolution)
-    motion = np.full((len(t), *shape), np.nan)
-    if callable(step.velocity):
-        v = step.velocity(t).T
-    else:
-        v = step.velocity
-    motion[:, step.node, :] = v
-    for n, i in step.locks:
-        motion[:, n, i] = 0.
+    motion = np.full((resolution, *shape), np.nan)
+    for node, velocity in commands:
+        if callable(velocity):
+            v = velocity(t)
+        else:
+            v = velocity
+        motion[:, node, :] = v
     return motion
+
+
+def make_move_constraint(substep: Matrix) -> tuple[Matrix, Vector]:
+    i = ~np.isnan(substep)
+    b = substep[i]
+    A = np.zeros((b.size, i.size))
+    A[:, i.flat] = np.eye(b.size)
+    return A, b

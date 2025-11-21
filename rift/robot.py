@@ -7,7 +7,7 @@ import numpy as np
 import qpsolvers
 
 from . import steps
-from .linalg import Matrix, Vector
+from .linalg import Matrix, MatrixStack, Vector
 from .state import RobotState
 from .truss_config import Lock, TrussConfig
 from .tubetruss import TubeTruss
@@ -24,22 +24,6 @@ def initial_state(config: TrussConfig) -> RobotState:
         pos=config.initial_pos.copy(),
         roll=np.zeros(n_rollers),
     )
-
-
-def make_move_contraint(motion: Matrix) -> tuple[Matrix, Vector]:
-    i = ~np.isnan(motion)
-    b = motion[i]
-    A = np.zeros((b.size, i.size))
-    A[:, i.flat] = np.eye(len(A))
-    return A, b
-
-
-def step_arc(t: Vector, d: float = 1.0) -> Matrix:
-    k = d / len(t)
-    u = np.full_like(t, k)
-    v = np.zeros_like(t)
-    w = 2. * k * (0.5-t)
-    return np.array([u, v, w])
 
 
 def near_singularity(H: Matrix, A: Matrix, c: float = 1e4) -> bool:
@@ -114,8 +98,8 @@ class RobotInverse:
         )
         self.rigidity = self.structure.norm_rigidity_at(self.state)
 
-    def make_constraint_matrices(self, motion: Matrix) -> tuple[Matrix, Vector]:
-        A_move, b_move = make_move_contraint(motion)
+    def make_constraint_matrices(self, substep: Matrix) -> tuple[Matrix, Vector]:
+        A_move, b_move = steps.make_move_constraint(substep)
         if self.keep_level is not None:
             A_level = np.zeros((1, self.pos.size))
             A_level[0, 3*self.keep_level[0]+2] =  1
@@ -130,31 +114,33 @@ class RobotInverse:
         beq = np.concat([b_move, b_length])
         return Aeq, beq
 
-    def get_optimal_motion(self, motion: Matrix) -> Vector:
+    def get_optimal_motion(self, substep: Matrix) -> Vector:
         H = self.rigidity.T @ self.rigidity
         f = np.zeros(self.pos.size)
-        A, b = self.make_constraint_matrices(motion)
+        A, b = self.make_constraint_matrices(substep)
         if near_singularity(H, A):
             raise SingularityError
         v = qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver='piqp')
         assert v is not None
         return v
 
-    def take_substep(self, motion: Matrix) -> None:
-        d_pos = self.get_optimal_motion(motion)
+    def take_substep(self, substep: Matrix) -> None:
+        d_pos = self.get_optimal_motion(substep)
         self.update_state(d_pos)
 
-    def take_step(self, step: steps.Step, *, resolution: int = 10) -> Generator[Matrix]:
-        motion = steps.make_motion_array(step, self.pos.shape, resolution=resolution)
-        path = self.pos[step.node] + np.cumsum(motion[:, step.node, :], axis=0)
-        for frame in motion:
-            self.take_substep(frame)
-            yield path
+    def take_step(self, step: MatrixStack) -> Generator[None]:
+        for substep in step:
+            self.take_substep(substep)
+            yield
 
     def crawl(self, step_length: float = 0.8, *, resolution: int = 50) -> Generator[Matrix]:
         feet = (0, 7, 6, 1)
         for foot in feet:
-            locks = [(other_foot, slice(0,3)) for other_foot in feet if foot != other_foot]
-            arc = partial(step_arc, d=step_length)
-            step = steps.Step(foot, arc, locks)
-            yield from self.take_step(step, resolution=resolution)
+            locks = [(other_foot, 0.) for other_foot in feet if foot != other_foot]
+            arc = partial(steps.parabola, d=step_length)
+            step = steps.make_step_array(
+                self.pos.shape, (foot, arc), *locks, resolution=resolution,
+            )
+            path = self.pos[foot] + np.cumsum(step[:, foot, :], axis=0)
+            for _ in self.take_step(step):
+                yield path
