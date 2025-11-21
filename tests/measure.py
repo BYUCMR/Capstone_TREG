@@ -1,4 +1,7 @@
 import pathlib, sys
+
+from rift.truss_config import TrussConfig, rover_builder
+
 sys.path.append(str(pathlib.Path.cwd()))
 
 from functools import partial
@@ -9,15 +12,14 @@ import numpy as np
 from rift.gentools import expend
 from rift.robot import RobotInverse, SingularityError, step_arc
 from rift.steps import Step
-from rift.truss_config import CONFIG_ROVER as config
 
 
 def measure_max_crawl_speed(
-    *,
-    step_length: float = 0.8,
-    roll_rate_limit: float,
-    cycles: int = 1,
-    resolution: int,
+        config: TrussConfig, *,
+        step_length: float = 0.8,
+        roll_rate_limit: float,
+        cycles: int = 1,
+        resolution: int,
 ) -> np.floating:
     robot = RobotInverse(config)
     start_x = np.max(robot.pos[:, 0])
@@ -33,7 +35,7 @@ def measure_max_crawl_speed(
     return max_speed
 
 
-def measure_max_foot_lift(*, dz: float = 0.01) -> float:
+def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
     robot = RobotInverse(config)
     z0 = robot.pos[0, 2]
     motion = np.full_like(robot.pos, np.nan)
@@ -47,7 +49,7 @@ def measure_max_foot_lift(*, dz: float = 0.01) -> float:
     return robot.pos[0, 2] - dz - z0
 
 
-def measure_max_foot_forward(*, dx: float = 0.01) -> float:
+def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
     robot = RobotInverse(config)
     x0 = robot.pos[0, 0]
     motion = np.full_like(robot.pos, np.nan)
@@ -61,11 +63,11 @@ def measure_max_foot_forward(*, dx: float = 0.01) -> float:
     return robot.pos[0, 0] - dx - x0
 
 
-def measure_max_step_length(*, dx: float = 0.01, resolution: int) -> float:
+def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution: int) -> float:
     robot = RobotInverse(config)
     initial_state = robot.state
     initial_rigidity = robot.rigidity
-    locks = [(1, slice(0,3)), (6, slice(0,3)), (7, slice(0,3))]
+    locks = [(1, slice(0, 3)), (6, slice(0, 3)), (7, slice(0, 3))]
     step_length = dx
     while True:
         step = Step(0, partial(step_arc, d=step_length), locks)
@@ -79,7 +81,7 @@ def measure_max_step_length(*, dx: float = 0.01, resolution: int) -> float:
     return step_length - dx
 
 
-def measure_length_change(*, cycles: int = 1, resolution: int) -> tuple[float, float]:
+def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: int) -> tuple[float, float]:
     robot = RobotInverse(config)
     d0 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
@@ -98,19 +100,22 @@ def main() -> None:
     resolution = 100
     roll_rate_limit = 0.13
     step_length = 0.8
+    config = rover_builder(1, 6, 12, 10, 4, 2.5)
     max_crawl_speed = measure_max_crawl_speed(
+        config,
         step_length=step_length,
         roll_rate_limit=roll_rate_limit,
         cycles=cycles,
         resolution=resolution,
+
     )
     dz = 0.005
     dx = 0.005
     ds = 0.1
-    max_foot_lift = measure_max_foot_lift(dz=dz)
-    max_foot_forward = measure_max_foot_forward(dx=dx)
-    max_step_length = measure_max_step_length(dx=ds, resolution=resolution)
-    error, degen = measure_length_change(cycles=cycles, resolution=resolution)
+    max_foot_lift = measure_max_foot_lift(config, dz=dz)
+    max_foot_forward = measure_max_foot_forward(config, dx=dx)
+    max_step_length = measure_max_step_length(config, dx=ds, resolution=resolution)
+    error, degen = measure_length_change(config, cycles=cycles, resolution=resolution)
     print(f"Walk cycles:...............{cycles} sets of 4 steps")
     print(f"Resolution:................{resolution} substeps per step")
     print(f"Step Length:...............{step_length:.3g} ft")
