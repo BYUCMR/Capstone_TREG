@@ -1,5 +1,5 @@
 import functools
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Iterator
 from typing import Never
 
 
@@ -11,3 +11,8 @@ def auto_initialize[**P, G: Generator[object, Never, object]](func: Callable[P, 
         return gen
 
     return wrapped
+
+
+def expend(it: Iterator[object]) -> None:
+    for _ in it:
+        pass
