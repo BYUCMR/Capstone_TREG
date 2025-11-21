@@ -13,6 +13,10 @@ from .truss_config import Lock, TrussConfig
 from .tubetruss import TubeTruss
 
 
+class SingularityError(ValueError):
+    pass
+
+
 def initial_state(config: TrussConfig) -> RobotState:
     structure = config.triangles + config.payload
     n_rollers = sum(len(tube.rollers) for tube in structure)
@@ -36,6 +40,13 @@ def step_arc(t: Vector, d: float = 1.0) -> Matrix:
     v = np.zeros_like(t)
     w = 2. * k * (0.5-t)
     return np.array([u, v, w])
+
+
+def near_singularity(H: Matrix, A: Matrix, c: float = 1e4) -> bool:
+    m = len(A)
+    O = np.zeros((m, m))
+    K = np.block([[H, A.T], [A, O]])
+    return np.linalg.cond(K) >= c
 
 
 class Robot(Protocol):
@@ -123,6 +134,8 @@ class RobotInverse:
         H = self.rigidity.T @ self.rigidity
         f = np.zeros(self.pos.size)
         A, b = self.make_constraint_matrices(motion)
+        if near_singularity(H, A):
+            raise SingularityError
         v = qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver='piqp')
         assert v is not None
         return v

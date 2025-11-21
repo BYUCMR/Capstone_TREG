@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 import rift.anim
-from rift.robot import RobotInverse
+from rift.robot import RobotInverse, SingularityError
 from rift.state import RobotState
 from rift.truss_config import CONFIG_ROVER as config, TrussConfig
 
@@ -54,10 +54,14 @@ def initialize_fig(config: TrussConfig, state: RobotState) -> go.Figure:
 def main():
     robot = RobotInverse(config)
     fig = initialize_fig(config, robot.state)
-    fig.frames = [
-        go.Frame(data=rift.anim.generate_data(config, robot.state, path))
-        for path in robot.crawl()
-    ]
+    frames: list[go.Frame] = []
+    try:
+        for path in robot.crawl():
+            data = rift.anim.generate_data(config, robot.state, path)
+            frames.append(go.Frame(data=data))
+    except SingularityError:
+        pass
+    fig.frames = frames
     fig.show()
 
 
