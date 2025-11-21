@@ -9,7 +9,6 @@ import numpy as np
 from scipy.linalg import block_diag as _scipy_block_diag
 
 from .linalg import Matrix, MatrixStack, Vector
-from .state import RobotState
 
 
 def block_diag(mats: Iterable[np.typing.ArrayLike]) -> np.ndarray:
@@ -90,13 +89,13 @@ class TubeTruss:
         """See `get_rigidity_multiplier`."""
         return get_rigidity_multiplier(self)
 
-    def rigidity_at(self, state: RobotState) -> Matrix:
+    def rigidity_at(self, pos: Matrix | Vector) -> Matrix:
         """See `get_rigidity`."""
-        return self.rigidity_multiplier @ state.pos.ravel()
+        return self.rigidity_multiplier @ pos.ravel()
 
-    def norm_rigidity_at(self, state: RobotState) -> Matrix:
+    def norm_rigidity_at(self, pos: Matrix | Vector) -> Matrix:
         """See `normalize_rigidity`."""
-        return normalize_rigidity(self.rigidity_at(state))
+        return normalize_rigidity(self.rigidity_at(pos))
 
     def __iter__(self) -> Iterator[Tube]:
         return iter(self.tubes)
@@ -110,18 +109,18 @@ class TubeTruss:
     __radd__ = __add__
 
 
-def get_rigidity(structure: TubeTruss, state: RobotState) -> Matrix:
+def get_rigidity(structure: TubeTruss, pos: Matrix) -> Matrix:
     """Return the rigidity matrix of a tube structure in a given state.
 
     This matrix converts a column of node velocities into a column comprising
     the length of each link times its rate of change.
     """
-    dim = state.pos.shape[1]
+    dim = pos.shape[1]
     j = np.arange(dim)
     rows: list[Vector] = []
     for n1, n2 in structure.links:
-        row = np.zeros(state.pos.size)
-        v = state.pos[n1] - state.pos[n2]
+        row = np.zeros(pos.size)
+        v = pos[n1] - pos[n2]
         row[dim*n1 + j] =  v
         row[dim*n2 + j] = -v
         rows.append(row)
