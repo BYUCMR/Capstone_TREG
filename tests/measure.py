@@ -1,4 +1,5 @@
 import pathlib, sys
+from rift.truss_config import TrussConfig, rover_builder
 sys.path.append(str(pathlib.Path.cwd()))
 
 from functools import partial
@@ -9,7 +10,6 @@ import numpy as np
 from rift.gentools import expend
 from rift.robot import RobotInverse, SingularityError
 from rift.steps import make_step_array, parabola
-from rift.truss_config import TrussConfig
 
 
 def measure_max_crawl_speed(
