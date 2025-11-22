@@ -118,10 +118,15 @@ class RobotInverse:
         H = self.rigidity.T @ self.rigidity
         f = np.zeros(self.pos.size)
         A, b = self.make_constraint_matrices(substep)
-        if near_singularity(H, A):
-            raise SingularityError
         v = qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver='piqp')
         assert v is not None
+        # Instead of determining whether the configuration is approaching
+        # a singularity, we just check to see if our velocity is going
+        # out of control. It's computationally much faster.
+        m1 = np.nanmax(substep)
+        m2 = np.max(v)
+        if m2 >= 10.*m1:
+            raise SingularityError
         return v
 
     def take_substep(self, substep: Matrix) -> None:
