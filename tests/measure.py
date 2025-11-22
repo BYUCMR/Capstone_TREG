@@ -9,10 +9,11 @@ import numpy as np
 from rift.gentools import expend
 from rift.robot import RobotInverse, SingularityError
 from rift.steps import make_step_array, parabola
-from rift.truss_config import CONFIG_ROVER as config
+from rift.truss_config import TrussConfig
 
 
 def measure_max_crawl_speed(
+    config: TrussConfig,
     *,
     step_length: float = 0.8,
     roll_rate_limit: float,
@@ -33,7 +34,7 @@ def measure_max_crawl_speed(
     return max_speed
 
 
-def measure_max_foot_lift(*, dz: float = 0.01) -> float:
+def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
     robot = RobotInverse(config)
     z0 = robot.pos[0, 2]
     motion = np.full_like(robot.pos, np.nan)
@@ -47,7 +48,7 @@ def measure_max_foot_lift(*, dz: float = 0.01) -> float:
     return robot.pos[0, 2] - dz - z0
 
 
-def measure_max_foot_forward(*, dx: float = 0.01) -> float:
+def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
     robot = RobotInverse(config)
     x0 = robot.pos[0, 0]
     motion = np.full_like(robot.pos, np.nan)
@@ -61,7 +62,7 @@ def measure_max_foot_forward(*, dx: float = 0.01) -> float:
     return robot.pos[0, 0] - dx - x0
 
 
-def measure_max_step_length(*, dx: float = 0.01, resolution: int) -> float:
+def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution: int) -> float:
     robot = RobotInverse(config)
     initial_state = robot.state
     initial_rigidity = robot.rigidity
@@ -86,7 +87,7 @@ def measure_max_step_length(*, dx: float = 0.01, resolution: int) -> float:
     return step_length - dx
 
 
-def measure_length_change(*, cycles: int = 1, resolution: int) -> tuple[float, float]:
+def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: int) -> tuple[float, float]:
     robot = RobotInverse(config)
     d0 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
@@ -101,11 +102,13 @@ def measure_length_change(*, cycles: int = 1, resolution: int) -> tuple[float, f
 
 
 def main() -> None:
+    from rift.truss_config import CONFIG_ROVER
     cycles = 1
     resolution = 100
     roll_rate_limit = 0.13
     step_length = 0.8
     max_crawl_speed = measure_max_crawl_speed(
+        CONFIG_ROVER,
         step_length=step_length,
         roll_rate_limit=roll_rate_limit,
         cycles=cycles,
@@ -114,10 +117,10 @@ def main() -> None:
     dz = 0.005
     dx = 0.005
     ds = 0.1
-    max_foot_lift = measure_max_foot_lift(dz=dz)
-    max_foot_forward = measure_max_foot_forward(dx=dx)
-    max_step_length = measure_max_step_length(dx=ds, resolution=resolution)
-    error, degen = measure_length_change(cycles=cycles, resolution=resolution)
+    max_foot_lift = measure_max_foot_lift(CONFIG_ROVER, dz=dz)
+    max_foot_forward = measure_max_foot_forward(CONFIG_ROVER, dx=dx)
+    max_step_length = measure_max_step_length(CONFIG_ROVER, dx=ds, resolution=resolution)
+    error, degen = measure_length_change(CONFIG_ROVER, cycles=cycles, resolution=resolution)
     print(f"Walk cycles:...............{cycles} sets of 4 steps")
     print(f"Resolution:................{resolution} substeps per step")
     print(f"Step Length:...............{step_length:.3g} ft")
