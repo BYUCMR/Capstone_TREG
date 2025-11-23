@@ -1,18 +1,16 @@
-import numpy as np
 import pandas as pd
 from measure import *
-from cvxpy import length
 
 from rift.truss_config import rover_builder
 
-h_values = np.array(list(range(.5, )))
-P_p_values = np.array(list(range(3, 12.5, .5)))
+h_values = np.array(list(range(0,3.1,.5 )))
+P_p_values = np.array(list(range(3, 12.5, 1)))
 P_values = np.array([12])
-theta_values = np.array(list(range(0, 92.5, 2.5)))
-w_p_values = np.array(list(range(.25, 6.25, .25)))
-w_f_values = np.array(list(range(1, 5, .1)))
+theta_values = np.array(list(range(0, 92.5, 10)))
+w_p_values = np.array(list(range(1, 6.25, 1)))
+w_f_values = np.array(list(range(1, 4, .5)))
 resolution = np.array([100])
-step_length = np.array(list(range(.5, 1.6, .1)))
+step_length = np.array(list(range(0,1.6, .2)))
 roll_rate_limit = np.array([.13])
 cycle = np.array([4])
 
