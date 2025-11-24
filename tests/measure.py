@@ -1,5 +1,7 @@
 import pathlib, sys
+
 from rift.truss_config import TrussConfig, rover_builder
+
 sys.path.append(str(pathlib.Path.cwd()))
 
 from functools import partial
@@ -8,17 +10,16 @@ from itertools import pairwise
 import numpy as np
 
 from rift.gentools import expend
-from rift.robot import RobotInverse, SingularityError
-from rift.steps import make_step_array, parabola
+from rift.robot import RobotInverse, SingularityError, step_arc
+from rift.steps import Step
 
 
 def measure_max_crawl_speed(
-    config: TrussConfig,
-    *,
-    step_length: float = 0.8,
-    roll_rate_limit: float,
-    cycles: int = 1,
-    resolution: int,
+        config: TrussConfig, *,
+        step_length: float = 0.8,
+        roll_rate_limit: float,
+        cycles: int = 1,
+        resolution: int,
 ) -> np.floating:
     robot = RobotInverse(config)
     start_x = np.max(robot.pos[:, 0])
@@ -66,19 +67,12 @@ def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution
     robot = RobotInverse(config)
     initial_state = robot.state
     initial_rigidity = robot.rigidity
+    locks = [(1, slice(0, 3)), (6, slice(0, 3)), (7, slice(0, 3))]
     step_length = dx
     while True:
-        arc = partial(parabola, d=step_length)
-        step = make_step_array(
-            robot.pos.shape,
-            (0, arc),
-            (1, 0.),
-            (6, 0.),
-            (7, 0.),
-            resolution=resolution,
-        )
+        step = Step(0, partial(step_arc, d=step_length), locks)
         try:
-            expend(robot.take_step(step))
+            expend(robot.take_step(step, resolution=resolution))
         except SingularityError:
             break
         step_length += dx
@@ -102,25 +96,26 @@ def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: i
 
 
 def main() -> None:
-    from rift.truss_config import CONFIG_ROVER
     cycles = 1
     resolution = 100
     roll_rate_limit = 0.13
     step_length = 0.8
+    config = rover_builder(1, 6, 12, 10, 4, 2.5)
     max_crawl_speed = measure_max_crawl_speed(
-        CONFIG_ROVER,
+        config,
         step_length=step_length,
         roll_rate_limit=roll_rate_limit,
         cycles=cycles,
         resolution=resolution,
+
     )
     dz = 0.005
     dx = 0.005
     ds = 0.1
-    max_foot_lift = measure_max_foot_lift(CONFIG_ROVER, dz=dz)
-    max_foot_forward = measure_max_foot_forward(CONFIG_ROVER, dx=dx)
-    max_step_length = measure_max_step_length(CONFIG_ROVER, dx=ds, resolution=resolution)
-    error, degen = measure_length_change(CONFIG_ROVER, cycles=cycles, resolution=resolution)
+    max_foot_lift = measure_max_foot_lift(config, dz=dz)
+    max_foot_forward = measure_max_foot_forward(config, dx=dx)
+    max_step_length = measure_max_step_length(config, dx=ds, resolution=resolution)
+    error, degen = measure_length_change(config, cycles=cycles, resolution=resolution)
     print(f"Walk cycles:...............{cycles} sets of 4 steps")
     print(f"Resolution:................{resolution} substeps per step")
     print(f"Step Length:...............{step_length:.3g} ft")
