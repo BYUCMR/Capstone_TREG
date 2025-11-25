@@ -21,16 +21,13 @@ def measure_max_crawl_speed(
     resolution: int,
 ) -> np.floating:
     robot = RobotInverse(config)
-    start_x = np.max(robot.pos[:, 0])
     rolls = [robot.roll]
     for i in range(cycles):
         for path in robot.crawl(step_length, resolution=resolution):
             rolls.append(robot.roll)
     d_rolls = np.array([b - a for a, b in pairwise(rolls)])
-    end_x = np.max(robot.pos[:, 0])
-    delta_x = end_x - start_x
     min_dt = np.max(d_rolls, axis=1) / roll_rate_limit
-    max_speed = delta_x / np.sum(min_dt)
+    max_speed = cycles * step_length / np.sum(min_dt)
     return max_speed
 
 
