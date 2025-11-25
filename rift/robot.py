@@ -13,8 +13,9 @@ from .truss_config import Lock, TrussConfig
 from .tubetruss import TubeTruss
 
 
-class SingularityError(ValueError):
-    pass
+class InverseKinematicsError(Exception): ...
+class SolverError(InverseKinematicsError): ...
+class SingularityError(InverseKinematicsError): ...
 
 
 def initial_state(config: TrussConfig) -> RobotState:
@@ -119,14 +120,15 @@ class RobotInverse:
         f = np.zeros(self.pos.size)
         A, b = self.make_constraint_matrices(substep)
         v = qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver='piqp')
-        assert v is not None
+        if v is None:
+            raise SolverError("Could not find valid node velocities")
         # Instead of determining whether the configuration is approaching
         # a singularity, we just check to see if our velocity is going
         # out of control. It's computationally much faster.
         m1 = np.nanmax(substep)
         m2 = np.max(v)
         if m2 >= 10.*m1:
-            raise SingularityError
+            raise SingularityError("Robot configuration appears to be singular")
         return v
 
     def take_substep(self, substep: Matrix) -> None:

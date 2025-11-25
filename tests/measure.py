@@ -7,7 +7,7 @@ from itertools import pairwise
 import numpy as np
 
 from rift.gentools import expend
-from rift.robot import RobotInverse, SingularityError
+from rift.robot import InverseKinematicsError, RobotInverse
 from rift.steps import make_step_array, parabola
 from rift.truss_config import TrussConfig
 
@@ -40,7 +40,7 @@ def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
     while True:
         try:
             robot.take_substep(motion)
-        except SingularityError:
+        except InverseKinematicsError:
             break
     return robot.pos[0, 2] - dz - z0
 
@@ -54,7 +54,7 @@ def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
     while True:
         try:
             robot.take_substep(motion)
-        except SingularityError:
+        except InverseKinematicsError:
             break
     return robot.pos[0, 0] - dx - x0
 
@@ -76,7 +76,7 @@ def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution
         )
         try:
             expend(robot.take_step(step))
-        except SingularityError:
+        except InverseKinematicsError:
             break
         step_length += dx
         robot.state = initial_state

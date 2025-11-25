@@ -5,7 +5,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 import rift.anim
-from rift.robot import RobotInverse, SingularityError
+from rift.robot import InverseKinematicsError, RobotInverse
 from rift.state import RobotState
 from rift.truss_config import CONFIG_ROVER as config, TrussConfig
 
@@ -59,7 +59,7 @@ def main():
         for path in robot.crawl():
             data = rift.anim.generate_data(config, robot.state, path)
             frames.append(go.Frame(data=data))
-    except SingularityError:
+    except InverseKinematicsError:
         pass
     fig.frames = frames
     fig.show()
