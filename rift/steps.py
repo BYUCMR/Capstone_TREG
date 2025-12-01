@@ -2,8 +2,8 @@ from collections.abc import Callable
 
 import numpy as np
 
-from .linalg import Matrix, MatrixStack, Vector
 from .tubetruss import Node
+from .typing import Matrix, MatrixStack, Vector
 
 
 type StepVelocity = float | Vector | Callable[[Vector], Matrix]

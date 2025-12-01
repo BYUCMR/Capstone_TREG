@@ -1,9 +1,9 @@
 import plotly.graph_objects as go
 
-from .linalg import Matrix
 from .state import RobotState
 from .truss_config import TrussConfig
 from .tubetruss import Tube
+from .typing import Matrix
 
 
 def draw_tube(tube: Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> go.Scatter3d:

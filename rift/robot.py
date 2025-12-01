@@ -7,10 +7,10 @@ import numpy as np
 import qpsolvers
 
 from . import steps
-from .linalg import Matrix, MatrixStack, Vector
 from .state import RobotState
 from .truss_config import Lock, TrussConfig
 from .tubetruss import TubeTruss
+from .typing import Matrix, MatrixStack, Vector
 
 
 class InverseKinematicsError(Exception): ...
