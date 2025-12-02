@@ -1,3 +1,4 @@
+import numpy as np
 import plotly.graph_objects as go
 
 from .state import RobotState
@@ -72,3 +73,44 @@ def generate_data(config: TrussConfig, state: RobotState, path: Matrix) -> list[
     triangle_scatter = plot_triangles(config, state)
     path_scatter = draw_path(path)
     return [payload_mesh, path_scatter, *payload_scatter, *triangle_scatter]
+
+
+def initialize_fig(config: TrussConfig, state: RobotState) -> go.Figure:
+    return go.Figure(
+        data=generate_data(config, state, np.zeros((0, 3))),
+        layout=go.Layout(
+            updatemenus=[dict(
+                type='buttons',
+                buttons=[dict(
+                    label='Play',
+                    method='animate',
+                    args=[None, dict(
+                        frame=dict(duration=10, redraw=True),
+                        transition=dict(duration=0),
+                    )]
+                )]
+            )],
+            scene=dict(
+                aspectmode='cube',
+                bgcolor='white',
+                xaxis=dict(
+                    range=(-8, 12),
+                    backgroundcolor='white',
+                    gridcolor='lightgray',
+                    zerolinecolor='lightgray',
+                ),
+                yaxis=dict(
+                    range=(-10, 10),
+                    backgroundcolor='white',
+                    gridcolor='lightgray',
+                    zerolinecolor='lightgray',
+                ),
+                zaxis=dict(
+                    range=(-1, 19),
+                    backgroundcolor='white',
+                    gridcolor='lightgray',
+                    zerolinecolor='lightgray',
+                )
+            )
+        )
+    )
