@@ -1,4 +1,4 @@
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Self
@@ -6,24 +6,16 @@ from typing import Self
 import numpy as np
 
 from . import steps
-from .state import RobotState
 from .truss_config import Lock, TrussConfig
 from .tubetruss import TubeTruss
 from .typing import Matrix, MatrixStack, Vector
+
+type Callback[T] = Callable[[T], object]
 
 
 class InverseKinematicsError(Exception): ...
 class SolverError(InverseKinematicsError): ...
 class SingularityError(InverseKinematicsError): ...
-
-
-def initial_state(config: TrussConfig) -> RobotState:
-    structure = config.triangles + config.payload
-    n_rollers = sum(len(tube.rollers) for tube in structure)
-    return RobotState(
-        pos=config.initial_pos.copy(),
-        roll=np.zeros(n_rollers),
-    )
 
 
 def near_singularity(H: Matrix, A: Matrix, c: float = 1e4) -> bool:
@@ -33,24 +25,27 @@ def near_singularity(H: Matrix, A: Matrix, c: float = 1e4) -> bool:
     return np.linalg.cond(K) >= c
 
 
+def dummy_callback(_: object) -> None:
+    pass
+
+
 @dataclass(slots=True)
 class RobotForward:
     structure: TubeTruss
-    state: RobotState
+    pos: Matrix
+    pos_callback: Callback[Matrix] = field(
+        default=dummy_callback, kw_only=True
+    )
+    roll_callback: Callback[Vector] = field(
+        default=dummy_callback, kw_only=True
+    )
 
     @classmethod
     def from_config(cls, config: TrussConfig) -> Self:
-        return cls(config.triangles + config.payload, initial_state(config))
+        return cls(config.triangles + config.payload, config.initial_pos.copy())
 
-    @property
-    def pos(self) -> Matrix:
-        return self.state.pos
-
-    @property
-    def roll(self) -> Vector:
-        return self.state.roll
-
-    def update_state(self, roll: Vector, *, locks: Iterable[Lock] = ()) -> None:
+    def update_state(self, d_roll: Vector, *, locks: Iterable[Lock] = ()) -> None:
+        self.roll_callback(d_roll)
         can_move = np.ones_like(self.pos, dtype=np.bool)
         for lock in locks:
             can_move[lock] = False
@@ -59,39 +54,37 @@ class RobotForward:
         R = self.structure.norm_rigidity_at(self.pos)
         R_reduced = R[:, unlocked_indices]
         R_inv = np.linalg.inv(R_reduced)
-        d_pos_reduced = R_inv @ self.structure.incidence @ (roll - self.roll)
+        d_pos_reduced = R_inv @ self.structure.incidence @ d_roll
 
         d_pos = np.zeros_like(self.pos)
         d_pos.put(unlocked_indices, d_pos_reduced)
-
-        self.state = RobotState(roll=roll, pos=self.pos + d_pos)
+        self.pos += d_pos
+        self.pos_callback(self.pos)
 
 
 @dataclass(slots=True)
 class RobotInverse:
     structure: TubeTruss
-    state: RobotState
+    pos: Matrix
     extra_constraints: Matrix | None = field(default=None, kw_only=True)
+    pos_callback: Callback[Matrix] = field(
+        default=dummy_callback, kw_only=True
+    )
+    roll_callback: Callback[Vector] = field(
+        default=dummy_callback, kw_only=True
+    )
 
     @classmethod
     def from_config(cls, config: TrussConfig) -> Self:
         structure = config.triangles + config.payload
-        state = initial_state(config)
+        pos = config.initial_pos.copy()
         if config.keep_level is None:
             A_level = None
         else:
-            A_level = np.zeros((1, state.pos.size))
+            A_level = np.zeros((1, pos.size))
             A_level[0, 3*config.keep_level[0]+2] =  1
             A_level[0, 3*config.keep_level[1]+2] = -1
-        return cls(structure, state, extra_constraints=A_level)
-
-    @property
-    def pos(self) -> Matrix:
-        return self.state.pos
-
-    @property
-    def roll(self) -> Vector:
-        return self.state.roll
+        return cls(structure, pos, extra_constraints=A_level)
 
     def take_substep(self, substep: Matrix) -> None:
         rigidity = self.structure.norm_rigidity_at(self.pos)
@@ -108,18 +101,16 @@ class RobotInverse:
         m2 = np.max(dx)
         if m2 >= 10.*m1:
             raise SingularityError("Robot configuration appears to be singular")
+        self.pos += dx
+        self.pos_callback(self.pos)
         dr = self.structure.incidence_inv @ rigidity @ dx.ravel()
-        self.state = RobotState(
-            pos=self.pos + dx,
-            roll=self.roll + dr,
-        )
+        self.roll_callback(dr)
 
-    def take_step(self, step: MatrixStack) -> Generator[None]:
+    def take_step(self, step: MatrixStack) -> None:
         for substep in step:
             self.take_substep(substep)
-            yield
 
-    def crawl(self, step_length: float = 0.8, *, resolution: int = 50) -> Generator[None]:
+    def crawl(self, step_length: float = 0.8, *, resolution: int = 50) -> None:
         feet = (0, 7, 6, 1)
         for foot in feet:
             locks = [(other_foot, 0.) for other_foot in feet if foot != other_foot]
@@ -127,4 +118,4 @@ class RobotInverse:
             step = steps.make_step_array(
                 self.pos.shape, (foot, arc), *locks, resolution=resolution,
             )
-            yield from self.take_step(step)
+            self.take_step(step)

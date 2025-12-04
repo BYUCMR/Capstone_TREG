@@ -15,10 +15,10 @@ def main(
 ) -> None:
     animator = rift.anim.Animator(config)
     robot = RobotInverse.from_config(config)
+    robot.pos_callback = animator.add_frame
     try:
         for _ in range(cycles):
-            for _ in robot.crawl(step_length, resolution=resolution):
-                animator.add_frame(robot.pos)
+            robot.crawl(step_length, resolution=resolution)
     except InverseKinematicsError as e:
         print(e.args[0])
     fig = animator.make_figure()

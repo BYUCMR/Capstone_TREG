@@ -2,14 +2,13 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
 from functools import partial
-from itertools import pairwise
 
 import numpy as np
 
-from rift.gentools import expend
 from rift.robot import InverseKinematicsError, RobotInverse
 from rift.steps import make_step_array, parabola
 from rift.truss_config import TrussConfig
+from rift.typing import Vector
 
 
 def measure_max_crawl_speed(
@@ -21,11 +20,10 @@ def measure_max_crawl_speed(
     resolution: int,
 ) -> np.floating:
     robot = RobotInverse.from_config(config)
-    rolls = [robot.roll]
-    for i in range(cycles):
-        for path in robot.crawl(step_length, resolution=resolution):
-            rolls.append(robot.roll)
-    d_rolls = np.array([b - a for a, b in pairwise(rolls)])
+    d_rolls: list[Vector] = []
+    robot.roll_callback = d_rolls.append
+    for _ in range(cycles):
+        robot.crawl(step_length, resolution=resolution)
     min_dt = np.max(d_rolls, axis=1) / roll_rate_limit
     max_speed = cycles * step_length / np.sum(min_dt)
     return max_speed
@@ -61,7 +59,7 @@ def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
 
 def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution: int) -> float:
     robot = RobotInverse.from_config(config)
-    initial_state = robot.state
+    initial_pos = robot.pos.copy()
     step_length = dx
     while True:
         arc = partial(parabola, d=step_length)
@@ -74,11 +72,11 @@ def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution
             resolution=resolution,
         )
         try:
-            expend(robot.take_step(step))
+            robot.take_step(step)
         except InverseKinematicsError:
             break
         step_length += dx
-        robot.state = initial_state
+        robot.pos = initial_pos.copy()
     return step_length - dx
 
 
@@ -87,7 +85,7 @@ def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: i
     d0 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
     for _ in range(cycles):
-        expend(robot.crawl(resolution=resolution))
+        robot.crawl(resolution=resolution)
     d1 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L1 = np.sqrt(np.sum(np.square(d1), axis=1))
     delta_L = L1 - L0

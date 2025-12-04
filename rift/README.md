@@ -6,11 +6,10 @@ visualization of a rover made of inflatable, flexible tubes.
 This file contains functions used for visualizing the rover using plotly.
 An example of its use can be found in `../tests/rover.py`.
 
-## gentools.py
-This file contains utility functions for dealing with generators.
-
 ## robot.py
 We have two robot classes: one for forward kinematics, and one for inverse.
+
+Both classes have configurable callbacks to respond to changes in state.
 
 The inverse kinematics class is more fully developed and contains methods
 for easily generating crawling motion.
