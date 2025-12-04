@@ -15,7 +15,7 @@ def main(
     cycles: int = 1,
     resolution: int = 50,
 ) -> None:
-    robot = RobotInverse(config)
+    robot = RobotInverse.from_config(config)
     fig = rift.anim.initialize_fig(config, robot.state)
     frames: list[go.Frame] = []
     try:

@@ -1,10 +1,9 @@
 from collections.abc import Generator, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from typing import Self
 
 import numpy as np
-import qpsolvers
 
 from . import steps
 from .state import RobotState
@@ -34,7 +33,7 @@ def near_singularity(H: Matrix, A: Matrix, c: float = 1e4) -> bool:
     return np.linalg.cond(K) >= c
 
 
-@dataclass
+@dataclass(slots=True)
 class RobotForward:
     structure: TubeTruss
     state: RobotState
@@ -68,12 +67,23 @@ class RobotForward:
         self.state = RobotState(roll=roll, pos=self.pos + d_pos)
 
 
+@dataclass(slots=True)
 class RobotInverse:
-    def __init__(self, config: TrussConfig) -> None:
-        self.keep_level = config.keep_level
-        self.structure = config.triangles + config.payload
-        self.state = initial_state(config)
-        self.rigidity = self.structure.norm_rigidity_at(self.state.pos)
+    structure: TubeTruss
+    state: RobotState
+    extra_constraints: Matrix | None = field(default=None, kw_only=True)
+
+    @classmethod
+    def from_config(cls, config: TrussConfig) -> Self:
+        structure = config.triangles + config.payload
+        state = initial_state(config)
+        if config.keep_level is None:
+            A_level = None
+        else:
+            A_level = np.zeros((1, state.pos.size))
+            A_level[0, 3*config.keep_level[0]+2] =  1
+            A_level[0, 3*config.keep_level[1]+2] = -1
+        return cls(structure, state, extra_constraints=A_level)
 
     @property
     def pos(self) -> Matrix:
@@ -83,50 +93,26 @@ class RobotInverse:
     def roll(self) -> Vector:
         return self.state.roll
 
-    def update_state(self, d_pos: Vector) -> None:
-        d_roll = self.structure.incidence_inv @ self.rigidity @ d_pos
-        d_pos_mat = d_pos.reshape(self.pos.shape)
-        self.state = RobotState(
-            pos=self.pos + d_pos_mat,
-            roll=self.roll + d_roll,
-        )
-        self.rigidity = self.structure.norm_rigidity_at(self.pos)
-
-    def make_constraint_matrices(self, substep: Matrix) -> tuple[Matrix, Vector]:
-        A_move, b_move = steps.make_move_constraint(substep)
-        if self.keep_level is not None:
-            A_level = np.zeros((1, self.pos.size))
-            A_level[0, 3*self.keep_level[0]+2] =  1
-            A_level[0, 3*self.keep_level[1]+2] = -1
-            A_move = np.vstack([A_move, A_level])
-            b_move = np.concat([b_move, [0.]])
-
-        A_length = self.structure.length_constraint @ self.rigidity
-        b_length = np.zeros((len(A_length),))
-
-        Aeq = np.vstack([A_move, A_length])
-        beq = np.concat([b_move, b_length])
-        return Aeq, beq
-
-    def get_optimal_motion(self, substep: Matrix) -> Vector:
-        H = self.rigidity.T @ self.rigidity
-        f = np.zeros(self.pos.size)
-        A, b = self.make_constraint_matrices(substep)
-        v = qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver='piqp')
-        if v is None:
+    def take_substep(self, substep: Matrix) -> None:
+        rigidity = self.structure.norm_rigidity_at(self.pos)
+        A = self.structure.length_constraint @ rigidity
+        if self.extra_constraints is not None:
+            A = np.vstack([A, self.extra_constraints])
+        dx = steps.fill_substep(substep, R=rigidity, A=A)
+        if dx is None:
             raise SolverError("Could not find valid node velocities")
         # Instead of determining whether the configuration is approaching
         # a singularity, we just check to see if our velocity is going
         # out of control. It's computationally much faster.
         m1 = np.nanmax(substep)
-        m2 = np.max(v)
+        m2 = np.max(dx)
         if m2 >= 10.*m1:
             raise SingularityError("Robot configuration appears to be singular")
-        return v
-
-    def take_substep(self, substep: Matrix) -> None:
-        d_pos = self.get_optimal_motion(substep)
-        self.update_state(d_pos)
+        dr = self.structure.incidence_inv @ rigidity @ dx.ravel()
+        self.state = RobotState(
+            pos=self.pos + dx,
+            roll=self.roll + dr,
+        )
 
     def take_step(self, step: MatrixStack) -> Generator[None]:
         for substep in step:

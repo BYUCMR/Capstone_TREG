@@ -20,7 +20,7 @@ def measure_max_crawl_speed(
     cycles: int = 1,
     resolution: int,
 ) -> np.floating:
-    robot = RobotInverse(config)
+    robot = RobotInverse.from_config(config)
     rolls = [robot.roll]
     for i in range(cycles):
         for path in robot.crawl(step_length, resolution=resolution):
@@ -32,7 +32,7 @@ def measure_max_crawl_speed(
 
 
 def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
-    robot = RobotInverse(config)
+    robot = RobotInverse.from_config(config)
     z0 = robot.pos[0, 2]
     motion = np.full_like(robot.pos, np.nan)
     motion[0] = [0., 0., dz]
@@ -46,7 +46,7 @@ def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
 
 
 def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
-    robot = RobotInverse(config)
+    robot = RobotInverse.from_config(config)
     x0 = robot.pos[0, 0]
     motion = np.full_like(robot.pos, np.nan)
     motion[0] = [dx, 0., 0.]
@@ -60,9 +60,8 @@ def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
 
 
 def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution: int) -> float:
-    robot = RobotInverse(config)
+    robot = RobotInverse.from_config(config)
     initial_state = robot.state
-    initial_rigidity = robot.rigidity
     step_length = dx
     while True:
         arc = partial(parabola, d=step_length)
@@ -80,12 +79,11 @@ def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution
             break
         step_length += dx
         robot.state = initial_state
-        robot.rigidity = initial_rigidity
     return step_length - dx
 
 
 def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: int) -> tuple[float, float]:
-    robot = RobotInverse(config)
+    robot = RobotInverse.from_config(config)
     d0 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
     for _ in range(cycles):

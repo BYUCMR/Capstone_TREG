@@ -13,7 +13,7 @@ from rift.truss_config import CONFIG_ROVER as config
 def main():
     t0 = time.time()
     with cProfile.Profile() as profile:
-        robot = RobotInverse(config)
+        robot = RobotInverse.from_config(config)
         for _ in range(10):
             expend(robot.crawl())
     t1 = time.time()
