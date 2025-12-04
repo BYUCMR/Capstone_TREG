@@ -1,7 +1,5 @@
-import numpy as np
 import plotly.graph_objects as go
 
-from .state import RobotState
 from .truss_config import TrussConfig
 from .tubetruss import Tube
 from .typing import Matrix
@@ -17,26 +15,16 @@ def draw_tube(tube: Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -
     )
 
 
-def draw_path(path: Matrix) -> go.Scatter3d:
-    x, y, z = path.T
-    return go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='lines',
-        line=dict(width=6, color='black'),
-        name='Path',
-    )
+def plot_payload_edges(config: TrussConfig, pos: Matrix) -> list[go.Scatter3d]:
+    return [draw_tube(e, pos, color='black', width=4) for e in config.payload]
 
 
-def plot_payload_edges(config: TrussConfig, state: RobotState) -> list[go.Scatter3d]:
-    return [draw_tube(e, state.pos, color='black', width=4) for e in config.payload]
-
-
-def plot_payload(config: TrussConfig, state: RobotState) -> go.Mesh3d:
+def plot_payload(config: TrussConfig, pos: Matrix) -> go.Mesh3d:
     payload_ind = set[int]()
     for i in config.payload:
         payload_ind.update(i.nodes)
 
-    payload_pnts = state.pos[list(payload_ind)]
+    payload_pnts = pos[list(payload_ind)]
     x = payload_pnts[:, 0]  # First column
     y = payload_pnts[:, 1]  # Second column
     z = payload_pnts[:, 2]
@@ -57,27 +45,26 @@ def plot_payload(config: TrussConfig, state: RobotState) -> go.Mesh3d:
     )
 
 
-def plot_triangles(config: TrussConfig, state: RobotState) -> list[go.Scatter3d]:
+def plot_triangles(config: TrussConfig, pos: Matrix) -> list[go.Scatter3d]:
     triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
     traces: list[go.Scatter3d] = []
     for t, tri in enumerate(config.triangles):
         color = triangle_colors.get(t, 'gray')
-        trace = draw_tube(tri, state.pos, color=color)
+        trace = draw_tube(tri, pos, color=color)
         traces.append(trace)
     return traces
 
 
-def generate_data(config: TrussConfig, state: RobotState, path: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
-    payload_scatter = plot_payload_edges(config, state)
-    payload_mesh = plot_payload(config, state)
-    triangle_scatter = plot_triangles(config, state)
-    path_scatter = draw_path(path)
-    return [payload_mesh, path_scatter, *payload_scatter, *triangle_scatter]
+def generate_data(config: TrussConfig, pos: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
+    payload_scatter = plot_payload_edges(config, pos)
+    payload_mesh = plot_payload(config, pos)
+    triangle_scatter = plot_triangles(config, pos)
+    return [payload_mesh, *payload_scatter, *triangle_scatter]
 
 
-def initialize_fig(config: TrussConfig, state: RobotState) -> go.Figure:
+def initialize_fig(config: TrussConfig, pos: Matrix) -> go.Figure:
     return go.Figure(
-        data=generate_data(config, state, np.zeros((0, 3))),
+        data=generate_data(config, pos),
         layout=go.Layout(
             updatemenus=[dict(
                 type='buttons',

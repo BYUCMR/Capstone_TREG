@@ -16,12 +16,12 @@ def main(
     resolution: int = 50,
 ) -> None:
     robot = RobotInverse.from_config(config)
-    fig = rift.anim.initialize_fig(config, robot.state)
+    fig = rift.anim.initialize_fig(config, robot.pos)
     frames: list[go.Frame] = []
     try:
         for _ in range(cycles):
-            for path in robot.crawl(step_length, resolution=resolution):
-                data = rift.anim.generate_data(config, robot.state, path)
+            for _ in robot.crawl(step_length, resolution=resolution):
+                data = rift.anim.generate_data(config, robot.pos)
                 frames.append(go.Frame(data=data))
     except InverseKinematicsError as e:
         print(e.args[0])

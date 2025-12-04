@@ -119,7 +119,7 @@ class RobotInverse:
             self.take_substep(substep)
             yield
 
-    def crawl(self, step_length: float = 0.8, *, resolution: int = 50) -> Generator[Matrix]:
+    def crawl(self, step_length: float = 0.8, *, resolution: int = 50) -> Generator[None]:
         feet = (0, 7, 6, 1)
         for foot in feet:
             locks = [(other_foot, 0.) for other_foot in feet if foot != other_foot]
@@ -127,6 +127,4 @@ class RobotInverse:
             step = steps.make_step_array(
                 self.pos.shape, (foot, arc), *locks, resolution=resolution,
             )
-            path = self.pos[foot] + np.cumsum(step[:, foot, :], axis=0)
-            for _ in self.take_step(step):
-                yield path
+            yield from self.take_step(step)
