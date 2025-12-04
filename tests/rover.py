@@ -1,8 +1,6 @@
 import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
-import plotly.graph_objects as go
-
 import rift.anim
 from rift.robot import InverseKinematicsError, RobotInverse
 from rift.truss_config import TrussConfig
@@ -15,17 +13,15 @@ def main(
     cycles: int = 1,
     resolution: int = 50,
 ) -> None:
+    animator = rift.anim.Animator(config)
     robot = RobotInverse.from_config(config)
-    fig = rift.anim.initialize_fig(config, robot.pos)
-    frames: list[go.Frame] = []
     try:
         for _ in range(cycles):
             for _ in robot.crawl(step_length, resolution=resolution):
-                data = rift.anim.generate_data(config, robot.pos)
-                frames.append(go.Frame(data=data))
+                animator.add_frame(robot.pos)
     except InverseKinematicsError as e:
         print(e.args[0])
-    fig.frames = frames
+    fig = animator.make_figure()
     fig.show()
 
 

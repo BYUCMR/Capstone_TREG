@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+
 import plotly.graph_objects as go
 
 from .truss_config import TrussConfig
@@ -101,3 +103,18 @@ def initialize_fig(config: TrussConfig, pos: Matrix) -> go.Figure:
             )
         )
     )
+
+
+@dataclass(slots=True, frozen=True)
+class Animator:
+    config: TrussConfig
+    frames: list[go.Frame] = field(default_factory=list)
+
+    def add_frame(self, pos: Matrix) -> None:
+        data = generate_data(self.config, pos)
+        self.frames.append(go.Frame(data=data))
+
+    def make_figure(self) -> go.Figure:
+        fig = initialize_fig(self.config, self.config.initial_pos)
+        fig.frames = self.frames
+        return fig
