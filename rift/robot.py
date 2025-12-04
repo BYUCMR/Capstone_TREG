@@ -1,7 +1,7 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from functools import partial
-from typing import Protocol, Self
+from typing import Self
 
 import numpy as np
 import qpsolvers
@@ -32,13 +32,6 @@ def near_singularity(H: Matrix, A: Matrix, c: float = 1e4) -> bool:
     O = np.zeros((m, m))
     K = np.block([[H, A.T], [A, O]])
     return np.linalg.cond(K) >= c
-
-
-class Robot(Protocol):
-    @property
-    def structure(self) -> TubeTruss: ...
-    @property
-    def state(self) -> RobotState: ...
 
 
 @dataclass
