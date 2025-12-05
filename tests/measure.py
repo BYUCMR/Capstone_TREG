@@ -22,8 +22,7 @@ def measure_max_crawl_speed(
     robot = RobotInverse.from_config(config)
     d_rolls: list[Vector] = []
     robot.roll_callback = d_rolls.append
-    for _ in range(cycles):
-        robot.crawl(step_length, resolution=resolution)
+    robot.crawl(cycles, step_length, resolution=resolution)
     min_dt = np.max(d_rolls, axis=1) / roll_rate_limit
     max_speed = cycles * step_length / np.sum(min_dt)
     return max_speed
@@ -84,8 +83,7 @@ def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: i
     robot = RobotInverse.from_config(config)
     d0 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
-    for _ in range(cycles):
-        robot.crawl(resolution=resolution)
+    robot.crawl(cycles, resolution=resolution)
     d1 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L1 = np.sqrt(np.sum(np.square(d1), axis=1))
     delta_L = L1 - L0

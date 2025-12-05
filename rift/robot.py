@@ -110,9 +110,9 @@ class RobotInverse:
         for substep in step:
             self.take_substep(substep)
 
-    def crawl(self, step_length: float = 0.8, *, resolution: int = 50) -> None:
+    def crawl(self, cycles: int = 1, step_length: float = 0.8, *, resolution: int = 50) -> None:
         feet = (0, 7, 6, 1)
-        for foot in feet:
+        for foot in (feet * cycles):
             locks = [(other_foot, 0.) for other_foot in feet if foot != other_foot]
             arc = partial(steps.parabola, d=step_length)
             step = steps.make_step_array(

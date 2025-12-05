@@ -17,8 +17,7 @@ def main(
     robot = RobotInverse.from_config(config)
     robot.pos_callback = animator.add_frame
     try:
-        for _ in range(cycles):
-            robot.crawl(step_length, resolution=resolution)
+        robot.crawl(cycles, step_length, resolution=resolution)
     except InverseKinematicsError as e:
         print(e.args[0])
     fig = animator.make_figure()

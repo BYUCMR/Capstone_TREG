@@ -13,8 +13,7 @@ def main():
     t0 = time.time()
     with cProfile.Profile() as profile:
         robot = RobotInverse.from_config(config)
-        for _ in range(10):
-            robot.crawl()
+        robot.crawl(10)
     t1 = time.time()
     stats = pstats.Stats(profile).sort_stats(pstats.SortKey.CUMULATIVE)
     stats.print_stats(8)
