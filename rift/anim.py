@@ -2,13 +2,13 @@ from dataclasses import dataclass, field
 
 import plotly.graph_objects as go
 
+from . import tubetruss as tt
 from .truss_config import TrussConfig
-from .tubetruss import Tube
 from .typing import Matrix
 
 
-def draw_tube(tube: Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> go.Scatter3d:
-    x, y, z = ([pos[v][i] for v in tube.nodes] for i in range(3))
+def draw_tube(tube: tt.Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> go.Scatter3d:
+    x, y, z = pos[list(tube.nodes)].T
     return go.Scatter3d(
         x=x, y=y, z=z,
         mode='lines',
@@ -17,23 +17,19 @@ def draw_tube(tube: Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -
     )
 
 
-def plot_payload_edges(config: TrussConfig, pos: Matrix) -> list[go.Scatter3d]:
-    return [draw_tube(e, pos, color='black', width=4) for e in config.payload]
+def draw_payload_bars(payload: tt.TubeTruss, pos: Matrix) -> list[go.Scatter3d]:
+    return [draw_tube(bar, pos, color='black', width=4) for bar in payload]
 
 
-def plot_payload(config: TrussConfig, pos: Matrix) -> go.Mesh3d:
-    payload_ind = set[int]()
-    for i in config.payload:
-        payload_ind.update(i.nodes)
+def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> go.Mesh3d:
+    payload_nodes = set[tt.Node]()
+    payload_nodes.update(*(bar.nodes for bar in payload))
 
-    payload_pnts = pos[list(payload_ind)]
-    x = payload_pnts[:, 0]  # First column
-    y = payload_pnts[:, 1]  # Second column
-    z = payload_pnts[:, 2]
+    x, y, z = pos[sorted(payload_nodes)].T
     payload_faces = [[0, 1, 2], [3, 4, 5],
-                        [0, 3, 5], [0, 2, 5],
-                        [1, 4, 5], [1, 2, 5],
-                        [0, 1, 4], [0, 3, 4]]
+                     [0, 3, 5], [0, 2, 5],
+                     [1, 4, 5], [1, 2, 5],
+                     [0, 1, 4], [0, 3, 4]]
 
     return go.Mesh3d(
         x=x, y=y, z=z,
@@ -47,21 +43,21 @@ def plot_payload(config: TrussConfig, pos: Matrix) -> go.Mesh3d:
     )
 
 
-def plot_triangles(config: TrussConfig, pos: Matrix) -> list[go.Scatter3d]:
+def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[go.Scatter3d]:
     triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
-    traces: list[go.Scatter3d] = []
-    for t, tri in enumerate(config.triangles):
-        color = triangle_colors.get(t, 'gray')
-        trace = draw_tube(tri, pos, color=color)
-        traces.append(trace)
-    return traces
+    drawn_tubes: list[go.Scatter3d] = []
+    for i, tube in enumerate(triangles):
+        color = triangle_colors.get(i, 'gray')
+        drawn_tube = draw_tube(tube, pos, color=color)
+        drawn_tubes.append(drawn_tube)
+    return drawn_tubes
 
 
 def generate_data(config: TrussConfig, pos: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
-    payload_scatter = plot_payload_edges(config, pos)
-    payload_mesh = plot_payload(config, pos)
-    triangle_scatter = plot_triangles(config, pos)
-    return [payload_mesh, *payload_scatter, *triangle_scatter]
+    payload_bars = draw_payload_bars(config.payload, pos)
+    payload_mesh = draw_payload_mesh(config.payload, pos)
+    triangles = draw_triangles(config.triangles, pos)
+    return [payload_mesh, *payload_bars, *triangles]
 
 
 def initialize_fig(config: TrussConfig, pos: Matrix) -> go.Figure:
