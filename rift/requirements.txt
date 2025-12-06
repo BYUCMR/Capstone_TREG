@@ -1,4 +1,6 @@
 numpy
-plotly
+PyOpenGL
+pyqtgraph
+PySide6
 qpsolvers[piqp]
 scipy
