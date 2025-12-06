@@ -1,4 +1,6 @@
-from dataclasses import dataclass, field
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Protocol, Self
 
 import plotly.graph_objects as go
 
@@ -7,21 +9,55 @@ from .truss_config import TrussConfig
 from .typing import Matrix
 
 
-def draw_tube(tube: tt.Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> go.Scatter3d:
+class AnimationItem(Protocol):
+    def add_to_frame(self, data: list, /) -> None: ...
+    def update_pos(self, pos: Matrix, /) -> None: ...
+
+
+@dataclass(slots=True, frozen=True)
+class DrawnTube(AnimationItem):
+    tube: tt.Tube
+    drawing: go.Scatter3d
+
+    def add_to_frame(self, data: list) -> None:
+        data.append(self.drawing)
+
+    def update_pos(self, pos: Matrix) -> None:
+        x, y, z = pos[list(self.tube.nodes)].T
+        self.drawing.update(x=x, y=y, z=z)
+
+
+@dataclass(slots=True, frozen=True)
+class PayloadMesh(AnimationItem):
+    payload: tt.TubeTruss
+    mesh: go.Mesh3d
+
+    def add_to_frame(self, data: list) -> None:
+        data.append(self.mesh)
+
+    def update_pos(self, pos: Matrix) -> None:
+        nodes = set[tt.Node]()
+        nodes.update(*(bar.nodes for bar in self.payload))
+        x, y, z = pos[sorted(nodes)].T
+        self.mesh.update(x=x, y=y, z=z)
+
+
+def draw_tube(tube: tt.Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> DrawnTube:
     x, y, z = pos[list(tube.nodes)].T
-    return go.Scatter3d(
+    drawing = go.Scatter3d(
         x=x, y=y, z=z,
         mode='lines',
         line=dict(width=width, color=color),
         showlegend=False,
     )
+    return DrawnTube(tube, drawing)
 
 
-def draw_payload_bars(payload: tt.TubeTruss, pos: Matrix) -> list[go.Scatter3d]:
+def draw_payload_bars(payload: tt.TubeTruss, pos: Matrix) -> list[DrawnTube]:
     return [draw_tube(bar, pos, color='black', width=4) for bar in payload]
 
 
-def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> go.Mesh3d:
+def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> PayloadMesh:
     payload_nodes = set[tt.Node]()
     payload_nodes.update(*(bar.nodes for bar in payload))
 
@@ -31,7 +67,7 @@ def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> go.Mesh3d:
                      [1, 4, 5], [1, 2, 5],
                      [0, 1, 4], [0, 3, 4]]
 
-    return go.Mesh3d(
+    mesh = go.Mesh3d(
         x=x, y=y, z=z,
         i=[f[0] for f in payload_faces],
         j=[f[1] for f in payload_faces],
@@ -41,11 +77,12 @@ def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> go.Mesh3d:
         flatshading=True,
         name='Prism'
     )
+    return PayloadMesh(payload, mesh)
 
 
-def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[go.Scatter3d]:
+def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[DrawnTube]:
     triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
-    drawn_tubes: list[go.Scatter3d] = []
+    drawn_tubes: list[DrawnTube] = []
     for i, tube in enumerate(triangles):
         color = triangle_colors.get(i, 'gray')
         drawn_tube = draw_tube(tube, pos, color=color)
@@ -53,16 +90,16 @@ def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[go.Scatter3d]:
     return drawn_tubes
 
 
-def generate_data(config: TrussConfig, pos: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
+def draw_items(config: TrussConfig, pos: Matrix) -> list[AnimationItem]:
     payload_bars = draw_payload_bars(config.payload, pos)
     payload_mesh = draw_payload_mesh(config.payload, pos)
     triangles = draw_triangles(config.triangles, pos)
     return [payload_mesh, *payload_bars, *triangles]
 
 
-def initialize_fig(config: TrussConfig, pos: Matrix) -> go.Figure:
+def initialize_fig(initial_data) -> go.Figure:
     return go.Figure(
-        data=generate_data(config, pos),
+        data=initial_data,
         layout=go.Layout(
             updatemenus=[dict(
                 type='buttons',
@@ -103,14 +140,29 @@ def initialize_fig(config: TrussConfig, pos: Matrix) -> go.Figure:
 
 @dataclass(slots=True, frozen=True)
 class Animator:
-    config: TrussConfig
-    frames: list[go.Frame] = field(default_factory=list)
+    items: Iterable[AnimationItem] = ()
 
-    def add_frame(self, pos: Matrix) -> None:
-        data = generate_data(self.config, pos)
-        self.frames.append(go.Frame(data=data))
+    @classmethod
+    def from_config(cls, config: TrussConfig) -> Self:
+        items = draw_items(config, config.initial_pos)
+        return cls(items)
 
-    def make_figure(self) -> go.Figure:
-        fig = initialize_fig(self.config, self.config.initial_pos)
-        fig.frames = self.frames
-        return fig
+    def update_pos(self, pos: Matrix) -> None:
+        for item in self.items:
+            item.update_pos(pos)
+
+    def make_frame(self) -> go.Frame:
+        data = []
+        for item in self.items:
+            item.add_to_frame(data)
+        return go.Frame(data=data)
+
+    def animate(self, positions: Iterable[Matrix] = ()) -> None:
+        frames: list[go.Frame] = []
+        for pos in positions:
+            self.update_pos(pos)
+            frame = self.make_frame()
+            frames.append(frame)
+        fig = initialize_fig(frames[0].data)
+        fig.frames = frames
+        fig.show()

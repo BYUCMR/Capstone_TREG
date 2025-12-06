@@ -4,6 +4,7 @@ sys.path.append(str(pathlib.Path.cwd()))
 import rift.anim
 from rift.robot import InverseKinematicsError, RobotInverse
 from rift.truss_config import TrussConfig
+from rift.typing import Matrix
 
 
 def main(
@@ -13,15 +14,15 @@ def main(
     cycles: int = 1,
     resolution: int = 50,
 ) -> None:
-    animator = rift.anim.Animator(config)
+    animator = rift.anim.Animator.from_config(config)
     robot = RobotInverse.from_config(config)
+    positions: list[Matrix] = []
     try:
         for _ in robot.crawl(cycles, step_length, resolution=resolution):
-            animator.add_frame(robot.pos)
+            positions.append(robot.pos.copy())
     except InverseKinematicsError as e:
         print(e.args[0])
-    fig = animator.make_figure()
-    fig.show()
+    animator.animate(positions)
 
 
 if __name__ == '__main__':
