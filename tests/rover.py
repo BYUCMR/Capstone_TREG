@@ -15,9 +15,9 @@ def main(
 ) -> None:
     animator = rift.anim.Animator(config)
     robot = RobotInverse.from_config(config)
-    robot.pos_callback = animator.add_frame
     try:
-        robot.crawl(cycles, step_length, resolution=resolution)
+        for _ in robot.crawl(cycles, step_length, resolution=resolution):
+            animator.add_frame(robot.pos)
     except InverseKinematicsError as e:
         print(e.args[0])
     fig = animator.make_figure()

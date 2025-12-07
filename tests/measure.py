@@ -21,8 +21,8 @@ def measure_max_crawl_speed(
 ) -> np.floating:
     robot = RobotInverse.from_config(config)
     d_rolls: list[Vector] = []
-    robot.roll_callback = d_rolls.append
-    robot.crawl(cycles, step_length, resolution=resolution)
+    for _, dr in robot.crawl(cycles, step_length, resolution=resolution):
+        d_rolls.append(dr)
     min_dt = np.max(d_rolls, axis=1) / roll_rate_limit
     max_speed = cycles * step_length / np.sum(min_dt)
     return max_speed
@@ -71,7 +71,8 @@ def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution
             resolution=resolution,
         )
         try:
-            robot.take_step(step)
+            for _ in robot.take_step(step):
+                pass
         except InverseKinematicsError:
             break
         step_length += dx
@@ -83,7 +84,8 @@ def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: i
     robot = RobotInverse.from_config(config)
     d0 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
-    robot.crawl(cycles, resolution=resolution)
+    for _ in robot.crawl(cycles, resolution=resolution):
+        pass
     d1 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
     L1 = np.sqrt(np.sum(np.square(d1), axis=1))
     delta_L = L1 - L0
