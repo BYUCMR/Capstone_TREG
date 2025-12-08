@@ -1,74 +1,132 @@
-import plotly.graph_objects as go
+import asyncio
+from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Protocol, Self
 
-from .linalg import Matrix
-from .state import RobotState
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
+
+from . import tubetruss as tt
 from .truss_config import TrussConfig
-from .tubetruss import Tube
+from .typing import Matrix
 
 
-def draw_tube(tube: Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> go.Scatter3d:
-    x, y, z = ([pos[v][i] for v in tube.nodes] for i in range(3))
-    return go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='lines',
-        line=dict(width=width, color=color),
-        showlegend=False,
+class AnimationItem(Protocol):
+    def add_to_view(self, view: gl.GLViewWidget, /) -> None: ...
+    def update_pos(self, pos: Matrix, /) -> None: ...
+
+
+@dataclass(slots=True, frozen=True)
+class DrawnTube(AnimationItem):
+    tube: tt.Tube
+    drawing: gl.GLLinePlotItem
+
+    def add_to_view(self, view: gl.GLViewWidget) -> None:
+        view.addItem(self.drawing)
+
+    def update_pos(self, pos: Matrix) -> None:
+        self.drawing.setData(pos=pos[list(self.tube.nodes)])
+
+
+@dataclass(slots=True, frozen=True)
+class PayloadMesh(AnimationItem):
+    payload: tt.TubeTruss
+    mesh: gl.GLMeshItem
+
+    def add_to_view(self, view: gl.GLViewWidget) -> None:
+        view.addItem(self.mesh)
+
+    def update_pos(self, pos: Matrix) -> None:
+        nodes = set[tt.Node]()
+        nodes.update(*(bar.nodes for bar in self.payload))
+        # `GLMeshItem.opts` might be an implementation detail, but this is the
+        # cleanest way to update vertex positions while keeping everything
+        # else the same.
+        mesh_data: gl.MeshData = self.mesh.opts['meshdata']
+        mesh_data.setVertexes(pos[list(nodes)])
+        self.mesh.setMeshData(meshdata=mesh_data)
+
+
+def draw_tube(tube: tt.Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> DrawnTube:
+    tube_vertices = pos[list(tube.nodes)]
+    drawing = gl.GLLinePlotItem(
+        pos=tube_vertices,
+        width=width,
+        color=pg.mkColor(color),
     )
+    drawing.setGLOptions('opaque')
+    return DrawnTube(tube, drawing)
 
 
-def draw_path(path: Matrix) -> go.Scatter3d:
-    x, y, z = path.T
-    return go.Scatter3d(
-        x=x, y=y, z=z,
-        mode='lines',
-        line=dict(width=6, color='black'),
-        name='Path',
-    )
+def draw_payload_bars(payload: tt.TubeTruss, pos: Matrix) -> list[DrawnTube]:
+    return [draw_tube(bar, pos, color='black', width=4) for bar in payload]
 
 
-def plot_payload_edges(config: TrussConfig, state: RobotState) -> list[go.Scatter3d]:
-    return [draw_tube(e, state.pos, color='black', width=4) for e in config.payload]
+def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> PayloadMesh:
+    payload_nodes = set[tt.Node]()
+    payload_nodes.update(*(bar.nodes for bar in payload))
 
-
-def plot_payload(config: TrussConfig, state: RobotState) -> go.Mesh3d:
-    payload_ind = set[int]()
-    for i in config.payload:
-        payload_ind.update(i.nodes)
-
-    payload_pnts = state.pos[list(payload_ind)]
-    x = payload_pnts[:, 0]  # First column
-    y = payload_pnts[:, 1]  # Second column
-    z = payload_pnts[:, 2]
+    payload_vertices = pos[sorted(payload_nodes)]
     payload_faces = [[0, 1, 2], [3, 4, 5],
-                        [0, 3, 5], [0, 2, 5],
-                        [1, 4, 5], [1, 2, 5],
-                        [0, 1, 4], [0, 3, 4]]
+                     [0, 3, 5], [0, 2, 5],
+                     [1, 4, 5], [1, 2, 5],
+                     [0, 1, 4], [0, 3, 4]]
 
-    return go.Mesh3d(
-        x=x, y=y, z=z,
-        i=[f[0] for f in payload_faces],
-        j=[f[1] for f in payload_faces],
-        k=[f[2] for f in payload_faces],
-        color='lightblue',
-        opacity=1,
-        flatshading=True,
-        name='Prism'
+    meshdata = gl.MeshData(
+        vertexes=payload_vertices,
+        faces=payload_faces,
     )
+    mesh = gl.GLMeshItem(
+        meshdata=meshdata,
+        color=pg.mkColor('lightblue'),
+    )
+    mesh.setGLOptions('opaque')
+    return PayloadMesh(payload, mesh)
 
 
-def plot_triangles(config: TrussConfig, state: RobotState) -> list[go.Scatter3d]:
+def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[DrawnTube]:
     triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
-    traces: list[go.Scatter3d] = []
-    for t, tri in enumerate(config.triangles):
-        color = triangle_colors.get(t, 'gray')
-        trace = draw_tube(tri, state.pos, color=color)
-        traces.append(trace)
-    return traces
+    drawn_tubes: list[DrawnTube] = []
+    for i, tube in enumerate(triangles):
+        color = triangle_colors.get(i, 'gray')
+        drawn_tube = draw_tube(tube, pos, color=color)
+        drawn_tubes.append(drawn_tube)
+    return drawn_tubes
 
 
-def generate_data(config: TrussConfig, state: RobotState, path: Matrix) -> list[go.Mesh3d | go.Scatter3d]:
-    payload_scatter = plot_payload_edges(config, state)
-    payload_mesh = plot_payload(config, state)
-    triangle_scatter = plot_triangles(config, state)
-    path_scatter = draw_path(path)
-    return [payload_mesh, path_scatter, *payload_scatter, *triangle_scatter]
+def draw_items(config: TrussConfig, pos: Matrix) -> list[AnimationItem]:
+    payload_bars = draw_payload_bars(config.payload, pos)
+    payload_mesh = draw_payload_mesh(config.payload, pos)
+    triangles = draw_triangles(config.triangles, pos)
+    return [payload_mesh, *payload_bars, *triangles]
+
+
+@dataclass(slots=True, frozen=True)
+class Animator:
+    view: gl.GLViewWidget
+    items: Iterable[AnimationItem] = ()
+
+    @classmethod
+    def from_config(cls, config: TrussConfig) -> Self:
+        pg.mkQApp()
+        view = gl.GLViewWidget()
+        view.addItem(gl.GLGridItem())
+        items = draw_items(config, config.initial_pos)
+        for item in items:
+            item.add_to_view(view)
+        return cls(view, items)
+
+    def update_pos(self, pos: Matrix) -> None:
+        for item in self.items:
+            item.update_pos(pos)
+
+    async def animate(self, positions: asyncio.Queue[Matrix]) -> None:
+        self.view.show()
+        while True:
+            try:
+                pos = await positions.get()
+            except asyncio.QueueShutDown:
+                break
+            self.update_pos(pos)
+            positions.task_done()
+            await asyncio.sleep(0.01)

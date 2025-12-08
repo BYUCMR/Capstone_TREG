@@ -1,9 +1,10 @@
 from collections.abc import Callable
 
 import numpy as np
+import qpsolvers
 
-from .linalg import Matrix, MatrixStack, Vector
 from .tubetruss import Node
+from .typing import Matrix, MatrixStack, Vector
 
 
 type StepVelocity = float | Vector | Callable[[Vector], Matrix]
@@ -39,3 +40,36 @@ def make_move_constraint(substep: Matrix) -> tuple[Matrix, Vector]:
     A = np.zeros((b.size, i.size))
     A[:, i.flat] = np.eye(b.size)
     return A, b
+
+
+def fill_substep(
+    outline: Matrix, *,
+    R: Matrix,
+    f: Vector | None = None,
+    A: Matrix | None = None,
+    b: Vector | None = None,
+    solver: str = 'piqp',
+) -> Matrix | None:
+    _, n = R.shape
+    if f is None:
+        f = np.zeros(n)
+    elif len(f) != n:
+        raise ValueError(f"Wrong shape for f: expected ({n}, [1]), got {f.shape}")
+    if A is None:
+        A = np.zeros((0, n))
+    elif A.shape[1] != n:
+        raise ValueError(f"Wrong shape for A: expected (_, {n}), got {A.shape}")
+    if b is None:
+        b = np.zeros(len(A))
+    elif len(b) != len(A):
+        raise ValueError(f"Wrong shape for b: expected ({len(A)}, [1]), got {b.shape}")
+
+    H = R.T @ R
+    A_move, b_move = make_move_constraint(outline)
+    A = np.vstack([A, A_move])
+    b = np.concat([b, b_move])
+    substep = qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver=solver)
+    if substep is None:
+        return None
+    else:
+        return substep.reshape(outline.shape)
