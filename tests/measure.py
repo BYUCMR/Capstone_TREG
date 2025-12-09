@@ -1,24 +1,23 @@
 import pathlib, sys
-
-from rift.truss_config import TrussConfig, rover_builder
-
 sys.path.append(str(pathlib.Path.cwd()))
 
 from functools import partial
 
 import numpy as np
 
-from rift.robot import InverseKinematicsError, RobotInverse, step_arc
-from rift.steps import Step
+from rift.robot import InverseKinematicsError, RobotInverse
+from rift.steps import make_step_array, parabola
+from rift.truss_config import TrussConfig, rover_builder
 from rift.typing import Vector
 
 
 def measure_max_crawl_speed(
-        config: TrussConfig, *,
-        step_length: float = 0.8,
-        roll_rate_limit: float,
-        cycles: int = 1,
-        resolution: int,
+    config: TrussConfig,
+    *,
+    step_length: float = 0.8,
+    roll_rate_limit: float,
+    cycles: int = 1,
+    resolution: int,
 ) -> np.floating:
     robot = RobotInverse.from_config(config)
     d_rolls: list[Vector] = []
@@ -60,12 +59,19 @@ def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
 def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution: int) -> float:
     robot = RobotInverse.from_config(config)
     initial_pos = robot.pos.copy()
-    locks = [(1, slice(0, 3)), (6, slice(0, 3)), (7, slice(0, 3))]
     step_length = dx
     while True:
-        step = Step(0, partial(step_arc, d=step_length), locks)
+        arc = partial(parabola, d=step_length)
+        step = make_step_array(
+            robot.pos.shape,
+            (0, arc),
+            (1, 0.),
+            (6, 0.),
+            (7, 0.),
+            resolution=resolution,
+        )
         try:
-            for _ in robot.take_step(step, resolution=resolution):
+            for _ in robot.take_step(step):
                 pass
         except InverseKinematicsError:
             break
@@ -100,7 +106,6 @@ def main() -> None:
         roll_rate_limit=roll_rate_limit,
         cycles=cycles,
         resolution=resolution,
-
     )
     dz = 0.005
     dx = 0.005
