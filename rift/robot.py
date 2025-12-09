@@ -72,6 +72,19 @@ class RobotInverse:
             A_level[0, 3*config.keep_level[1]+2] = -1
         return cls(structure, pos, extra_constraints=A_level)
 
+    def calculate_center_of_mass(
+        self,
+        *,
+        joint_mass: float = 1.,
+        payload_mass: float = 35.
+    ) -> Vector:
+        point_mass = np.zeros(12)
+        point_mass[[0, 1, 5, 6, 7, 11]] = joint_mass
+        point_mass[[2, 3, 4, 8, 9, 10]] = payload_mass / 6.
+        total_mass = payload_mass + 6.*joint_mass
+        relative_pos = self.pos - self.pos[0]
+        return point_mass @ relative_pos / total_mass
+
     def take_substep(self, substep: Matrix) -> tuple[Matrix, Vector]:
         rigidity = self.structure.norm_rigidity_at(self.pos)
         A = self.structure.length_constraint @ rigidity
