@@ -10,6 +10,13 @@ from .typing import Matrix, MatrixStack, Vector
 type StepVelocity = float | Vector | Callable[[Vector], Matrix]
 
 
+def line(t: Vector, d: float = 1.0) -> Matrix:
+    k = d / len(t)
+    u = np.full_like(t, k)
+    nan = np.full_like(t, np.nan)
+    return np.column_stack([u, nan, nan])
+
+
 def parabola(t: Vector, d: float = 1.0) -> Matrix:
     k = d / len(t)
     u = np.full_like(t, k)

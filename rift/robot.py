@@ -115,11 +115,17 @@ class RobotInverse:
         *,
         resolution: int = 50,
     ) -> Generator[tuple[Matrix, Vector]]:
-        feet = (0, 7, 6, 1)
+        feet = (1, 0, 7, 6)
         for foot in (feet * cycles):
             locks = [(other_foot, 0.) for other_foot in feet if foot != other_foot]
             arc = partial(steps.parabola, d=step_length)
+            line = partial(steps.line, d=step_length/4)
             step = steps.make_step_array(
-                self.pos.shape, (foot, arc), *locks, resolution=resolution,
+                self.pos.shape,
+                (foot, arc),
+                (2, line),
+                (8, line),
+                *locks,
+                resolution=resolution,
             )
             yield from self.take_step(step)
