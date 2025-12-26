@@ -29,6 +29,19 @@ class DrawnTube(AnimationItem):
 
 
 @dataclass(slots=True, frozen=True)
+class NodeTrace(AnimationItem):
+    node: tt.Node
+    drawing: gl.GLScatterPlotItem
+
+    def add_to_view(self, view: gl.GLViewWidget) -> None:
+        view.addItem(self.drawing)
+
+    def update_pos(self, pos: Matrix) -> None:
+        points = () if self.drawing.pos is None else self.drawing.pos
+        self.drawing.setData(pos=[*points, pos[self.node]])
+
+
+@dataclass(slots=True, frozen=True)
 class PayloadMesh(AnimationItem):
     payload: tt.TubeTruss
     mesh: gl.GLMeshItem
@@ -56,6 +69,16 @@ def draw_tube(tube: tt.Tube, pos: Matrix, *, color: str = 'gray', width: int = 6
     )
     drawing.setGLOptions('opaque')
     return DrawnTube(tube, drawing)
+
+
+def draw_traces(nodes: Iterable[tt.Node], pos: Matrix, *, size: int = 4) -> list[NodeTrace]:
+    traces: list[NodeTrace] = []
+    for node in nodes:
+        drawing = gl.GLScatterPlotItem(pos=[pos[node]], size=size)
+        drawing.setGLOptions('opaque')
+        trace = NodeTrace(node, drawing)
+        traces.append(trace)
+    return traces
 
 
 def draw_payload_bars(payload: tt.TubeTruss, pos: Matrix) -> list[DrawnTube]:
@@ -98,7 +121,8 @@ def draw_items(config: TrussConfig, pos: Matrix) -> list[AnimationItem]:
     payload_bars = draw_payload_bars(config.payload, pos)
     payload_mesh = draw_payload_mesh(config.payload, pos)
     triangles = draw_triangles(config.triangles, pos)
-    return [payload_mesh, *payload_bars, *triangles]
+    traces = draw_traces((0, 1, 6, 7), pos)
+    return [payload_mesh, *payload_bars, *triangles, *traces]
 
 
 @dataclass(slots=True, frozen=True)
