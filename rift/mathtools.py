@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.spatial import ConvexHull
+
 
 def point_to_segment_distance(p, a, b):
     """Return distance and closest point from p to segment ab."""
@@ -13,8 +15,9 @@ def point_to_segment_distance(p, a, b):
     return dist, closest
 
 
-def check_inside_and_closest_edge(p, points_2d, hull, tol=1e-12):
+def check_inside_and_closest_edge(p, points_2d, *, tol=1e-12):
     """Check if point is inside convex hull and find closest edge if outside."""
+    hull = ConvexHull(points_2d)
     A = hull.equations[:, :2]
     c = hull.equations[:, 2]
     vals = A @ p + c  # positive => outside that edge
@@ -26,14 +29,13 @@ def check_inside_and_closest_edge(p, points_2d, hull, tol=1e-12):
     if is_inside:
         return True, signed_distance, None, None
 
-    max_idx = np.where(vals >= max_violation - 1e-12)[0]
     hv = hull.vertices
     n = len(hv)
 
     best_dist = np.inf
     best_edge = None
     best_closest = None
-    for fi in max_idx:
+    for fi in range(n):
         i1, i2 = hv[fi], hv[(fi + 1) % n]
         a, b = points_2d[i1], points_2d[i2]
         d, cpt = point_to_segment_distance(p, a, b)
