@@ -6,7 +6,7 @@ import numpy as np
 from scipy.optimize import fsolve
 
 from .tubetruss import TubeTruss
-from .typing import Matrix
+from .typing import Matrix, Vector
 
 type Index = SupportsIndex | slice[SupportsIndex]
 type Lock = tuple[Index, Index]
@@ -67,7 +67,8 @@ def rover_builder(h, P_p, P, theta, w_p, w_f, initial_guess=[12, 12]):
         triangles=tris([(0, 1, 2), (0, 3, 5), (1, 4, 5), (6, 7, 8), (6, 9, 11), (7, 10, 11)]),
         payload=bars(
             [(2, 8), (3, 9), (4, 10), (2, 9), (3, 10), (4, 8), (2, 3), (3, 4), (2, 4), (8, 10), (8, 9), (9, 10)]),
-        initial_pos=np.array([p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11])
+        initial_pos=np.array([p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11]),
+        mass=np.array([1, 1, 6, 6, 6, 1, 1, 1, 6, 6, 6, 1]),
     )
     return rover
 
@@ -78,6 +79,7 @@ class TrussConfig:
     payload: TubeTruss = field(default_factory=TubeTruss)
     triangles: TubeTruss = field(default_factory=TubeTruss)
     initial_pos: Matrix
+    mass: Vector | float = 1.
 
 
 ROVER_CONFIG: Final = rover_builder(2, 6, 12, 0, 4, 4)

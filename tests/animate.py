@@ -7,6 +7,7 @@ import pyqtgraph
 from PySide6 import QtAsyncio
 
 import rift.anim
+import rift.grav
 from rift.robot import InverseKinematicsError, RobotInverse
 from rift.truss_config import TrussConfig
 from rift.typing import Matrix
@@ -21,11 +22,13 @@ async def main(
 ) -> None:
     animator = rift.anim.Animator.from_config(config)
     robot = RobotInverse.from_config(config)
+    stabilizer = rift.grav.Stabilizer.from_config(config)
     positions = asyncio.Queue[Matrix](resolution)
 
     async def crawl() -> None:
         for _ in robot.crawl(cycles, step_length, resolution=resolution):
-            await positions.put(robot.pos.copy())
+            stabilizer.update_pos(robot.pos)
+            await positions.put(stabilizer.pos)
 
     crawling_task = asyncio.create_task(crawl())
     animation_task = asyncio.create_task(animator.animate(positions))
