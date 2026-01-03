@@ -80,8 +80,10 @@ class TrussConfig:
     initial_pos: Matrix
 
 
-CONFIG_ROVER: Final = rover_builder(2, 6, 12, 0, 4, 4)
-CONFIG_3D_ROVER1: Final = TrussConfig(
+ROVER_CONFIG: Final = rover_builder(2, 6, 12, 0, 4, 4)
+
+
+OLD_ROVER_CONFIG: Final = TrussConfig(
     keep_level=(2, 8),
     triangles=tris([(0, 1, 2), (0, 3, 5), (1, 4, 5), (6, 7, 8), (6, 9, 11), (7, 10, 11)]),
     payload=bars([(2, 8), (3, 9), (4, 10), (2, 9), (3, 10), (4, 8), (2, 3), (3, 4), (2, 4), (8, 10), (8, 9), (9, 10)]),
@@ -100,50 +102,5 @@ CONFIG_3D_ROVER1: Final = TrussConfig(
         [-5.536, -6.1, 11.53],  # Payload ( 9)
         [-12.464, -6.1, 11.53],  # Payload (10)
         [-9., -19.144, 7.809],  # Float   (11)
-    ]),
-)
-
-CONFIG_3D_1: Final = TrussConfig(
-    triangles=tris([(0, 2, 3), (0, 4, 5), (1, 2, 4), (1, 3, 5)]),
-    initial_pos=np.array([
-        [7.07106781, 4.0824829, 5.77350269],
-        [0., 0., 0.],
-        [0., 4.0824829, 5.77350269],
-        [3.53553391, 6.12372436, 0.],
-        [3.53553391, -2.04124145, 5.77350269],
-        [7.07106781, 0., 0.],
-    ]),
-)
-
-CONFIG_3D_2: Final = TrussConfig(
-    triangles=tris([(0, 2, 4), (0, 3, 5), (1, 2, 3), (1, 4, 5)]),
-    initial_pos=np.array([
-        [7.07106781, 4.0824829, 5.77350269],
-        [0., 0., 0.],
-        [0., 4.0824829, 5.77350269],
-        [3.53553391, 6.12372436, 0.],
-        [3.53553391, -2.04124145, 5.77350269],
-        [7.07106781, 0., 0.],
-    ]),
-)
-
-CONFIG_2D_1: Final = TrussConfig(
-    triangles=tris([(0, 1, 2)]),
-    initial_pos=np.array([
-        [0., 0.],
-        [7.07106781, 0.],
-        [3.53553391, 6.12372436],
-    ]),
-)
-
-CONFIG_2D_2: Final = TrussConfig(
-    triangles=tris([(0, 1, 2), (1, 3, 4), (2, 4, 5)]),
-    initial_pos=np.array([
-        [0., 0.],
-        [7.07106781, 0.],
-        [3.53553391, 6.12372436],
-        [14.14213562, 0.],
-        [10.60660172, 6.12372436],
-        [7.07106781, 12.24744871],
     ]),
 )

@@ -40,6 +40,6 @@ async def main(
 
 
 if __name__ == '__main__':
-    from rift.truss_config import CONFIG_ROVER as config
+    from rift.truss_config import ROVER_CONFIG as config
     pyqtgraph.mkQApp()
     QtAsyncio.run(main(config, cycles=4, resolution=100))

@@ -95,13 +95,13 @@ def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: i
 
 
 def main() -> None:
-    from rift.truss_config import CONFIG_ROVER
+    from rift.truss_config import ROVER_CONFIG
     cycles = 1
     resolution = 100
     roll_rate_limit = 0.13
     step_length = 0.8
     max_crawl_speed = measure_max_crawl_speed(
-        CONFIG_ROVER,
+        ROVER_CONFIG,
         step_length=step_length,
         roll_rate_limit=roll_rate_limit,
         cycles=cycles,
@@ -110,10 +110,10 @@ def main() -> None:
     dz = 0.005
     dx = 0.005
     ds = 0.1
-    max_foot_lift = measure_max_foot_lift(CONFIG_ROVER, dz=dz)
-    max_foot_forward = measure_max_foot_forward(CONFIG_ROVER, dx=dx)
-    max_step_length = measure_max_step_length(CONFIG_ROVER, dx=ds, resolution=resolution)
-    error, degen = measure_length_change(CONFIG_ROVER, cycles=cycles, resolution=resolution)
+    max_foot_lift = measure_max_foot_lift(ROVER_CONFIG, dz=dz)
+    max_foot_forward = measure_max_foot_forward(ROVER_CONFIG, dx=dx)
+    max_step_length = measure_max_step_length(ROVER_CONFIG, dx=ds, resolution=resolution)
+    error, degen = measure_length_change(ROVER_CONFIG, cycles=cycles, resolution=resolution)
     print(f"Walk cycles:...............{cycles} sets of 4 steps")
     print(f"Resolution:................{resolution} substeps per step")
     print(f"Step Length:...............{step_length:.3g} ft")

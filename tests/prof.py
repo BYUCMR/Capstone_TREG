@@ -6,7 +6,7 @@ import pstats
 import time
 
 from rift.robot import RobotInverse
-from rift.truss_config import CONFIG_ROVER as config
+from rift.truss_config import ROVER_CONFIG as config
 
 
 def main():
