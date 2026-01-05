@@ -1,14 +1,30 @@
-import os
+import pathlib, sys
+sys.path.append(str(pathlib.Path.cwd()))
+
+import csv
+import multiprocessing as mp
+import time
+from collections.abc import Callable
+from itertools import product
 
 import numpy as np
-import pandas as pd
-from measure import *
-from itertools import product
-from multiprocessing import Pool
 
 from rift.truss_config import rover_builder
 
+import measure
+
+
+def or_nan[**P](f: Callable[P, float], *args: P.args, **kwargs: P.kwargs) -> float:
+    try:
+        result = f(*args, **kwargs)
+    except Exception:
+        return np.nan
+    else:
+        return result
+
+
 def tests_from_file(infile, outfile):
+    import pandas as pd
     df = pd.DataFrame(pd.read_csv(infile))
     Data_Set_np = df.to_numpy()
     Data_Set_np = Data_Set_np.astype(float)
@@ -42,80 +58,73 @@ def tests(h, P_p, P, theta, w_p, w_f, resolution, step_length, roll_rate_limit, 
     try:
         config = rover_builder(h, P_p, P, theta, w_p, w_f)
     except RuntimeError:
-        return None
+        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
     except ValueError:
-        return h, P_p, P, theta, w_p, w_f, resolution, step_length, roll_rate_limit, cycles,None, None, None, None, None, None
-    dz = 0.005
-    dx = 0.005
-    ds = 0.1
-    try:
-        max_crawl_speed = measure_max_crawl_speed(
-            config,
-            step_length=step_length,
-            roll_rate_limit=roll_rate_limit,
-            cycles=cycles,
-            resolution=resolution,
-        )
-    except SingularityError:
-        max_crawl_speed = None
-    try:
-        max_foot_lift = measure_max_foot_lift(config, dz=dz)
-    except SingularityError:
-        max_foot_lift = None
-    try:
-        max_foot_forward = measure_max_foot_forward(config, dx=dx)
-    except SingularityError:
-        max_foot_forward = None
-    try:
-        max_step_length = measure_max_step_length(config, dx=ds, resolution=resolution)
-    except SingularityError:
-        max_step_length = None
-    try:
-        error, degen = measure_length_change(config, cycles=cycles, resolution=resolution)
-    except SingularityError:
-        error, degen = None, None
-    # vel = run vel test
-    # step distance = run distance test
-    return h, P_p, P, theta, w_p, w_f, resolution, step_length, roll_rate_limit, cycles, max_crawl_speed, max_foot_lift, max_foot_forward, max_step_length, error, degen
-
-def tests_from_ranges_mp(tofile):
-    # h_values = np.arange(.5,3,.1 )
-    # P_p_values = np.arange(3, 12.5, .5)
-    # P_values = np.array([12])
-    # theta_values = np.arange(0, 92.5, 2.5)
-    # w_p_values = np.arange(.25, 6.25, .25)
-    # w_f_values = np.arange(1, 5, .1)
-    # resolution = np.array([100])
-    # step_length = np.arange(.5, 1.6, .1)
-    # roll_rate_limit = np.array([.13])
-    # cycle = np.array([4])
-
-    h_values = np.arange(.5,3,1.75 )
-    P_p_values = np.arange(3, 12.5, 5)
-    P_values = np.array([12])
-    theta_values = np.arange(0, 92.5, 15)
-    w_p_values = np.arange(.25, 6.25, 3)
-    w_f_values = np.arange(1, 5, 2)
-    resolution = np.array([100])
-    step_length = np.arange(.5, 1.6, .6)
-    roll_rate_limit = np.array([.13])
-    cycle = np.array([4])
-
-    combos = product(
-        h_values,
-        P_p_values,
-        P_values,
-        theta_values,
-        w_p_values,
-        w_f_values,
-        resolution,
-        step_length,
-        roll_rate_limit,
-        cycle,
+        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+    max_incline = or_nan(measure.measure_max_incline, config)
+    stable_substeps = or_nan(
+        measure.measure_stable_substeps,
+        config,
+        step_length=step_length,
+        cycles=cycles,
+        resolution=resolution,
     )
+    max_crawl_speed = or_nan(
+        measure.measure_max_crawl_speed,
+        config,
+        step_length=step_length,
+        roll_rate_limit=roll_rate_limit,
+        cycles=cycles,
+        resolution=resolution,
+    )
+    max_foot_lift = or_nan(measure.measure_max_foot_lift, config)
+    max_foot_forward = or_nan(measure.measure_max_foot_forward, config)
+    max_step_length = or_nan(measure.measure_max_step_length, config, dx=0.1, resolution=resolution)
+    try:
+        error, degen = measure.measure_length_change(config, cycles=cycles, resolution=resolution)
+    except Exception:
+        error, degen = np.nan, np.nan
+    return [
+        max_incline,
+        stable_substeps,
+        max_crawl_speed,
+        max_foot_lift,
+        max_foot_forward,
+        max_step_length,
+        error,
+        degen,
+    ]
 
-    with Pool(processes=os.cpu_count()) as pool:
-        results = pool.starmap(tests, combos)
+
+def tests_from_ranges_mp():
+    tube_length = 12
+    roll_rate_limit = .13
+    cycles = 1
+    resolution = 100
+
+    height = np.arange(0.5, 3.0, 0.5)
+    shoulder_perimeter = np.arange(3.0, 12.0, 1.0)
+    shoulder_angle = np.arange(0, 100, 10)
+    payload_width = np.arange(0.25, 6.25, 1.0)
+    foot_width = np.arange(1.0, 5.0, 0.5)
+    step_length = np.arange(0.5, 1.5, 0.5)
+
+    inputs = list(product(
+        height,
+        shoulder_perimeter,
+        [tube_length],
+        shoulder_angle,
+        payload_width,
+        foot_width,
+        [resolution],
+        step_length,
+        [roll_rate_limit],
+        [cycles],
+    ))
+
+    with mp.Pool() as pool:
+        outputs = pool.starmap(tests, inputs)
+
     columns = [
         'h (ft)',
         'P_p (ft)',
@@ -127,6 +136,8 @@ def tests_from_ranges_mp(tofile):
         'step_length (ft)',
         'roll_rate_limit (ft/s)',
         'cycles',
+        'maximum_incline (deg)',
+        'stable_substeps',
         'max_crawl_speed (ft/s)',
         'max_foot_lift (ft/s)',
         'max_foot_forward (ft)',
@@ -134,11 +145,20 @@ def tests_from_ranges_mp(tofile):
         'error',
         'degen'
     ]
+    data = [[*i, *o] for i, o in zip(inputs, outputs, strict=True)]
+    return columns, data
 
-    df = pd.DataFrame(results, columns=columns)
 
-    df.to_csv(tofile)
+def main(tofile):
+    t0 = time.time()
+    columns, data = tests_from_ranges_mp()
+    duration = (time.time() - t0) / 60.
+    print(f"Tests took {duration:.2f} minutes to run.")
+    with open(tofile, 'w') as file:
+        writer = csv.writer(file, lineterminator='\n')
+        writer.writerow(columns)
+        writer.writerows(data)
 
 
 if __name__ == '__main__':
-    tests_from_ranges_mp('robot_grid_output.csv')
+    main('robot_grid_output.csv')

@@ -51,14 +51,14 @@ def measure_max_crawl_speed(
     roll_rate_limit: float,
     cycles: int = 1,
     resolution: int,
-) -> np.floating:
+) -> float:
     robot = RobotInverse.from_config(config)
     d_rolls: list[Vector] = []
     for _, dr in robot.crawl(cycles, step_length, resolution=resolution):
         d_rolls.append(dr)
     min_dt = np.max(d_rolls, axis=1) / roll_rate_limit
     max_speed = cycles * step_length / np.sum(min_dt)
-    return max_speed
+    return float(max_speed)
 
 
 def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
