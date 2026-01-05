@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Protocol, Self
+from typing import Final, Protocol, Self
 
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
@@ -9,6 +9,18 @@ import pyqtgraph.opengl as gl
 from . import tubetruss as tt
 from .truss_config import TrussConfig
 from .typing import Matrix
+
+
+OKABE_ITO: Final = (
+    '#000000',
+    '#E69F00',
+    '#56B4E9',
+    '#009E73',
+    '#F0E442',
+    '#0072B2',
+    '#D55E00',
+    '#CC79A7',
+)
 
 
 class AnimationItem(Protocol):
@@ -101,17 +113,16 @@ def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> PayloadMesh:
     )
     mesh = gl.GLMeshItem(
         meshdata=meshdata,
-        color=pg.mkColor('lightblue'),
+        color=pg.mkColor(OKABE_ITO[-1]),
     )
     mesh.setGLOptions('opaque')
     return PayloadMesh(payload, mesh)
 
 
 def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[DrawnTube]:
-    triangle_colors = {0: 'blue', 1: 'red', 2: 'orange', 3: 'green', 4: 'brown', 5: 'yellow', 6: 'purple'}
     drawn_tubes: list[DrawnTube] = []
     for i, tube in enumerate(triangles):
-        color = triangle_colors.get(i, 'gray')
+        color = OKABE_ITO[i % (len(OKABE_ITO) - 1) + 1]
         drawn_tube = draw_tube(tube, pos, color=color)
         drawn_tubes.append(drawn_tube)
     return drawn_tubes
