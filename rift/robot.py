@@ -16,13 +16,6 @@ class SolverError(InverseKinematicsError): ...
 class SingularityError(InverseKinematicsError): ...
 
 
-def near_singularity(H: Matrix, A: Matrix, c: float = 1e4) -> bool:
-    m = len(A)
-    O = np.zeros((m, m))
-    K = np.block([[H, A.T], [A, O]])
-    return np.linalg.cond(K) >= c
-
-
 @dataclass(slots=True)
 class RobotForward:
     structure: TubeTruss
@@ -77,16 +70,11 @@ class RobotInverse:
         A = self.structure.length_constraint @ rigidity
         if self.extra_constraints is not None:
             A = np.vstack([A, self.extra_constraints])
-        dx = steps.fill_substep(substep, R=rigidity, A=A)
+        dx, det = steps.fill_substep(substep, R=rigidity, A=A)
         if dx is None:
             raise SolverError("Could not find valid node velocities")
-        # Instead of determining whether the configuration is approaching
-        # a singularity, we just check to see if our velocity is going
-        # out of control. It's computationally much faster.
-        m1 = np.nanmax(substep)
-        m2 = np.max(dx)
-        if m2 >= 10.*m1:
-            raise SingularityError("Robot configuration appears to be singular")
+        if np.abs(det) < 0.05:
+            raise SingularityError("Robot state is nearly singular")
         self.pos += dx
         dr = self.structure.incidence_inv @ rigidity @ dx.ravel()
         return dx, dr
