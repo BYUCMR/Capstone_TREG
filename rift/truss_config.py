@@ -63,7 +63,6 @@ def rover_builder(h, P_p, P, theta, w_p, w_f, initial_guess=[12, 12]):
     p11 = [0, -solution[0], solution[1]]
 
     rover = TrussConfig(
-        keep_level=(2, 8),
         triangles=tris([(0, 1, 2), (0, 3, 5), (1, 4, 5), (6, 7, 8), (6, 9, 11), (7, 10, 11)]),
         payload=bars(
             [(2, 8), (3, 9), (4, 10), (2, 9), (3, 10), (4, 8), (2, 3), (3, 4), (2, 4), (8, 10), (8, 9), (9, 10)]),
@@ -75,7 +74,6 @@ def rover_builder(h, P_p, P, theta, w_p, w_f, initial_guess=[12, 12]):
 
 @dataclass(slots=True, kw_only=True, frozen=True)
 class TrussConfig:
-    keep_level: tuple[int, int] | None = None
     payload: TubeTruss = field(default_factory=TubeTruss)
     triangles: TubeTruss = field(default_factory=TubeTruss)
     initial_pos: Matrix
@@ -86,7 +84,6 @@ ROVER_CONFIG: Final = rover_builder(2, 6, 12, 0, 4, 4)
 
 
 OLD_ROVER_CONFIG: Final = TrussConfig(
-    keep_level=(2, 8),
     triangles=tris([(0, 1, 2), (0, 3, 5), (1, 4, 5), (6, 7, 8), (6, 9, 11), (7, 10, 11)]),
     payload=bars([(2, 8), (3, 9), (4, 10), (2, 9), (3, 10), (4, 8), (2, 3), (3, 4), (2, 4), (8, 10), (8, 9), (9, 10)]),
     initial_pos=np.array([
