@@ -1,14 +1,47 @@
 import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
+import math
 from functools import partial
 
 import numpy as np
 
+from rift.grav import Stabilizer
 from rift.robot import InverseKinematicsError, RobotInverse
 from rift.steps import make_step_array, parabola
 from rift.truss_config import TrussConfig
 from rift.typing import Vector
+
+
+def measure_max_incline(config: TrussConfig, *, da: float = 1.) -> float:
+    da = math.radians(da)
+    robot = RobotInverse.from_config(config)
+    stabilizer = Stabilizer.from_config(config)
+    angle = 0.
+    while True:
+        stabilizer.gravity = np.array([-math.sin(angle), 0., -math.cos(angle)])
+        if stabilizer.adjust_for(robot.pos) or angle >= 0.5*np.pi:
+            break
+        angle += da
+    return math.degrees(angle)
+
+
+def measure_stable_substeps(
+    config: TrussConfig,
+    *,
+    step_length: float = 0.8,
+    cycles: int = 1,
+    resolution: int,
+) -> int:
+    robot = RobotInverse.from_config(config)
+    stabilizer = Stabilizer.from_config(config)
+    i = 0
+    for _ in robot.crawl(cycles, step_length, resolution=resolution):
+        if stabilizer.adjust_for(robot.pos):
+            break
+        stabilizer.source_pos = robot.pos.copy()
+        i += 1
+    return i
 
 
 def measure_max_crawl_speed(
@@ -100,6 +133,14 @@ def main() -> None:
     resolution = 100
     roll_rate_limit = 0.13
     step_length = 0.8
+    da = 1.
+    max_incline = measure_max_incline(ROVER_CONFIG, da=da)
+    stable_substeps = measure_stable_substeps(
+        ROVER_CONFIG,
+        step_length=step_length,
+        cycles=cycles,
+        resolution=resolution,
+    )
     max_crawl_speed = measure_max_crawl_speed(
         ROVER_CONFIG,
         step_length=step_length,
@@ -117,6 +158,8 @@ def main() -> None:
     print(f"Walk cycles:...............{cycles} sets of 4 steps")
     print(f"Resolution:................{resolution} substeps per step")
     print(f"Step Length:...............{step_length:.3g} ft")
+    print(f"Maximum incline:...........{max_incline:.2g}°")
+    print(f"Stable substeps:...........{stable_substeps} substeps")
     print(f"Roll rate limit:...........{roll_rate_limit:.3g} ft/s")
     print(f"Maximum crawl speed:.......{max_crawl_speed:.3g} ft/s")
     print(f"Maximum foot lift:.........{max_foot_lift:.3g}±{dz:.3g} ft")
