@@ -2,7 +2,6 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
 import math
-from functools import partial
 
 import numpy as np
 
@@ -93,16 +92,16 @@ def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution
     robot = RobotInverse.from_config(config)
     initial_pos = robot.pos.copy()
     step_length = dx
+    step = make_step_array(
+        robot.pos.shape,
+        (1, 0.),
+        (6, 0.),
+        (7, 0.),
+        resolution=resolution,
+    )
+    t = np.linspace(0., 1., resolution)
     while True:
-        arc = partial(parabola, d=step_length)
-        step = make_step_array(
-            robot.pos.shape,
-            (0, arc),
-            (1, 0.),
-            (6, 0.),
-            (7, 0.),
-            resolution=resolution,
-        )
+        step[:, 0, :] = parabola(t, d=step_length)
         try:
             for _ in robot.take_step(step):
                 pass
@@ -158,7 +157,7 @@ def main() -> None:
     print(f"Walk cycles:...............{cycles} sets of 4 steps")
     print(f"Resolution:................{resolution} substeps per step")
     print(f"Step Length:...............{step_length:.3g} ft")
-    print(f"Maximum incline:...........{max_incline:.2g}°")
+    print(f"Maximum incline:...........{max_incline:.0f}°")
     print(f"Stable substeps:...........{stable_substeps} substeps")
     print(f"Roll rate limit:...........{roll_rate_limit:.3g} ft/s")
     print(f"Maximum crawl speed:.......{max_crawl_speed:.3g} ft/s")

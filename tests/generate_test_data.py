@@ -57,10 +57,8 @@ def tests_from_file(infile, outfile):
 def tests(h, P_p, P, theta, w_p, w_f, resolution, step_length, roll_rate_limit, cycles):
     try:
         config = rover_builder(h, P_p, P, theta, w_p, w_f)
-    except RuntimeError:
-        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
-    except ValueError:
-        return [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
+    except Exception:
+        return [np.nan] * 8
     max_incline = or_nan(measure.measure_max_incline, config)
     stable_substeps = or_nan(
         measure.measure_stable_substeps,
