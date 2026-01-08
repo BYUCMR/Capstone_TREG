@@ -57,6 +57,35 @@ def measure_stable_substeps(init_pos: Matrix, pos_hist: MatrixStack) -> int:
     return len(pos_hist)
 
 
+def measure_max_shoulder_angle(pos: MatrixStack) -> float:
+    pos = pos.transpose(1, 0, 2)
+    normals_1 = np.cross(
+        pos[rover.PL1] - pos[rover.PL3],
+        pos[rover.PL2] - pos[rover.PL3],
+    )
+    normals_2 = np.cross(
+        pos[rover.PR2] - pos[rover.PR3],
+        pos[rover.PR1] - pos[rover.PR3],
+    )
+    bisectors_1 = (
+        pos[[rover.L1, rover.L2, rover.L3]]
+        + pos[[rover.L2, rover.L3, rover.L1]]
+        - pos[[rover.PL3, rover.PL1, rover.PL2]] * 2.
+    )
+    bisectors_2 = (
+        pos[[rover.R1, rover.R2, rover.R3]]
+        + pos[[rover.R2, rover.R3, rover.R1]]
+        - pos[[rover.PR3, rover.PR1, rover.PR2]] * 2.
+    )
+    normals = np.vstack((normals_1, normals_2))
+    bisectors = np.hstack((bisectors_1, bisectors_2)).transpose(1, 0, 2)
+    normals /= np.linalg.vector_norm(normals, axis=1, keepdims=True)
+    bisectors /= np.linalg.vector_norm(bisectors, axis=2, keepdims=True)
+    cosines = np.matvec(bisectors, normals).ravel()
+    max_angle = math.acos(np.min(cosines))
+    return math.degrees(max_angle)
+
+
 def measure_max_crawl_speed(
     d_rolls: Matrix,
     *,
@@ -155,6 +184,7 @@ def main() -> None:
         resolution=resolution,
     )
     stable_substeps = measure_stable_substeps(init_pos, pos_hist)
+    max_shoulder_angle = measure_max_shoulder_angle(pos_hist)
     max_crawl_speed = measure_max_crawl_speed(
         d_roll_hist,
         step_length=step_length,
@@ -174,6 +204,7 @@ def main() -> None:
     print(f"Step Length:...............{4*step_length:.3g} ft")
     print(f"Maximum incline:...........{max_incline:.0f}°")
     print(f"Stable substeps:...........{stable_substeps} substeps")
+    print(f"Maximum shoulder angle:....{max_shoulder_angle:.0f}°")
     print(f"Roll rate limit:...........{4*roll_rate_limit:.3g} ft/s")
     print(f"Maximum crawl speed:.......{4*max_crawl_speed:.3g} ft/s")
     print(f"Maximum foot lift:.........{4*max_foot_lift:.3g}±{4*dz:.3g} ft")
