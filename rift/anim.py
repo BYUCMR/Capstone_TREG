@@ -7,8 +7,8 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
 from . import tubetruss as tt
+from .arraytypes import Matrix
 from .truss_config import TrussConfig
-from .typing import Matrix
 
 
 OKABE_ITO: Final = (

@@ -5,8 +5,8 @@ from typing import Final, SupportsIndex
 import numpy as np
 from scipy.optimize import fsolve
 
+from .arraytypes import Matrix, Vector
 from .tubetruss import TubeTruss
-from .typing import Matrix, Vector
 
 type Index = SupportsIndex | slice[SupportsIndex]
 type Lock = tuple[Index, Index]

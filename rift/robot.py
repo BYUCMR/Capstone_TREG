@@ -6,9 +6,9 @@ from typing import Self
 import numpy as np
 
 from . import steps
+from .arraytypes import Matrix, Vector
 from .truss_config import Lock, TrussConfig
 from .tubetruss import TubeTruss
-from .typing import Matrix, Vector
 
 
 class InverseKinematicsError(Exception): ...

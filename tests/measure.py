@@ -6,11 +6,11 @@ from functools import partial
 
 import numpy as np
 
+from rift.arraytypes import Vector
 from rift.grav import Stabilizer
 from rift.robot import InverseKinematicsError, RobotInverse
 from rift.steps import make_step_array, parabola
 from rift.truss_config import TrussConfig
-from rift.typing import Vector
 
 
 def measure_max_incline(config: TrussConfig, *, da: float = 1.) -> float:

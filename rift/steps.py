@@ -3,8 +3,8 @@ from collections.abc import Callable
 import numpy as np
 import qpsolvers
 
+from .arraytypes import Matrix, MatrixStack, Vector
 from .tubetruss import Node
-from .typing import Matrix, MatrixStack, Vector
 
 
 type StepVelocity = float | Vector | Callable[[Vector], Matrix]

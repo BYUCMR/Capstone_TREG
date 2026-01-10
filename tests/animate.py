@@ -8,9 +8,9 @@ from PySide6 import QtAsyncio
 
 import rift.anim
 import rift.grav
+from rift.arraytypes import Matrix
 from rift.robot import InverseKinematicsError, RobotInverse
 from rift.truss_config import TrussConfig
-from rift.typing import Matrix
 
 
 async def main(

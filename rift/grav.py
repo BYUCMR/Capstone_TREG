@@ -4,9 +4,9 @@ from typing import Final, Literal, Self
 
 import numpy as np
 
+from .arraytypes import Matrix, Vector
 from .mathtools import check_inside_and_closest_edge
 from .truss_config import TrussConfig
-from .typing import Matrix, Vector
 
 DEFAULT_TOL: Final = 1e-6
 

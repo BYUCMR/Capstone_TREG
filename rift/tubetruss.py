@@ -8,7 +8,7 @@ from typing import Collection, Self, cast
 import numpy as np
 from scipy.linalg import block_diag as _scipy_block_diag
 
-from .typing import Matrix, MatrixStack, Vector
+from .arraytypes import Matrix, MatrixStack, Vector
 
 
 def block_diag(mats: Iterable[np.typing.ArrayLike]) -> np.ndarray:
