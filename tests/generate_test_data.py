@@ -60,28 +60,34 @@ def tests(h, P_p, P, theta, w_p, w_f, resolution, step_length, roll_rate_limit, 
     except Exception:
         return [np.nan] * 8
     max_incline = or_nan(measure.measure_max_incline, config)
-    stable_substeps = or_nan(
-        measure.measure_stable_substeps,
-        config,
-        step_length=step_length,
-        cycles=cycles,
-        resolution=resolution,
-    )
-    max_crawl_speed = or_nan(
-        measure.measure_max_crawl_speed,
-        config,
-        step_length=step_length,
-        roll_rate_limit=roll_rate_limit,
-        cycles=cycles,
-        resolution=resolution,
-    )
+    try:
+        pos_hist, d_pos_hist, d_roll_hist = measure.record_motion(
+            config,
+            step_length=step_length,
+            cycles=cycles,
+            resolution=resolution,
+        )
+    except Exception:
+        stable_substeps = np.nan
+        max_crawl_speed = np.nan
+        error = np.nan
+        degen = np.nan
+    else:
+        stable_substeps = or_nan(measure.measure_stable_substeps, config, pos_hist)
+        max_crawl_speed = or_nan(
+            measure.measure_max_crawl_speed,
+            d_roll_hist,
+            step_length=step_length,
+            roll_rate_limit=roll_rate_limit,
+            cycles=cycles,
+        )
+        try:
+            error, degen = measure.measure_length_change(config, pos_hist)
+        except Exception:
+            error, degen = np.nan, np.nan
     max_foot_lift = or_nan(measure.measure_max_foot_lift, config)
     max_foot_forward = or_nan(measure.measure_max_foot_forward, config)
     max_step_length = or_nan(measure.measure_max_step_length, config, dx=0.1, resolution=resolution)
-    try:
-        error, degen = measure.measure_length_change(config, cycles=cycles, resolution=resolution)
-    except Exception:
-        error, degen = np.nan, np.nan
     return [
         max_incline,
         stable_substeps,

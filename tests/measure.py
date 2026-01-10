@@ -5,11 +5,33 @@ import math
 
 import numpy as np
 
-from rift.arraytypes import Vector
+from rift.arraytypes import Matrix, MatrixStack
 from rift.grav import Stabilizer
 from rift.robot import InverseKinematicsError, RobotInverse
 from rift.steps import make_step_array, parabola
 from rift.truss_config import TrussConfig
+
+
+def record_motion(
+    config: TrussConfig,
+    *,
+    step_length: float = 0.8,
+    cycles: int = 1,
+    resolution: int,
+) -> tuple[MatrixStack, MatrixStack, Matrix]:
+    robot = RobotInverse.from_config(config)
+    n = 4 * cycles * resolution
+    pos = np.zeros((n + 1, *robot.pos.shape))
+    d_pos = np.zeros((n, *robot.pos.shape))
+    d_roll = np.zeros((n, len(robot.structure.incidence_inv)))
+    pos[0] = robot.pos
+    for i, (dx, dr) in enumerate(robot.crawl(
+        cycles, step_length, resolution=resolution
+    )):
+        pos[i + 1] = robot.pos
+        d_pos[i] = dx
+        d_roll[i] = dr
+    return pos, d_pos, d_roll
 
 
 def measure_max_incline(config: TrussConfig, *, da: float = 1.) -> float:
@@ -25,36 +47,22 @@ def measure_max_incline(config: TrussConfig, *, da: float = 1.) -> float:
     return math.degrees(angle)
 
 
-def measure_stable_substeps(
-    config: TrussConfig,
-    *,
-    step_length: float = 0.8,
-    cycles: int = 1,
-    resolution: int,
-) -> int:
-    robot = RobotInverse.from_config(config)
+def measure_stable_substeps(config: TrussConfig, pos_hist: MatrixStack) -> int:
     stabilizer = Stabilizer.from_config(config)
-    i = 0
-    for _ in robot.crawl(cycles, step_length, resolution=resolution):
-        if stabilizer.adjust_for(robot.pos):
-            break
-        stabilizer.source_pos = robot.pos.copy()
-        i += 1
-    return i
+    for i in range(len(pos_hist) - 1):
+        stabilizer.source_pos = pos_hist[i]
+        if stabilizer.adjust_for(pos_hist[i+1]):
+            return i
+    return len(pos_hist)
 
 
 def measure_max_crawl_speed(
-    config: TrussConfig,
+    d_rolls: Matrix,
     *,
     step_length: float = 0.8,
     roll_rate_limit: float,
     cycles: int = 1,
-    resolution: int,
 ) -> float:
-    robot = RobotInverse.from_config(config)
-    d_rolls: list[Vector] = []
-    for _, dr in robot.crawl(cycles, step_length, resolution=resolution):
-        d_rolls.append(dr)
     min_dt = np.max(d_rolls, axis=1) / roll_rate_limit
     max_speed = cycles * step_length / np.sum(min_dt)
     return float(max_speed)
@@ -112,13 +120,13 @@ def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution
     return step_length - dx
 
 
-def measure_length_change(config: TrussConfig, *, cycles: int = 1, resolution: int) -> tuple[float, float]:
+def measure_length_change(config: TrussConfig, pos_hist: MatrixStack) -> tuple[float, float]:
     robot = RobotInverse.from_config(config)
-    d0 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
+    p0 = pos_hist[0]
+    d0 = np.array([p0[i] - p0[j] for i, j in robot.structure.links])
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
-    for _ in robot.crawl(cycles, resolution=resolution):
-        pass
-    d1 = np.array([robot.pos[i] - robot.pos[j] for i, j in robot.structure.links])
+    p1 = pos_hist[-1]
+    d1 = np.array([p1[i] - p1[j] for i, j in robot.structure.links])
     L1 = np.sqrt(np.sum(np.square(d1), axis=1))
     delta_L = L1 - L0
     error = np.abs(np.sum(delta_L))
@@ -134,18 +142,18 @@ def main() -> None:
     step_length = 0.8
     da = 1.
     max_incline = measure_max_incline(ROVER_CONFIG, da=da)
-    stable_substeps = measure_stable_substeps(
+    pos_hist, d_pos_hist, d_roll_hist = record_motion(
         ROVER_CONFIG,
         step_length=step_length,
         cycles=cycles,
         resolution=resolution,
     )
+    stable_substeps = measure_stable_substeps(ROVER_CONFIG, pos_hist)
     max_crawl_speed = measure_max_crawl_speed(
-        ROVER_CONFIG,
+        d_roll_hist,
         step_length=step_length,
         roll_rate_limit=roll_rate_limit,
         cycles=cycles,
-        resolution=resolution,
     )
     dz = 0.005
     dx = 0.005
@@ -153,7 +161,7 @@ def main() -> None:
     max_foot_lift = measure_max_foot_lift(ROVER_CONFIG, dz=dz)
     max_foot_forward = measure_max_foot_forward(ROVER_CONFIG, dx=dx)
     max_step_length = measure_max_step_length(ROVER_CONFIG, dx=ds, resolution=resolution)
-    error, degen = measure_length_change(ROVER_CONFIG, cycles=cycles, resolution=resolution)
+    error, degen = measure_length_change(ROVER_CONFIG, pos_hist)
     print(f"Walk cycles:...............{cycles} sets of 4 steps")
     print(f"Resolution:................{resolution} substeps per step")
     print(f"Step Length:...............{step_length:.3g} ft")
