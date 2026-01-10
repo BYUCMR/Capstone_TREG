@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from typing import Final, SupportsIndex
 
 import numpy as np
-from scipy.optimize import fsolve
 
 from .arraytypes import Matrix, Vector
 from .tubetruss import TubeTruss
@@ -17,7 +16,7 @@ bars = TubeTruss.make_bars
 tris = TubeTruss.make_tris
 
 
-def rover_builder(h, P_p, P, theta, w_p, w_f, initial_guess=[12, 12]):
+def rover_builder(h, P_p, P, theta, w_p, w_f):
     # height off the ground
     # Perimter of triangle on payload
     # perimter of leg triangle
@@ -25,51 +24,55 @@ def rover_builder(h, P_p, P, theta, w_p, w_f, initial_guess=[12, 12]):
     # width of payload
     # width of feet
 
-    L_p = P_p / 3
     theta = math.radians(theta)
-    h_tb = math.sqrt(((P - w_f) / 2) ** 2 - (w_f / 2) ** 2)
+    y0 = w_p * 0.5
+    pos = np.zeros((12, 3))
 
-    # ground right
-    p0 = [w_f / 2, w_p / 2 + math.sqrt(h_tb ** 2 - h ** 2), 0]
-    p1 = [-w_f / 2, w_p / 2 + math.sqrt(h_tb ** 2 - h ** 2), 0]
+    # Feet
+    fx = w_f * 0.5
+    fy = math.sqrt(0.25*P**2 - P*fx - h**2)
+    pos[0] = [ fx,  y0+fy, 0.]
+    pos[1] = [-fx,  y0+fy, 0.]
+    pos[6] = [ fx, -y0-fy, 0.]
+    pos[7] = [-fx, -y0-fy, 0.]
 
-    # Payload right
-    p2 = [0, w_p / 2, h]
-    p3 = [L_p / 2, w_p / 2 + L_p * math.sqrt(3) / 2 * math.sin(theta), h + L_p * math.sqrt(3) / 2 * math.cos(theta)]
-    p4 = [-L_p / 2, w_p / 2 + L_p * math.sqrt(3) / 2 * math.sin(theta), h + L_p * math.sqrt(3) / 2 * math.cos(theta)]
-    #  ground left
-    p6 = [w_f / 2, -(w_p / 2 + math.sqrt(h_tb ** 2 - h ** 2)), 0]
-    p7 = [-w_f / 2, -(w_p / 2 + math.sqrt(h_tb ** 2 - h ** 2)), 0]
-    # payload left
-    p8 = [0, -w_p / 2, h]
-    p9 = [L_p / 2, -(w_p / 2 + L_p * math.sqrt(3) / 2 * math.sin(theta)), h + L_p * math.sqrt(3) / 2 * math.cos(theta)]
-    p10 = [-L_p / 2, -(w_p / 2 + L_p * math.sqrt(3) / 2 * math.sin(theta)),
-           h + L_p * math.sqrt(3) / 2 * math.cos(theta)]
+    # Payload
+    px = P_p / 6.
+    py = px * math.sqrt(3.) * math.sin(theta)
+    pz = px * math.sqrt(3.) * math.cos(theta) + h
+    pos[4]  = [-px,  y0+py, pz]
+    pos[3]  = [ px,  y0+py, pz]
+    pos[10] = [-px, -y0-py, pz]
+    pos[9]  = [ px, -y0-py, pz]
+    pos[2] = [0.,  y0, h]
+    pos[8] = [0., -y0, h]
 
-    def equations(vars):
-        y, z = vars
-        eq1 = P - math.dist(p0, p3) - math.dist(p3, (0, y, z)) - math.dist(p0, (0, y, z))
-        eq2 = math.dist(p3, (0, y, z)) - math.dist(p0, (0, y, z))
-        return [eq1, eq2]
+    # Elbows
+    # Don't ask me what physical meaning this has.
+    # All I know is that it satisfies the length constraint
+    # and makes the elbow equidistant from the foot and shoulder.
+    dx = fx - px
+    dy = fy - py
+    k1 = dy**2 + pz**2
+    k2 = k1 + dx**2
+    k3 = 0.5*(fx**2 - px**2 + fy**2 - py**2 - pz**2)
+    k4 = np.sum(np.square(np.cross([px, py, pz], [fx, fy, 0.])))
+    k5 = fy*py*k2 - k4 - k3**2 + 0.25*k1*(P-np.sqrt(k2))**2
+    elbow_y = (dy*k3 + fy*pz**2 + pz*np.sqrt(k5)) / k1
+    elbow_z = (dy * elbow_y - k3) / pz
+    pos[5]  = [0.,  y0+elbow_y, elbow_z]
+    pos[11] = [0., -y0-elbow_y, elbow_z]
 
-    solution, info, ier, msg = fsolve(equations, initial_guess,full_output=True)
-    if ier != 1:
-        raise RuntimeError("Fsolve failed to converge, no valid solution. Try different starting configuration.")
-    if solution[0] < 0 or solution[1] < 0:
-        raise ValueError(
-            "Invalid solution. Floating node is at negative position. Please provide a different initial guess.")
-
-    p5 = [0, solution[0], solution[1]]
-    p11 = [0, -solution[0], solution[1]]
-
-    rover = TrussConfig(
+    mass = np.zeros(len(pos))
+    mass[[0, 1, 6, 7, 5, 11]] = 1.
+    mass[[2, 3, 4, 8, 9, 10]] = 6.
+    return TrussConfig(
         triangles=tris([(0, 1, 2), (0, 3, 5), (1, 4, 5), (6, 7, 8), (6, 9, 11), (7, 10, 11)]),
         payload=bars(
             [(2, 8), (3, 9), (4, 10), (2, 9), (3, 10), (4, 8), (2, 3), (3, 4), (2, 4), (8, 10), (8, 9), (9, 10)]),
-        initial_pos=np.array([p0, p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11]),
-        mass=np.array([1, 1, 6, 6, 6, 1, 1, 1, 6, 6, 6, 1]),
+        initial_pos=pos,
+        mass=mass,
     )
-    return rover
 
 
 @dataclass(slots=True, kw_only=True, frozen=True)
