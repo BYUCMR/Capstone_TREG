@@ -5,6 +5,7 @@ from typing import Self
 
 import numpy as np
 
+from . import indices as I
 from . import steps
 from .arraytypes import Matrix, Vector
 from .truss_config import Lock, TrussConfig
@@ -92,9 +93,9 @@ class RobotInverse:
         resolution: int = 50,
     ) -> Generator[tuple[Matrix, Vector]]:
         constraints = np.zeros((1, self.pos.size))
-        constraints[0, 3*2+2] =  1.
-        constraints[0, 3*8+2] = -1.
-        feet = (1, 0, 7, 6)
+        constraints[0, 3*I.PL3+2] =  1.
+        constraints[0, 3*I.PR3+2] = -1.
+        feet = (I.L2, I.L1, I.R2, I.R1)
         for foot in (feet * cycles):
             locks = [(other_foot, 0.) for other_foot in feet if foot != other_foot]
             arc = partial(steps.parabola, d=step_length)
@@ -102,8 +103,8 @@ class RobotInverse:
             step = steps.make_step_array(
                 self.pos.shape,
                 (foot, arc),
-                (2, line),
-                (8, line),
+                (I.PL3, line),
+                (I.PR3, line),
                 *locks,
                 resolution=resolution,
             )

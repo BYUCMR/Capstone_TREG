@@ -5,6 +5,7 @@ import math
 
 import numpy as np
 
+import rift.indices as I
 from rift.arraytypes import Matrix, MatrixStack
 from rift.grav import Stabilizer
 from rift.robot import InverseKinematicsError, RobotInverse
@@ -70,30 +71,30 @@ def measure_max_crawl_speed(
 
 def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
     robot = RobotInverse.from_config(config)
-    z0 = robot.pos[0, 2]
+    z0 = robot.pos[I.L1, 2]
     motion = np.full_like(robot.pos, np.nan)
-    motion[0] = [0., 0., dz]
-    motion[1] = motion[6] = motion[7] = 0.
+    motion[I.L1] = [0., 0., dz]
+    motion[I.L2] = motion[I.R1] = motion[I.R2] = 0.
     while True:
         try:
             robot.take_substep(motion)
         except InverseKinematicsError:
             break
-    return robot.pos[0, 2] - dz - z0
+    return robot.pos[I.L1, 2] - dz - z0
 
 
 def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
     robot = RobotInverse.from_config(config)
-    x0 = robot.pos[0, 0]
+    x0 = robot.pos[I.L1, 0]
     motion = np.full_like(robot.pos, np.nan)
-    motion[0] = [dx, 0., 0.]
-    motion[1] = motion[6] = motion[7] = 0.
+    motion[I.L1] = [dx, 0., 0.]
+    motion[I.L2] = motion[I.R1] = motion[I.R2] = 0.
     while True:
         try:
             robot.take_substep(motion)
         except InverseKinematicsError:
             break
-    return robot.pos[0, 0] - dx - x0
+    return robot.pos[I.L1, 0] - dx - x0
 
 
 def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution: int) -> float:
@@ -102,14 +103,14 @@ def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution
     step_length = dx
     step = make_step_array(
         robot.pos.shape,
-        (1, 0.),
-        (6, 0.),
-        (7, 0.),
+        (I.L2, 0.),
+        (I.R1, 0.),
+        (I.R2, 0.),
         resolution=resolution,
     )
     t = np.linspace(0., 1., resolution)
     while True:
-        step[:, 0, :] = parabola(t, d=step_length)
+        step[:, I.L1, :] = parabola(t, d=step_length)
         try:
             for _ in robot.take_step(step):
                 pass

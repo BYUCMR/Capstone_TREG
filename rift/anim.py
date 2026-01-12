@@ -6,6 +6,7 @@ from typing import Final, Protocol, Self
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
+from . import indices as I
 from . import tubetruss as tt
 from .arraytypes import Matrix
 from .truss_config import TrussConfig
@@ -132,7 +133,7 @@ def draw_items(config: TrussConfig, pos: Matrix) -> list[AnimationItem]:
     payload_bars = draw_payload_bars(config.payload, pos)
     payload_mesh = draw_payload_mesh(config.payload, pos)
     triangles = draw_triangles(config.triangles, pos)
-    traces = draw_traces((0, 1, 6, 7), pos)
+    traces = draw_traces((I.L1, I.L2, I.R1, I.R2), pos)
     return [payload_mesh, *payload_bars, *triangles, *traces]
 
 
