@@ -16,7 +16,7 @@ from rift.truss_config import TrussConfig
 def record_motion(
     config: TrussConfig,
     *,
-    step_length: float = 0.8,
+    step_length: float = 0.5,
     cycles: int = 1,
     resolution: int,
 ) -> tuple[MatrixStack, MatrixStack, Matrix]:
@@ -60,7 +60,7 @@ def measure_stable_substeps(config: TrussConfig, pos_hist: MatrixStack) -> int:
 def measure_max_crawl_speed(
     d_rolls: Matrix,
     *,
-    step_length: float = 0.8,
+    step_length: float = 0.5,
     roll_rate_limit: float,
     cycles: int = 1,
 ) -> float:
@@ -140,7 +140,7 @@ def main() -> None:
     cycles = 1
     resolution = 100
     roll_rate_limit = 0.13
-    step_length = 0.8
+    step_length = 0.5
     da = 1.
     max_incline = measure_max_incline(ROVER_CONFIG, da=da)
     pos_hist, d_pos_hist, d_roll_hist = record_motion(

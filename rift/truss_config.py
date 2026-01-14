@@ -103,7 +103,7 @@ class TrussConfig:
     mass: Vector | float = 1.
 
 
-ROVER_CONFIG: Final = rover_builder(2, 6, 12, 0, 4, 4)
+ROVER_CONFIG: Final = rover_builder(2.5, 6, 12, 0, 5, 3.5)
 
 
 OLD_ROVER_CONFIG: Final = TrussConfig(
