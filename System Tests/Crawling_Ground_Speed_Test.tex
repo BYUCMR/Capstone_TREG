@@ -1,0 +1,142 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{siunitx}
+\usepackage{hyperref}
+
+
+
+\title{Crawling Flat Ground Speed Test}
+\author{Rift / Team 09}
+\date{\today}
+
+\begin{document}
+
+
+\maketitle
+
+\section*{Test ID}
+\textbf{MP-01 Crawling Flat Ground Speed Test} 
+
+\section*{Test Objective}
+Quantify the average forward speed of the robot on a flat surface under a fixed control command.
+
+\section*{Robot Configuration}
+\begin{itemize}[noitemsep]
+    \item Robot configuration: Nominal resting shape
+    \item Chamber pressures: 15 psi
+    \item Control mode: Open-loop
+    \item Electronics status: Batteries are fully charged
+\end{itemize}
+
+\section*{Materials}
+\begin{itemize}[noitemsep]
+    \item Tape Measure
+    \item Digital Protractor
+    \item Painters Tape
+    
+\end{itemize}
+
+\section*{Environment and Setup}
+\begin{itemize}[noitemsep]
+    \item Surface type: Concrete
+    \item Surface angle: 0~\si{\degree}
+    \item External load: None 
+    \item Measurement method: Internal timer, Tape measure
+    \item Location: Inside
+\end{itemize}
+
+\section*{Initial Conditions}
+\begin{itemize}[noitemsep]
+    \item Initial position: $x_0 = 0$
+    \item Initial orientation: $\theta_0 \pm 0~\si{\degree}$
+    \item Initial shape state: Crawling Configuration
+    \item Stabilization time before command: 10?~s
+\end{itemize}
+
+\section*{Command Sequence}
+\begin{itemize}[noitemsep]
+    \item Command type: \underline{\hspace{5cm}}
+    \item Command values: \underline{\hspace{5cm}}
+    \item Update rate: 3~Hz
+    \item Command Steps: 8~s
+\end{itemize}
+
+\section*{Measured Quantities}
+\begin{itemize}[noitemsep]
+    \item Net displacement $\Delta x$
+    \item Time to achieve net displacement $\Delta t$
+    \item Average speed
+\end{itemize}
+
+\section*{Success Criteria (Per Trial)}
+\begin{itemize}[noitemsep]
+    \item Total Step Number = 8
+    \item Orientation change $\leq$ 10 ~\si{\degree} 
+    \item Tube Pressure $\geq$ 12 psi
+\end{itemize}
+
+\section*{Test Procedure}
+\begin{enumerate}[noitemsep]
+    \item Create the testing environment
+        \item Place one piece of tape(12 ft) on the floor
+        \item Place a second piece of tape extending 8 ft from the first at a right angle at the left end of the first piece of tape. The 
+        \item place another piece of tape at a right angle to the first piece of tape using a t-square, to the left side of the tape. The first piece of tape is $x=0$ and positive x is in the direction of the second piece of tape.
+    \item Place robot in the nominal resting position
+    \item Complete pretest checklist
+        \item Check the pressure of each tube, if they are not at 15 psi, inflate them to 15 psi
+        \item Check each joint and ensure it has a pin and is securely connected
+        \item check charge of each battery and plug it into the pcb
+        \item
+    \item Send command to move into crawling configuration
+    \item Place robot in the specified initial configuration
+    \item Allow the system to stabilize for the specified duration
+    \item Apply the command sequence
+    \item Measure distance from start line to Node 1
+    \item Stop the robot and save all recorded data
+\end{enumerate}
+
+\section*{Number of Trials}
+\begin{itemize}[noitemsep]
+    \item Total trials: 2
+    \item Time between trials: 60~s
+\end{itemize}
+
+\section*{Results}
+Summarize the observed performance metrics.
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Metric & Mean & Std. Dev. & Max \\
+\midrule
+Speed (cm/s) &  &  &  \\
+Displacement (cm) &  &  &  \\
+Orientation Change (deg) &  &  &  \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section*{Observed Failure Modes}
+Describe any observed failure behaviors.
+
+\begin{itemize}[noitemsep]
+    \item Slipping
+    \item Stalling
+    \item Excessive rotation
+    \item Shape instability
+\end{itemize}
+
+\section*{Conclusions}
+Provide a concise interpretation of the results.
+
+\textit{Example:} The robot achieved consistent forward motion on flat ground with an average speed of \underline{\hspace{1cm}}~cm/s. Performance degraded beyond a slope of \underline{\hspace{1cm}}~\si{\degree}, where sustained forward progress was not achieved.
+
+\section*{Notes and Limitations}
+Document sources of variability or limitations.
+
+\end{document}
