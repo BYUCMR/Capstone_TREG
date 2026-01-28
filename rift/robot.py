@@ -40,7 +40,7 @@ class RobotForward:
         R = self.structure.norm_rigidity_at(self.pos)
         R_reduced = R[:, unlocked_indices]
         R_inv = np.linalg.inv(R_reduced)
-        d_pos_reduced = R_inv @ self.structure.incidence @ d_roll
+        d_pos_reduced = R_inv @ self.structure.roll_to_length @ d_roll
 
         d_pos = np.zeros_like(self.pos)
         d_pos.put(unlocked_indices, d_pos_reduced)
@@ -65,7 +65,7 @@ class RobotInverse:
         constraints: Matrix | None = None,
     ) -> tuple[Matrix, Vector]:
         rigidity = self.structure.norm_rigidity_at(self.pos)
-        A = self.structure.length_constraint @ rigidity
+        A = self.structure.length_summer @ rigidity
         if constraints is not None:
             A = np.vstack([A, constraints])
         dx, det = steps.fill_substep(substep, R=rigidity, A=A)
@@ -74,7 +74,7 @@ class RobotInverse:
         if np.abs(det) < 0.05:
             raise SingularityError("Robot state is nearly singular")
         self.pos += dx
-        dr = self.structure.incidence_inv @ rigidity @ dx.ravel()
+        dr = self.structure.length_to_roll @ rigidity @ dx.ravel()
         return dx, dr
 
     def take_step(

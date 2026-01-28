@@ -11,8 +11,8 @@ from scipy.linalg import block_diag as _scipy_block_diag
 from .arraytypes import Matrix, MatrixStack, Vector
 
 
-def block_diag(mats: Iterable[np.typing.ArrayLike]) -> np.ndarray:
-    return cast(Matrix, _scipy_block_diag(*mats))
+def block_diag[T: np.generic](mats: Iterable[Matrix[T] | Vector[T]]) -> Matrix[T]:
+    return cast(Matrix[T], _scipy_block_diag(*mats))
 
 
 type Node = int
@@ -70,28 +70,33 @@ class TubeTruss:
             yield from tube.links
 
     @cached_property
-    def incidence(self) -> Matrix:
+    def incidence(self) -> Matrix[np.intp]:
         """See `get_incidence`."""
         return get_incidence(self)
 
     @cached_property
-    def incidence_inv(self) -> Matrix:
-        """See `get_incidence_inv`."""
-        return get_incidence_inv(self)
+    def roll_to_length(self) -> Matrix[np.intp]:
+        """See `get_roll_to_length`."""
+        return get_roll_to_length(self)
 
     @cached_property
-    def length_constraint(self) -> Matrix:
-        """See `get_length_constraint`."""
-        return get_length_constraint(self)
+    def length_to_roll(self) -> Matrix:
+        """See `get_length_to_roll`."""
+        return get_length_to_roll(self)
 
     @cached_property
-    def rigidity_multiplier(self) -> MatrixStack:
-        """See `get_rigidity_multiplier`."""
-        return get_rigidity_multiplier(self)
+    def length_summer(self) -> Matrix[np.bool]:
+        """See `get_length_summer`."""
+        return get_length_summer(self)
+
+    @cached_property
+    def pos_to_rigidity(self) -> MatrixStack:
+        """See `get_pos_to_rigidity`."""
+        return get_pos_to_rigidity(self)
 
     def rigidity_at(self, pos: Matrix | Vector) -> Matrix:
         """See `get_rigidity`."""
-        return self.rigidity_multiplier @ pos.ravel()
+        return self.pos_to_rigidity @ pos.ravel()
 
     def norm_rigidity_at(self, pos: Matrix | Vector) -> Matrix:
         """See `normalize_rigidity`."""
@@ -109,44 +114,44 @@ class TubeTruss:
     __radd__ = __add__
 
 
+def get_incidence(structure: TubeTruss) -> Matrix[np.intp]:
+    """Return the transpose of the incidence matrix for a truss."""
+    n_nodes = 1 + max(structure.nodes)
+    rows: list[Vector[np.intp]] = []
+    for n1, n2 in structure.links:
+        row = np.zeros(n_nodes, dtype=np.intp)
+        row[n1] =  1
+        row[n2] = -1
+        rows.append(row)
+    return np.array(rows, dtype=int)
+
+
 def get_rigidity(structure: TubeTruss, pos: Matrix) -> Matrix:
     """Return the rigidity matrix of a tube structure in a given state.
 
     This matrix converts a column of node velocities into a column comprising
     the length of each link times its rate of change.
     """
-    dim = pos.shape[1]
-    j = np.arange(dim)
     rows: list[Vector] = []
-    for n1, n2 in structure.links:
-        row = np.zeros(pos.size)
-        v = pos[n1] - pos[n2]
-        row[dim*n1 + j] =  v
-        row[dim*n2 + j] = -v
-        rows.append(row)
+    for i in get_incidence(structure):
+        row = np.linalg.outer(i, i) @ pos
+        rows.append(row.ravel())
     return np.array(rows)
 
 
-def get_rigidity_multiplier(structure: TubeTruss, *, dim: int = 3) -> MatrixStack:
+def get_pos_to_rigidity(structure: TubeTruss, *, dim: int = 3) -> MatrixStack:
     """Return a 3-D matrix that can be used to calculate a rigidity matrix.
 
     This matrix converts a vector of node positions into a rigidity matrix.
     The rigidity matrix converts a column of node velocities into a column
     comprising the length of each link times its rate of change.
     """
-    n_nodes = 1 + max(structure.nodes)
-    layers: list[Matrix] = []
-    for n1, n2 in structure.links:
-        layer = np.zeros((n_nodes, n_nodes))
-        layer[n1, n1] =  1
-        layer[n1, n2] = -1
-        layer[n2, n2] =  1
-        layer[n2, n1] = -1
-        layers.append(layer)
+    B = get_incidence(structure)
+    M = np.array([np.linalg.outer(row, row) for row in B])
     # We could skip the Kronecker product here and replace
-    # `R @ pos.ravel()` with `(R @ pos).reshape(-1, pos.size)`
+    # `M @ pos.ravel()` with `(M @ pos).reshape(-1, pos.size)`
     # later on, but this keeps the interface simpler.
-    return np.kron(np.array(layers), np.eye(dim))
+    return np.kron(M, np.eye(dim))
 
 
 def normalize_rigidity(rigidity: Matrix) -> Matrix:
@@ -159,29 +164,29 @@ def normalize_rigidity(rigidity: Matrix) -> Matrix:
     return math.sqrt(2.) * rigidity / norms
 
 
-def get_incidence(structure: TubeTruss) -> Matrix:
+def get_roll_to_length(structure: TubeTruss) -> Matrix[np.intp]:
     """Return a matrix describing how each roller affects the length of each link.
 
-    This matrix converts a column of roller roll values into a column of link lengths.
-    It is the transpose of the incidence matrix of links to rollers, but some links are
-    only attached to a single roller.
+    This matrix converts a column of roller roll changes into a column of link length
+    changes. It is the transpose of the incidence matrix of links to rollers, but some
+    links are only attached to a single roller.
     """
-    mats: list[Matrix] = []
+    mats: list[Matrix[np.intp]] = []
     for tube in structure:
         n_roll = len(tube.rollers)
-        mat = np.zeros((n_roll+1, n_roll))
-        i, j = np.diag_indices(n_roll)
-        mat[i  , j] = -1
-        mat[i+1, j] =  1
+        mat = np.zeros((n_roll+1, n_roll), dtype=np.intp)
+        i = np.arange(n_roll)
+        mat[i  , i] = -1
+        mat[i+1, i] =  1
         mats.append(mat)
     return block_diag(mats)
 
 
-def get_incidence_inv(structure: TubeTruss) -> Matrix:
+def get_length_to_roll(structure: TubeTruss) -> Matrix:
     """Return a matrix describing how each roller affects the length of each link.
 
-    This matrix converts a column of link lengths into a column of roller roll values.
-    It is the pseudo-inverse of the matrix returned by `get_incidence`.
+    This matrix converts a column of link length changes into a column of roller roll
+    changes. It is the pseudo-inverse of the matrix returned by `get_roller_incidence`.
     """
     mats: list[Matrix] = []
     for tube in structure:
@@ -194,6 +199,8 @@ def get_incidence_inv(structure: TubeTruss) -> Matrix:
     return block_diag(mats)
 
 
-def get_length_constraint(structure: TubeTruss) -> Matrix:
-    """Return a matrix that converts link lengths to total tube lengths."""
-    return block_diag([1. for _ in tube.links] for tube in structure)
+def get_length_summer(structure: TubeTruss) -> Matrix[np.bool]:
+    """Return a matrix that sums link lengths into total tube lengths."""
+    return block_diag(
+        np.ones(len(tube.nodes)-1, dtype=np.bool) for tube in structure
+    )
