@@ -1,0 +1,5 @@
+[project]
+name = "PySide Project"
+
+[tool.pyside6-project]
+files = ["Handlers/joystick_handler.py", "Handlers/sim_handler.py", "Handlers/testbench.py", "Handlers/vis_handler.py", "Notes.txt", "cmd_class.py", "main.py", "main.ui", "ui_main.py", "ui_vis.py", "vis.ui"]

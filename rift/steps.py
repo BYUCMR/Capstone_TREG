@@ -1,4 +1,6 @@
 from collections.abc import Callable
+from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
 import qpsolvers
@@ -15,6 +17,20 @@ def line(t: Vector, d: float = 1.0) -> Matrix:
     u = np.full_like(t, k)
     nan = np.full_like(t, np.nan)
     return np.column_stack([u, nan, nan])
+
+
+class Mode(Enum):
+    crawling = "crawling"
+    offline = "offline"
+    node_control = "node_control"
+
+
+@dataclass
+class Command:
+    mode: Mode
+    x: float
+    y: float
+    z: float
 
 
 def parabola(t: Vector, d: float = 1.0) -> Matrix:

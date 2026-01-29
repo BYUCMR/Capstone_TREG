@@ -1,0 +1,27 @@
+Overall UI Breakdown:
+Needs:
+- Large graphics view showing robot and any other inputs
+- Tabs for controlling different modes of locomotion
+    - Crawling, Rolling, Chimney, and of course the almighty stickbug
+- Terminal for debugging and other general output
+Wants:
+- Joystick/gamepad control
+- Specialized Mouse control
+- Keyboard control
+- Vizualization view controls (toggling different elements, PTZ control like CAD, etc.)
+
+Implementation Notes/Ideas:
+- Our plotly visualizations can be socketed into the UI using a QWebEngineView, which should have its own handler, both for updating the
+    view and for sending commands back down to the computation script.
+    * This has been verified with a simple example animation in bot_viz.py. We can use this file and replace it with the pertinent content
+        or just build a new file.
+- Qt has some built in systems for taking external inputs in the Qt3DInput class, and pygame has a joystick class that takes in inputs
+    from joysticks or gamepads. The Qt class will likely present challenges for connecting to and using the controller, but will be easy
+    to integrate into the UI, whereas the pygame class should make controller connection a breeze, but may present challenges for integration
+    into the UI. Alternatively, there are many many Qt input classes that we could abuse to plumb in inputs from the device (pygame runs
+    asynchronously as a separate process and pushes up inputs in a way Qt likes).
+    * This has been POC'd in joystick_handler.py, where a QThread is used to handle the pygame inputs and just push up signals for those inputs.
+- Qt has some great classes for taking keyboard and mouse inputs, making any keyboard or mouse control pretty easy. I will initially build
+    a very basic UI with just buttons, and then we can build in keyboard control and mouse control as we see fit.
+- I expect that soon our simulations will be in a place where we can build scripts for things like crawling, rolling, node control, etc, with
+    simple inputs, which the UI will call to move the rover.
