@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'vis.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.10.0
+## Created by: Qt User Interface Compiler version 6.10.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,7 +23,9 @@ class Ui_vis_window(object):
             vis_window.setObjectName(u"vis_window")
         vis_window.resize(800, 600)
         self.layout = QVBoxLayout(vis_window)
+        self.layout.setSpacing(0)
         self.layout.setObjectName(u"layout")
+        self.layout.setContentsMargins(0, 0, 0, 0)
 
         self.retranslateUi(vis_window)
 

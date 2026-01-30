@@ -9,6 +9,7 @@ from PySide6 import QtAsyncio
 
 from ui_main import Ui_Control
 from ui_vis import Ui_vis_window
+from Handlers.joystick_handler import JoystickHandler
 
 import rift.anim
 from rift.robot import InverseKinematicsError, RobotInverse
@@ -32,6 +33,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
         cmd_state.mode = 'offline'
 
+        self.joystick_handler = JoystickHandler(self.ui)
+
+        self.ui.selector_label.setVisible(False)
+        self.ui.selector.setVisible(False)
+
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
 
         self.ui.forward.pressed.connect(lambda: sim_widget.cmd_update(1, 0, 0))
@@ -50,6 +56,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
         self.ui.crawling.clicked.connect(lambda: self.mode_select('crawling'))
         self.ui.node_control.clicked.connect(lambda: self.mode_select('node control'))
+        self.ui.calibration.clicked.connect(lambda: self.mode_select('calibration'))
 
     def toggle_sim(self):
         self.greenify(self.ui.sim_label)
@@ -60,13 +67,25 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     def mode_select(self, mode):
         if mode == "crawling":
+            self.plainify_modes()
             self.greenify(self.ui.crawling)
-            self.plainify(self.ui.node_control)
             cmd_state.mode = 'crawling'
-        elif mode == "node control":
+            self.ui.selector_label.setVisible(False)
+            self.ui.selector.setVisible(False)
+        elif mode == "node_control":
+            self.plainify_modes()
             self.greenify(self.ui.node_control)
-            self.plainify(self.ui.crawling)
-            cmd_state.mode = 'node_control'
+            cmd_state.mode = 'node control'
+            self.ui.selector_label.setVisible(True)
+            self.ui.selector_label.setText("Node")
+            self.ui.selector.setVisible(True)
+        elif mode == "calibration":
+            self.plainify_modes()
+            self.greenify(self.ui.calibration)
+            # cmd_state.mode = 'calibration'
+            self.ui.selector_label.setVisible(True)
+            self.ui.selector_label.setText("Roller")
+            self.ui.selector.setVisible(True)
         sim_widget.control_mode = mode
         self.ui.term_log(f"Control Mode switched to {mode}")
 
@@ -111,6 +130,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     def plainify(self, item):
         item.setStyleSheet("")
+
+    def plainify_modes(self):
+        self.plainify(self.ui.node_control)
+        self.plainify(self.ui.crawling)
+        self.plainify(self.ui.calibration)
 
     #Method for quickly logging to the faux terminal
     def term_log(self, text):
