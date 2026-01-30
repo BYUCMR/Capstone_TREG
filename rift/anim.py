@@ -144,7 +144,7 @@ class Animator:
 
     @classmethod
     def from_config(cls, config: TrussConfig) -> Self:
-        # pg.mkQApp()
+        pg.mkQApp()
         view = gl.GLViewWidget()
         view.addItem(gl.GLGridItem())
         items = draw_items(config, config.initial_pos)
@@ -157,11 +157,11 @@ class Animator:
             item.update_pos(pos)
 
     async def animate(self, positions: asyncio.Queue[Matrix]) -> None:
-        # self.view.show()
+        self.view.show()
         while True:
             try:
                 pos = await positions.get()
-            except asyncio. Down:
+            except asyncio.QueueShutDown:
                 break
             self.update_pos(pos)
             positions.task_done()
