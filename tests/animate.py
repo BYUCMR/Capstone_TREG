@@ -16,7 +16,7 @@ from rift.truss_config import TrussConfig
 async def main(
     config: TrussConfig,
     *,
-    step_length: float = 0.5,
+    step_length: float = 0.125,
     cycles: int = 1,
     resolution: int = 50,
 ) -> None:

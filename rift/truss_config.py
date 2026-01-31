@@ -17,14 +17,14 @@ bars = TubeTruss.make_bars
 tris = TubeTruss.make_tris
 
 
-def rover_builder(h, P_p, P, theta, w_p, w_f):
+def rover_builder(h, P_p, theta, w_p, w_f):
     # height off the ground
     # Perimter of triangle on payload
-    # perimter of leg triangle
     # angle of payload size
     # width of payload
     # width of feet
 
+    P = 3.
     theta = math.radians(theta)
     y0 = w_p * 0.5
     pos = np.zeros((12, 3))
@@ -103,7 +103,7 @@ class TrussConfig:
     mass: Vector | float = 1.
 
 
-ROVER_CONFIG: Final = rover_builder(2.5, 6, 12, 0, 5, 3.5)
+ROVER_CONFIG: Final = rover_builder(0.625, 1.5, 0, 1.25, 0.875)
 
 
 OLD_ROVER_CONFIG: Final = TrussConfig(

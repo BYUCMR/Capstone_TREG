@@ -155,7 +155,7 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
     #Example run functions
     async def crawl(self) -> None: #will be obsolete once we plumb in real crawling code
-        for _ in self.robot.crawl(1, 0.8, resolution=50):
+        for _ in self.robot.crawl(1, 0.2, resolution=50):
             await self.positions.put(self.robot.pos.copy())
 
     async def crawl_execution(self): #will be obsolete once we plumb in real crawling code

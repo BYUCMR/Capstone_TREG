@@ -16,7 +16,7 @@ from rift.truss_config import TrussConfig
 def record_motion(
     config: TrussConfig,
     *,
-    step_length: float = 0.5,
+    step_length: float = 0.125,
     cycles: int = 1,
     resolution: int,
 ) -> tuple[MatrixStack, MatrixStack, Matrix]:
@@ -60,7 +60,7 @@ def measure_stable_substeps(config: TrussConfig, pos_hist: MatrixStack) -> int:
 def measure_max_crawl_speed(
     d_rolls: Matrix,
     *,
-    step_length: float = 0.5,
+    step_length: float = 0.125,
     roll_rate_limit: float,
     cycles: int = 1,
 ) -> float:
@@ -69,7 +69,7 @@ def measure_max_crawl_speed(
     return float(max_speed)
 
 
-def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
+def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.0025) -> float:
     robot = RobotInverse.from_config(config)
     z0 = robot.pos[I.L1, 2]
     motion = np.full_like(robot.pos, np.nan)
@@ -83,7 +83,7 @@ def measure_max_foot_lift(config: TrussConfig, *, dz: float = 0.01) -> float:
     return robot.pos[I.L1, 2] - dz - z0
 
 
-def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
+def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.0025) -> float:
     robot = RobotInverse.from_config(config)
     x0 = robot.pos[I.L1, 0]
     motion = np.full_like(robot.pos, np.nan)
@@ -97,7 +97,7 @@ def measure_max_foot_forward(config: TrussConfig, *, dx: float = 0.01) -> float:
     return robot.pos[I.L1, 0] - dx - x0
 
 
-def measure_max_step_length(config: TrussConfig, *, dx: float = 0.01, resolution: int) -> float:
+def measure_max_step_length(config: TrussConfig, *, dx: float = 0.0025, resolution: int) -> float:
     robot = RobotInverse.from_config(config)
     initial_pos = robot.pos.copy()
     step_length = dx
@@ -139,8 +139,8 @@ def main() -> None:
     from rift.truss_config import ROVER_CONFIG
     cycles = 1
     resolution = 100
-    roll_rate_limit = 0.13
-    step_length = 0.5
+    roll_rate_limit = 0.0325
+    step_length = 0.125
     da = 1.
     max_incline = measure_max_incline(ROVER_CONFIG, da=da)
     pos_hist, d_pos_hist, d_roll_hist = record_motion(
@@ -156,25 +156,26 @@ def main() -> None:
         roll_rate_limit=roll_rate_limit,
         cycles=cycles,
     )
-    dz = 0.005
-    dx = 0.005
-    ds = 0.1
+    dz = 0.00125
+    dx = 0.00125
+    ds = 0.025
     max_foot_lift = measure_max_foot_lift(ROVER_CONFIG, dz=dz)
     max_foot_forward = measure_max_foot_forward(ROVER_CONFIG, dx=dx)
     max_step_length = measure_max_step_length(ROVER_CONFIG, dx=ds, resolution=resolution)
     error, degen = measure_length_change(ROVER_CONFIG, pos_hist)
+    print(f"Tube Length:...............{4*3} ft")
     print(f"Walk cycles:...............{cycles} sets of 4 steps")
     print(f"Resolution:................{resolution} substeps per step")
-    print(f"Step Length:...............{step_length:.3g} ft")
+    print(f"Step Length:...............{4*step_length:.3g} ft")
     print(f"Maximum incline:...........{max_incline:.0f}°")
     print(f"Stable substeps:...........{stable_substeps} substeps")
-    print(f"Roll rate limit:...........{roll_rate_limit:.3g} ft/s")
-    print(f"Maximum crawl speed:.......{max_crawl_speed:.3g} ft/s")
-    print(f"Maximum foot lift:.........{max_foot_lift:.3g}±{dz:.3g} ft")
-    print(f"Maximum foot forward:......{max_foot_forward:.3g}±{dx:.3g} ft")
-    print(f"Maximum step length:.......{max_step_length:.3g}±{ds:.3g} ft")
-    print(f"Shape error |ΣΔL|:.........{error:.3g} ft")
-    print(f"Shape degeneration Σ|ΔL|:..{degen:.3g} ft")
+    print(f"Roll rate limit:...........{4*roll_rate_limit:.3g} ft/s")
+    print(f"Maximum crawl speed:.......{4*max_crawl_speed:.3g} ft/s")
+    print(f"Maximum foot lift:.........{4*max_foot_lift:.3g}±{4*dz:.3g} ft")
+    print(f"Maximum foot forward:......{4*max_foot_forward:.3g}±{4*dx:.3g} ft")
+    print(f"Maximum step length:.......{4*max_step_length:.3g}±{4*ds:.3g} ft")
+    print(f"Shape error |ΣΔL|:.........{4*error:.3g} ft")
+    print(f"Shape degeneration Σ|ΔL|:..{4*degen:.3g} ft")
 
 
 if __name__ == '__main__':

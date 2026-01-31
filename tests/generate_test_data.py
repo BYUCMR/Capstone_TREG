@@ -32,7 +32,7 @@ def tests_from_file(infile, outfile):
     print(X)
     y = []
     for x in X:
-        y.append(list(tests(x[0], x[1], x[2], x[3], x[4], x[5], 20, x[7], x[8], x[9])))
+        y.append(list(tests(x[0], x[1], x[2], x[3], x[4], x[5], 20, x[7], x[8])))
     y = np.array(y)
     data = np.hstack((X, y))
     df = pd.DataFrame(data, columns=['h (ft)',
@@ -54,9 +54,9 @@ def tests_from_file(infile, outfile):
     df.to_csv(outfile)
 
 
-def tests(h, P_p, P, theta, w_p, w_f, resolution, step_length, roll_rate_limit, cycles):
+def tests(h, P_p, theta, w_p, w_f, resolution, step_length, roll_rate_limit, cycles):
     try:
-        config = rover_builder(h, P_p, P, theta, w_p, w_f)
+        config = rover_builder(h, P_p, theta, w_p, w_f)
     except Exception:
         return [np.nan] * 8
     max_incline = or_nan(measure.measure_max_incline, config)
@@ -101,22 +101,20 @@ def tests(h, P_p, P, theta, w_p, w_f, resolution, step_length, roll_rate_limit, 
 
 
 def tests_from_ranges_mp():
-    tube_length = 12
-    roll_rate_limit = .13
+    roll_rate_limit = 0.0325
     cycles = 1
     resolution = 100
 
-    height = np.arange(0.5, 3.0, 0.5)
-    shoulder_perimeter = np.arange(3.0, 12.0, 1.0)
+    height = np.arange(0.125, 0.75, 0.125)
+    shoulder_perimeter = np.arange(0.75, 3.0, 0.25)
     shoulder_angle = np.arange(0, 100, 10)
-    payload_width = np.arange(0.25, 6.25, 1.0)
-    foot_width = np.arange(1.0, 5.0, 0.5)
-    step_length = np.arange(0.5, 1.5, 0.5)
+    payload_width = np.arange(0.0625, 1.5625, 0.25)
+    foot_width = np.arange(0.25, 1.25, 0.125)
+    step_length = np.arange(0.125, 0.375, 0.125)
 
     inputs = list(product(
         height,
         shoulder_perimeter,
-        [tube_length],
         shoulder_angle,
         payload_width,
         foot_width,
@@ -132,7 +130,6 @@ def tests_from_ranges_mp():
     columns = [
         'h (ft)',
         'P_p (ft)',
-        'P (ft)',
         'theta (deg)',
         'w_p (ft)',
         'w_f (ft)',

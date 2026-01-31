@@ -88,7 +88,7 @@ class RobotInverse:
     def crawl(
         self,
         cycles: int = 1,
-        step_length: float = 0.5,
+        step_length: float = 0.125,
         *,
         resolution: int = 50,
     ) -> Generator[tuple[Matrix, Vector]]:
