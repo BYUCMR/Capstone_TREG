@@ -42,12 +42,12 @@ PAYLOAD: Final = slice(PL1, PR3+1)
 
 # Truss structures
 LEG_STRUCTURE: Final = tt.TubeTruss.make_tris([
-    (PL3, L1, L2),
+    (L1, L2, PL3),
+    (L1, PL2, L3),
     (PL1, L2, L3),
-    (PL2, L3, L1),
-    (PR3, R1, R2),
+    (R1, R2, PR3),
+    (R1, PR2, R3),
     (PR1, R2, R3),
-    (PR2, R3, R1),
 ])
 
 PAYLOAD_STRUCTURE: Final = tt.TubeTruss.make_bars([
@@ -136,6 +136,44 @@ def make_pos(
 
     return pos
 
+def setup_rover_builder(h, P_p, theta, w_p, w_f):
+    # height off the ground
+    # Perimter of triangle on payload
+    # angle of payload size
+    # width of payload
+    # width of feet
+
+    L_p = 1/2
+    L_t = 1
+    h_b = math.sqrt(3)/2*L_p
+    h_t = math.sqrt(3)/2*L_t
+
+    H = math.sqrt(h_t**2-(1/3*h_b-2/3*h_t)**2)
+
+    pos = np.zeros((12, 3))
+
+    pos[PL3] = [ w_p,0,0]
+    pos[PL2] = [w_p,L_p/2,h_b]
+    pos[PL1] = [w_p,-L_p/2,h_b]
+
+    pos[PR3] = [-w_p,0,0]
+    pos[PR2] = [-w_p,L_p/2,h_b]
+    pos[PR1] = [-w_p,-L_p/2,h_b]
+
+    #
+    pos[L1] = [ w_p+H,L_t/2,0]
+    pos[L2] = [w_p+H,0,h_t]
+    pos[L3] = [w_p+H,-L_t/2,0]
+
+    pos[R1] = [-w_p-H,L_t/2,0]
+    pos[R2] = [-w_p-H,0,h_t]
+    pos[R3] = [-w_p-H,-L_t/2,0]
+
+    mass = np.zeros(len(pos))
+    mass[FEET] = 1.
+    mass[PAYLOAD] = 6.
+    
+    return pos
 
 CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 
