@@ -1,14 +1,11 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
-from functools import partial
-from typing import Self
+from typing import SupportsIndex
 
 import numpy as np
 
-from . import indices as I
 from . import steps
 from .arraytypes import Matrix, Vector
-from .truss_config import Lock, TrussConfig
 from .tubetruss import TubeTruss
 
 
@@ -17,14 +14,14 @@ class SolverError(InverseKinematicsError): ...
 class SingularityError(InverseKinematicsError): ...
 
 
+type Index = SupportsIndex | slice[SupportsIndex]
+type Lock = tuple[Index, Index]
+
+
 @dataclass(slots=True)
 class RobotForward:
     structure: TubeTruss
     pos: Matrix
-
-    @classmethod
-    def from_config(cls, config: TrussConfig) -> Self:
-        return cls(config.triangles + config.payload, config.initial_pos.copy())
 
     def update_state(
         self,
@@ -53,12 +50,6 @@ class RobotInverse:
     structure: TubeTruss
     pos: Matrix
 
-    @classmethod
-    def from_config(cls, config: TrussConfig) -> Self:
-        structure = config.triangles + config.payload
-        pos = config.initial_pos.copy()
-        return cls(structure, pos)
-
     def take_substep(
         self,
         substep: Matrix,
@@ -84,28 +75,3 @@ class RobotInverse:
     ) -> Generator[tuple[Matrix, Vector]]:
         for substep in step:
             yield self.take_substep(substep, constraints)
-
-    def crawl(
-        self,
-        cycles: int = 1,
-        step_length: float = 0.125,
-        *,
-        resolution: int = 50,
-    ) -> Generator[tuple[Matrix, Vector]]:
-        constraints = np.zeros((1, self.pos.size))
-        constraints[0, 3*I.PL3+2] =  1.
-        constraints[0, 3*I.PR3+2] = -1.
-        feet = (I.L2, I.L1, I.R2, I.R1)
-        for foot in (feet * cycles):
-            locks = [(other_foot, 0.) for other_foot in feet if foot != other_foot]
-            arc = partial(steps.parabola, d=step_length)
-            line = partial(steps.line, d=step_length/4)
-            step = steps.make_step_array(
-                self.pos.shape,
-                (foot, arc),
-                (I.PL3, line),
-                (I.PR3, line),
-                *locks,
-                resolution=resolution,
-            )
-            yield from self.take_step(step, constraints=constraints)

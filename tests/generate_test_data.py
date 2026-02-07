@@ -9,7 +9,7 @@ from itertools import product
 
 import numpy as np
 
-from rift.truss_config import rover_builder
+import rift.rover
 
 import measure
 
@@ -54,9 +54,9 @@ def tests_from_file(infile, outfile):
     df.to_csv(outfile)
 
 
-def tests(h, P_p, theta, w_p, w_f, resolution, step_length, roll_rate_limit, cycles):
+def tests(h, d_p, theta, w_p, d_f, resolution, step_length, roll_rate_limit, cycles):
     try:
-        config = rover_builder(h, P_p, theta, w_p, w_f)
+        config = rift.rover.make_pos(h, d_p, theta, w_p, d_f)
     except Exception:
         return [np.nan] * 8
     max_incline = or_nan(measure.measure_max_incline, config)
@@ -106,7 +106,7 @@ def tests_from_ranges_mp():
     resolution = 100
 
     height = np.arange(0.125, 0.75, 0.125)
-    shoulder_perimeter = np.arange(0.75, 3.0, 0.25)
+    payload_length = np.arange(0.25, 1.0, 0.15)
     shoulder_angle = np.arange(0, 100, 10)
     payload_width = np.arange(0.0625, 1.5625, 0.25)
     foot_width = np.arange(0.25, 1.25, 0.125)
@@ -114,7 +114,7 @@ def tests_from_ranges_mp():
 
     inputs = list(product(
         height,
-        shoulder_perimeter,
+        payload_length,
         shoulder_angle,
         payload_width,
         foot_width,

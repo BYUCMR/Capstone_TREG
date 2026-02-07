@@ -10,10 +10,9 @@ from PySide6 import QtAsyncio
 from ui_main import Ui_Control
 from ui_vis import Ui_vis_window
 
-import rift.anim
-from rift.robot import InverseKinematicsError, RobotInverse
+from rift import rover
+from rift.robot import InverseKinematicsError
 from rift.arraytypes import Matrix
-from rift.truss_config import ROVER_CONFIG as config
 
 from rift.steps import Command
 
@@ -138,9 +137,9 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
     def startup(self):
         if not self.view_live:
-            self.animator = rift.anim.Animator.from_config(config)
+            self.animator = rover.make_animator()
             self.animator.view.setFocusPolicy(Qt.NoFocus)
-            self.robot = RobotInverse.from_config(config)
+            self.robot = rover.make_robot()
             self.positions = asyncio.Queue[Matrix](50)
             self.ui.layout.addWidget(self.animator.view)
             self.loop = asyncio.get_event_loop()
@@ -155,7 +154,7 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
     #Example run functions
     async def crawl(self) -> None: #will be obsolete once we plumb in real crawling code
-        for _ in self.robot.crawl(1, 0.2, resolution=50):
+        for _ in rover.crawl(self.robot, 1, 0.2, resolution=50):
             await self.positions.put(self.robot.pos.copy())
 
     async def crawl_execution(self): #will be obsolete once we plumb in real crawling code

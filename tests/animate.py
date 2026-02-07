@@ -6,27 +6,25 @@ import asyncio
 import pyqtgraph
 from PySide6 import QtAsyncio
 
-import rift.anim
-import rift.grav
+from rift import rover
 from rift.arraytypes import Matrix
-from rift.robot import InverseKinematicsError, RobotInverse
-from rift.truss_config import TrussConfig
+from rift.robot import InverseKinematicsError
 
 
 async def main(
-    config: TrussConfig,
+    init_pos: Matrix = rover.CRAWLING_POS,
     *,
     step_length: float = 0.125,
     cycles: int = 1,
     resolution: int = 50,
 ) -> None:
-    animator = rift.anim.Animator.from_config(config)
-    robot = RobotInverse.from_config(config)
-    stabilizer = rift.grav.Stabilizer.from_config(config)
+    animator = rover.make_animator(init_pos)
+    robot = rover.make_robot(init_pos)
+    stabilizer = rover.make_stabilizer(init_pos)
     positions = asyncio.Queue[Matrix](resolution)
 
     async def crawl() -> None:
-        for _ in robot.crawl(cycles, step_length, resolution=resolution):
+        for _ in rover.crawl(robot, cycles, step_length, resolution=resolution):
             stabilizer.update_pos(robot.pos)
             await positions.put(stabilizer.pos)
 
@@ -43,6 +41,5 @@ async def main(
 
 
 if __name__ == '__main__':
-    from rift.truss_config import ROVER_CONFIG as config
     pyqtgraph.mkQApp()
-    QtAsyncio.run(main(config, cycles=4, resolution=100))
+    QtAsyncio.run(main(cycles=4, resolution=100))

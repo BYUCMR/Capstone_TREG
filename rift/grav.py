@@ -1,12 +1,11 @@
 import math
 from dataclasses import dataclass, field
-from typing import Final, Literal, Self
+from typing import Final, Literal
 
 import numpy as np
 
 from .arraytypes import Matrix, Vector
 from .mathtools import check_inside_and_closest_edge
-from .truss_config import TrussConfig
 
 DEFAULT_TOL: Final = 1e-6
 
@@ -89,12 +88,6 @@ class Stabilizer:
     gravity: Vector = field(default_factory=lambda: np.array([0., 0., -1.]), kw_only=True)
     tol: float = field(default=DEFAULT_TOL, kw_only=True)
     rel_mass: Vector | Literal[1] = field(default=1, kw_only=True)
-
-    @classmethod
-    def from_config(cls, config: TrussConfig) -> Self:
-        source_pos = config.initial_pos.copy()
-        rel_mass = config.mass / np.sum(config.mass)
-        return cls(source_pos, rel_mass=rel_mass)
 
     def apply_xform(self, pos: Matrix) -> Matrix:
         hom_pos = np.hstack([pos, np.ones((len(pos), 1))])

@@ -5,15 +5,14 @@ import cProfile
 import pstats
 import time
 
-from rift.robot import RobotInverse
-from rift.truss_config import ROVER_CONFIG as config
+from rift import rover
 
 
 def main():
     t0 = time.time()
     with cProfile.Profile() as profile:
-        robot = RobotInverse.from_config(config)
-        for _ in robot.crawl(10):
+        robot = rover.make_robot()
+        for _ in rover.crawl(robot, 10):
             pass
     t1 = time.time()
     stats = pstats.Stats(profile).sort_stats(pstats.SortKey.CUMULATIVE)
