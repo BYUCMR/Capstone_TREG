@@ -69,12 +69,12 @@ def rover_builder(h, P_p, theta, w_p, w_f):
     mass[I.PAYLOAD] = 6.
     return TrussConfig(
         triangles=tris([
-            (I.L1, I.L2, I.PL3),
-            (I.L1, I.PL2, I.L3),
-            (I.PL1, I.L2, I.L3),
-            (I.R1, I.R2, I.PR3),
-            (I.R1, I.PR2, I.R3),
-            (I.PR1, I.R2, I.R3),
+            (I.PL3,I.L1,I.L2),
+            (I.PL1,I.L2,I.L3),
+            (I.PL2,I.L3,I.L1),
+            (I.PR3,I.R1,I.R2),
+            (I.PR1,I.R2,I.R3),
+            (I.PR2,I.R3,I.R1),
         ]),
         payload=bars([
             (I.PL1, I.PR1),
