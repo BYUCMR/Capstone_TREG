@@ -18,18 +18,16 @@ from Handlers.vis_handler import SimWindow
 
 from rift.steps import Command
 
-cmd_state = Command('offline',0,0,0)
-
 class MainWindow(QMainWindow): #referenced as widget by sim window class
     def __init__(self, parent=None):
         super().__init__(parent)
 
         self.ui = Ui_Control()
         self.ui.setupUi(self)
-
         self.ui.term_log = self.term_log
-
         self.ui.term_log("Welcome to R.I.F.T. Control!")
+
+        self.cmd_state = Command('offline', 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
         self.vis_handler = SimWindow(self.cmd_update)
@@ -39,6 +37,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
         self.ui.sim_label.clicked.connect(self.open_sim)
+        self.ui.selector.valueChanged.connect(self.update_item)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         self.ui.backward.pressed.connect(lambda: self.cmd_update(-1, 0, 0))
@@ -72,39 +71,61 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.term_log("Simulation Closed")
             self.vis_handler.kill_sim()
 
+    def update_item(self):
+        self.cmd_state.item = self.ui.selector.value()
+
     def open_sim(self):
         if self.vis_handler.view_live:
             self.vis_handler.show()
 
     def mode_select(self, mode):
+        self.ui.left.setEnabled(True)
+        self.ui.del_left.setEnabled(True)
+        self.ui.right.setEnabled(True)
+        self.ui.del_right.setEnabled(True)
+
         if mode == "crawling":
             self.plainify_modes()
             self.greenify(self.ui.crawling)
-            cmd_state.mode = 'crawling'
+            self.cmd_state.mode = 'crawling'
+            self.cmd_state.item = 0
             self.ui.selector_label.setVisible(False)
             self.ui.selector.setVisible(False)
         elif mode == "node_control":
             self.plainify_modes()
             self.greenify(self.ui.node_control)
-            cmd_state.mode = 'node_control'
+            self.cmd_state.mode = 'node_control'
+            self.cmd_state.item = self.ui.selector.value()
             self.ui.selector_label.setVisible(True)
             self.ui.selector_label.setText("Node")
             self.ui.selector.setVisible(True)
         elif mode == "calibration":
             self.plainify_modes()
             self.greenify(self.ui.calibration)
-            # cmd_state.mode = 'calibration'
+            self.cmd_state.mode = 'calibration'
+            self.cmd_state.item = self.ui.selector.value()
             self.ui.selector_label.setVisible(True)
             self.ui.selector_label.setText("Roller")
             self.ui.selector.setVisible(True)
-        cmd_state.mode = mode
-        self.ui.term_log(f"Control Mode switched to {mode}")
+            self.ui.left.setEnabled(False)
+            self.ui.del_left.setEnabled(False)
+            self.ui.right.setEnabled(False)
+            self.ui.del_right.setEnabled(False)
+        self.cmd_state.mode = mode
+        self.ui.term_log(f"Control Mode switched to {mode.replace('_',' ')}")
 
     def cmd_update(self, x: float, y: float, z: float):
-        cmd_state.x += x
-        cmd_state.y += y
-        cmd_state.z += z
-        print(f"X: {cmd_state.x}, Y: {cmd_state.y}, Z: {cmd_state.z}")
+        self.cmd_state.x += x
+        self.cmd_state.y += y
+        self.cmd_state.z += z
+        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+
+    def cleanup(self):
+        print("attempting cleanup")
+        try:
+            self.joystick_handler.js_thread.requestInterruption()
+        except:
+            print("nothing to kill")
 
     #overwriting key input handlers
     def keyPressEvent(self, event):
@@ -164,8 +185,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    # sim_widget = SimWindow()
     widget = MainWindow()
     widget.show()
-    # QtAsyncio.run()
+    app.aboutToQuit.connect(widget.cleanup)
     sys.exit(app.exec())

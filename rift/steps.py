@@ -28,6 +28,7 @@ class Mode(Enum):
 @dataclass
 class Command:
     mode: Mode
+    item: int
     x: float
     y: float
     z: float
