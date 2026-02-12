@@ -2,13 +2,15 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
 import math
+from functools import partial
 
 import numpy as np
 
+from rift import constrain as cstr
 from rift import rover
+from rift import steps
 from rift.arraytypes import Matrix, MatrixStack
 from rift.robot import InverseKinematicsError
-from rift.steps import make_step_array, parabola
 
 
 def record_motion(
@@ -70,12 +72,15 @@ def measure_max_crawl_speed(
 def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     z0 = robot.pos[rover.L1, 2]
-    motion = np.full_like(robot.pos, np.nan)
-    motion[rover.L1] = [0., 0., dz]
-    motion[rover.L2] = motion[rover.R1] = motion[rover.R2] = 0.
+    constraint = cstr.CompoundConstraint((
+        cstr.Motion.make(rover.CL1, 0., 0., dz),
+        cstr.Motion.lock(rover.CL2),
+        cstr.Motion.lock(rover.CR1),
+        cstr.Motion.lock(rover.CR2),
+    ))
     while True:
         try:
-            robot.take_substep(motion)
+            robot.take_substep(constraint)
         except InverseKinematicsError:
             break
     return robot.pos[rover.L1, 2] - dz - z0
@@ -84,12 +89,15 @@ def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
 def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     x0 = robot.pos[rover.L1, 0]
-    motion = np.full_like(robot.pos, np.nan)
-    motion[rover.L1] = [dx, 0., 0.]
-    motion[rover.L2] = motion[rover.R1] = motion[rover.R2] = 0.
+    constraint = cstr.CompoundConstraint((
+        cstr.Motion.make(rover.CL1, dx, 0., 0.),
+        cstr.Motion.lock(rover.CL2),
+        cstr.Motion.lock(rover.CR1),
+        cstr.Motion.lock(rover.CR2),
+    ))
     while True:
         try:
-            robot.take_substep(motion)
+            robot.take_substep(constraint)
         except InverseKinematicsError:
             break
     return robot.pos[rover.L1, 0] - dx - x0
@@ -99,19 +107,18 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
     robot = rover.make_robot(init_pos)
     initial_pos = robot.pos.copy()
     step_length = dx
-    step = make_step_array(
-        robot.pos.shape,
-        (rover.L2, 0.),
-        (rover.R1, 0.),
-        (rover.R2, 0.),
-        resolution=resolution,
-    )
     t = np.linspace(0., 1., resolution)
     while True:
-        step[:, rover.L1, :] = parabola(t, d=step_length)
+        k = step_length / len(t)
+        constraint = cstr.CompoundConstraint((
+            cstr.Motion.make(rover.CL1, k, 0., partial(steps.parabolic, k)),
+            cstr.Motion.lock(rover.CL2),
+            cstr.Motion.lock(rover.CR1),
+            cstr.Motion.lock(rover.CR2),
+        ))
         try:
-            for _ in robot.take_step(step):
-                pass
+            for ti in t:
+                robot.take_substep(constraint, t=ti)
         except InverseKinematicsError:
             break
         step_length += dx

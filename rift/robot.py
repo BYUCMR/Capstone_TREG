@@ -4,6 +4,7 @@ from typing import SupportsIndex
 
 import numpy as np
 
+from . import constrain as cstr
 from . import steps
 from .arraytypes import Matrix, Vector
 from .tubetruss import TubeTruss
@@ -50,28 +51,37 @@ class RobotInverse:
     structure: TubeTruss
     pos: Matrix
 
+    @property
+    def length_constraint(self) -> cstr.FixedLength:
+        return cstr.FixedLength(
+            self.structure.pos_to_rigidity,
+            self.structure.length_summer,
+        )
+
     def take_substep(
         self,
-        substep: Matrix,
-        constraints: Matrix | None = None,
+        *constraints: cstr.Constraint,
+        t: float = 0.,
     ) -> tuple[Matrix, Vector]:
         rigidity = self.structure.norm_rigidity_at(self.pos)
-        A = self.structure.length_summer @ rigidity
-        if constraints is not None:
-            A = np.vstack([A, constraints])
-        dx, det = steps.fill_substep(substep, R=rigidity, A=A)
+        constraint = cstr.CompoundConstraint((
+            self.length_constraint, *constraints
+        ))
+        A, b = constraint.get(self.pos, t)
+        dx, det = steps.find_dx(R=rigidity, A=A, b=b)
         if dx is None:
             raise SolverError("Could not find valid node velocities")
         if np.abs(det) < 0.05:
             raise SingularityError("Robot state is nearly singular")
+        dx = dx.reshape(self.pos.shape)
         self.pos += dx
         dr = self.structure.length_to_roll @ rigidity @ dx.ravel()
         return dx, dr
 
     def take_step(
         self,
-        step: Iterable[Matrix],
-        constraints: Matrix | None = None,
+        *constraints: cstr.Constraint,
+        resolution: int,
     ) -> Generator[tuple[Matrix, Vector]]:
-        for substep in step:
-            yield self.take_substep(substep, constraints)
+        for t in np.linspace(0., 1., resolution):
+            yield self.take_substep(*constraints, t=t)

@@ -1,22 +1,10 @@
-from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
 import qpsolvers
 
-from .arraytypes import Matrix, MatrixStack, Vector
-from .tubetruss import Node
-
-
-type StepVelocity = float | Vector | Callable[[Vector], Matrix]
-
-
-def line(t: Vector, d: float = 1.0) -> Matrix:
-    k = d / len(t)
-    u = np.full_like(t, k)
-    nan = np.full_like(t, np.nan)
-    return np.column_stack([u, nan, nan])
+from .arraytypes import Matrix, Vector
 
 
 class Mode(Enum):
@@ -33,45 +21,17 @@ class Command:
     z: float
 
 
-def parabola(t: Vector, d: float = 1.0) -> Matrix:
-    k = d / len(t)
-    u = np.full_like(t, k)
-    v = np.zeros_like(t)
-    w = 2. * k * (0.5-t)
-    return np.column_stack([u, v, w])
+def parabolic(k: float, t: float) -> float:
+    return 2. * k * (0.5-t)
 
 
-def make_step_array(
-    shape: tuple[int, int],
-    *commands: *tuple[tuple[Node, StepVelocity], ...],
-    resolution: int = 10,
-) -> MatrixStack:
-    t = np.linspace(0., 1., resolution)
-    motion = np.full((resolution, *shape), np.nan)
-    for node, velocity in commands:
-        if callable(velocity):
-            v = velocity(t)
-        else:
-            v = velocity
-        motion[:, node, :] = v
-    return motion
-
-
-def make_move_constraint(substep: Matrix) -> tuple[Matrix, Vector]:
-    i = ~np.isnan(substep)
-    b = substep[i]
-    A = np.zeros((b.size, i.size))
-    A[:, i.flat] = np.eye(b.size)
-    return A, b
-
-
-def fill_substep(
-    outline: Matrix, *,
+def find_dx(
+    *,
     R: Matrix,
     f: Vector | None = None,
     A: Matrix | None = None,
     b: Vector | None = None,
-) -> tuple[Matrix | None, float]:
+) -> tuple[Vector | None, float]:
     _, n = R.shape
     if f is None:
         f = np.zeros(n)
@@ -87,9 +47,6 @@ def fill_substep(
         raise ValueError(f"Wrong shape for b: expected ({len(A)}, [1]), got {b.shape}")
 
     H = R.T @ R
-    A_move, b_move = make_move_constraint(outline)
-    A = np.vstack([A, A_move])
-    b = np.concat([b, b_move])
     m, n = A.shape
     O = np.zeros((m, m))
     K = np.vstack([np.hstack([H, A.T]), np.hstack([A, O])])
@@ -100,4 +57,4 @@ def fill_substep(
     # `x` is equivalent to what we'd get from solving a quadratic program
     # minimizing `x'*H*x + f'*x` subject to `A*x = b`.
     x, l = np.split(x_l, [n])
-    return x.reshape(outline.shape), det_K
+    return x, det_K

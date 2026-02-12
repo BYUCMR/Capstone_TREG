@@ -8,6 +8,7 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
 from . import anim
+from . import constrain as cstr
 from . import grav
 from . import steps
 from . import tubetruss as tt
@@ -68,6 +69,21 @@ PAYLOAD_STRUCTURE: Final = tt.TubeTruss.make_bars([
 MASS: Final = np.zeros(12)
 MASS[FEET] = 1.
 MASS[PAYLOAD] = 6.
+
+# Constraint points
+CL1: Final = cstr.Point.node(L1, 12)
+CL2: Final = cstr.Point.node(L2, 12)
+CL3: Final = cstr.Point.node(L3, 12)
+CR1: Final = cstr.Point.node(R1, 12)
+CR2: Final = cstr.Point.node(R2, 12)
+CR3: Final = cstr.Point.node(R3, 12)
+CPL1: Final = cstr.Point.node(PL1, 12)
+CPL2: Final = cstr.Point.node(PL2, 12)
+CPL3: Final = cstr.Point.node(PL3, 12)
+CPR1: Final = cstr.Point.node(PR1, 12)
+CPR2: Final = cstr.Point.node(PR2, 12)
+CPR3: Final = cstr.Point.node(PR3, 12)
+CCOM: Final = cstr.Point.com(MASS)
 
 
 def make_pos(
@@ -201,20 +217,23 @@ def crawl(
     *,
     resolution: int = 50,
 ) -> Generator[tuple[Matrix, Vector]]:
-    constraints = np.zeros((1, robot.pos.size))
-    constraints[0, 3*PL3+2] =  1.
-    constraints[0, 3*PR3+2] = -1.
-    feet = (L2, L1, R2, R1)
+    payload_mass = np.zeros(len(robot.pos))
+    payload_mass[PAYLOAD] = 1.
+    payload_com = cstr.Point.com(payload_mass)
+    payload_up = payload_com - cstr.Point.avg(CPL3, CPR3)
+    no_wobble = cstr.Motion(payload_up, np.eye(3)[0:2], np.zeros(2))
+    dx = step_length / resolution
+    steadily_forward = cstr.Motion.make(payload_com, x=0.25 * dx)
+    feet = (CL2, CL1, CR2, CR1)
     for foot in (feet * cycles):
-        locks = [(other_foot, 0.) for other_foot in feet if foot != other_foot]
-        arc = partial(steps.parabola, d=step_length)
-        line = partial(steps.line, d=step_length/4)
-        step = steps.make_step_array(
-            robot.pos.shape,
-            (foot, arc),
-            (PL3, line),
-            (PR3, line),
-            *locks,
-            resolution=resolution,
-        )
-        yield from robot.take_step(step, constraints=constraints)
+        motion = cstr.CompoundConstraint([
+            cstr.Motion.make(foot, x=dx, y=0., z=partial(steps.parabolic, dx)),
+            *(
+                cstr.Motion.lock(other_foot)
+                for other_foot in feet
+                if foot is not other_foot
+            ),
+            steadily_forward,
+            no_wobble,
+        ])
+        yield from robot.take_step(motion, resolution=resolution)
