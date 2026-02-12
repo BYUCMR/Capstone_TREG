@@ -31,7 +31,7 @@ def find_dx(
     f: Vector | None = None,
     A: Matrix | None = None,
     b: Vector | None = None,
-) -> tuple[Vector | None, float]:
+) -> Vector | None:
     _, n = R.shape
     if f is None:
         f = np.zeros(n)
@@ -50,11 +50,11 @@ def find_dx(
     m, n = A.shape
     O = np.zeros((m, m))
     K = np.vstack([np.hstack([H, A.T]), np.hstack([A, O])])
-    det_K = np.linalg.det(K)
-    if det_K == 0.:
-        return None, det_K
-    x_l = np.linalg.solve(K, np.concat([-f, b]))
+    try:
+        x_l = np.linalg.solve(K, np.concat([-f, b]))
+    except np.linalg.LinAlgError:
+        return None
     # `x` is equivalent to what we'd get from solving a quadratic program
     # minimizing `x'*H*x + f'*x` subject to `A*x = b`.
     x, l = np.split(x_l, [n])
-    return x, det_K
+    return x
