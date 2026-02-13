@@ -1,6 +1,8 @@
 import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
+from rift.transmit import step_in
+
 import asyncio
 
 import pyqtgraph
