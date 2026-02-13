@@ -136,7 +136,7 @@ def make_pos(
 
     return pos
 
-def setup_rover_builder(h, P_p, theta, w_p, w_f):
+def setup_rover_builder(w_p):
     # height off the ground
     # Perimter of triangle on payload
     # angle of payload size
