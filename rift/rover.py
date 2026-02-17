@@ -1,5 +1,5 @@
 import math
-from collections.abc import Generator, Iterable
+from collections.abc import Generator
 from functools import partial
 from typing import Final
 
@@ -190,22 +190,19 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
     return grav.Stabilizer(source_pos, rel_mass=rel_mass)
 
 
-def draw_payload_bars(payload: tt.TubeTruss, pos: Matrix) -> list[anim.DrawnTube]:
-    return [anim.draw_tube(bar, pos, color='black', width=4) for bar in payload]
+def draw_payload_bars(payload: tt.TubeTruss, pos: Matrix) -> anim.DrawnLinks:
+    return anim.draw_links(payload.links, pos, color='black', width=4)
 
 
-def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> anim.PayloadMesh:
-    payload_nodes = set[tt.Node]()
-    payload_nodes.update(*(bar.nodes for bar in payload))
-
-    payload_vertices = pos[sorted(payload_nodes)]
+def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> anim.BodyMesh:
+    nodes = sorted(set(payload.nodes))
     payload_faces = [[0, 1, 2], [3, 4, 5],
                      [0, 3, 5], [0, 2, 5],
                      [1, 4, 5], [1, 2, 5],
                      [0, 1, 4], [0, 3, 4]]
 
     meshdata = gl.MeshData(
-        vertexes=payload_vertices,
+        vertexes=pos[nodes],
         faces=payload_faces,
     )
     mesh = gl.GLMeshItem(
@@ -213,36 +210,26 @@ def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> anim.PayloadMesh:
         color=pg.mkColor(anim.OKABE_ITO[-1]),
     )
     mesh.setGLOptions('opaque')
-    return anim.PayloadMesh(payload, mesh)
+    return anim.BodyMesh(nodes, mesh)
 
 
-def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[anim.DrawnTube]:
-    drawn_tubes: list[anim.DrawnTube] = []
+def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[anim.DrawnLinks]:
+    drawn_tubes: list[anim.DrawnLinks] = []
     for i, tube in enumerate(triangles):
         color = anim.OKABE_ITO[i % (len(anim.OKABE_ITO) - 1) + 1]
-        drawn_tube = anim.draw_tube(tube, pos, color=color)
+        drawn_tube = anim.draw_links(tube.links, pos, color=color)
         drawn_tubes.append(drawn_tube)
     return drawn_tubes
-
-
-def draw_traces(nodes: Iterable[tt.Node], pos: Matrix, *, size: int = 4) -> list[anim.NodeTrace]:
-    traces: list[anim.NodeTrace] = []
-    for node in nodes:
-        drawing = gl.GLScatterPlotItem(pos=[pos[node]], size=size)
-        drawing.setGLOptions('opaque')
-        trace = anim.NodeTrace(node, drawing)
-        traces.append(trace)
-    return traces
 
 
 def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
-    payload_bars = draw_payload_bars(PAYLOAD_STRUCTURE, init_pos)
     payload_mesh = draw_payload_mesh(PAYLOAD_STRUCTURE, init_pos)
+    payload_bars = draw_payload_bars(PAYLOAD_STRUCTURE, init_pos)
     triangles = draw_triangles(LEG_STRUCTURE, init_pos)
-    traces = draw_traces((L1, L2, R1, R2), init_pos)
-    items = [payload_mesh, *payload_bars, *triangles, *traces]
+    traces = anim.draw_traces((L1, L2, R1, R2), init_pos)
+    items = [payload_mesh, payload_bars, *triangles, *traces]
     for item in items:
         item.add_to_view(view)
     return anim.Animator(view, items)

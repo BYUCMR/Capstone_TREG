@@ -1,8 +1,9 @@
 import asyncio
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol
 
+import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
@@ -28,15 +29,15 @@ class AnimationItem(Protocol):
 
 
 @dataclass(slots=True, frozen=True)
-class DrawnTube(AnimationItem):
-    tube: tt.Tube
+class DrawnLinks(AnimationItem):
+    nodes: Sequence[tt.Node]
     drawing: gl.GLLinePlotItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
         view.addItem(self.drawing)
 
     def update_pos(self, pos: Matrix) -> None:
-        self.drawing.setData(pos=pos[list(self.tube.nodes)])
+        self.drawing.setData(pos=pos[self.nodes])
 
 
 @dataclass(slots=True, frozen=True)
@@ -53,33 +54,42 @@ class NodeTrace(AnimationItem):
 
 
 @dataclass(slots=True, frozen=True)
-class PayloadMesh(AnimationItem):
-    payload: tt.TubeTruss
+class BodyMesh(AnimationItem):
+    nodes: Sequence[tt.Node]
     mesh: gl.GLMeshItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
         view.addItem(self.mesh)
 
     def update_pos(self, pos: Matrix) -> None:
-        nodes = set[tt.Node]()
-        nodes.update(*(bar.nodes for bar in self.payload))
         # `GLMeshItem.opts` might be an implementation detail, but this is the
         # cleanest way to update vertex positions while keeping everything
         # else the same.
         mesh_data: gl.MeshData = self.mesh.opts['meshdata']
-        mesh_data.setVertexes(pos[list(nodes)])
+        mesh_data.setVertexes(pos[self.nodes])
         self.mesh.setMeshData(meshdata=mesh_data)
 
 
-def draw_tube(tube: tt.Tube, pos: Matrix, *, color: str = 'gray', width: int = 6) -> DrawnTube:
-    tube_vertices = pos[list(tube.nodes)]
+def draw_links(links: Iterable[tt.Link], pos: Matrix, *, color: str = 'gray', width: int = 6) -> DrawnLinks:
+    nodes = list(np.array(list(links)).flat)
     drawing = gl.GLLinePlotItem(
-        pos=tube_vertices,
+        pos=pos[nodes],
         width=width,
         color=pg.mkColor(color),
+        mode='lines',
     )
     drawing.setGLOptions('opaque')
-    return DrawnTube(tube, drawing)
+    return DrawnLinks(nodes, drawing)
+
+
+def draw_traces(nodes: Iterable[tt.Node], pos: Matrix, *, size: int = 4) -> list[NodeTrace]:
+    traces: list[NodeTrace] = []
+    for node in nodes:
+        drawing = gl.GLScatterPlotItem(pos=[pos[node]], size=size)
+        drawing.setGLOptions('opaque')
+        trace = NodeTrace(node, drawing)
+        traces.append(trace)
+    return traces
 
 
 @dataclass(slots=True, frozen=True)
