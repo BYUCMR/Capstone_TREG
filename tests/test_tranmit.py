@@ -79,8 +79,8 @@ async def main(
     motion = cstr.CompoundConstraint([
         cstr.Motion.make(rover.CR1, z=1/resolution),
         cstr.Motion.lock(rover.CR2),
-        # cstr.Motion.lock(rover.CL1),
-        # cstr.Motion.lock(rover.CL2),
+        cstr.Motion.lock(rover.CL1),
+        cstr.Motion.lock(rover.CL2),
         # cstr.Motion.lock(rover.CPR3),
         # cstr.Motion.lock(rover.CPL3),
         # cstr.Motion.make(cstr.Point.com(payload_mass), x=0),
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
         time.sleep(2)
         pyqtgraph.mkQApp()
-        QtAsyncio.run(main(config, resolution=1000))
+        QtAsyncio.run(main(config, resolution=10))
 
     except serial.SerialException as e:
         print(f"Error opening or communicating with serial port: {e}")

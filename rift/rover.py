@@ -152,27 +152,27 @@ def setup_rover_builder(w_p):
 
     pos = np.zeros((12, 3))
 
-    pos[PL2] = [0,w_p,0]
-    pos[PL3] = [L_p/2,w_p,h_b]
+    pos[PL3] = [0,w_p,0]
+    pos[PL2] = [L_p/2,w_p,h_b]
     pos[PL1] = [-L_p/2,w_p,h_b]
 
-    pos[PR2] = [0,-w_p,0]
-    pos[PR3] = [L_p/2,-w_p,h_b]
+    pos[PR3] = [0,-w_p,0]
+    pos[PR2] = [L_p/2,-w_p,h_b]
     pos[PR1] = [-L_p/2,-w_p,h_b]
 
     #
     pos[L1] = [L_t/2,w_p+H,0]
-    pos[L2] = [0,w_p+H,h_t]
-    pos[L3] = [-L_t/2,w_p+H,0]
+    pos[L2] = [-L_t/2,w_p+H,0]
+    pos[L3] = [0,w_p+H,h_t]
 
     pos[R1] = [L_t/2,-w_p-H,0]
-    pos[R2] = [0,-w_p-H,h_t]
-    pos[R3] = [-L_t/2,-w_p-H,0]
+    pos[R2] = [-L_t/2,-w_p-H,0]
+    pos[R3] = [0,-w_p-H,h_t]
 
     mass = np.zeros(len(pos))
     mass[FEET] = 1.
     mass[PAYLOAD] = 6.
-    
+
     return pos
 
 CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
