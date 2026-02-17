@@ -152,22 +152,22 @@ def setup_rover_builder(w_p):
 
     pos = np.zeros((12, 3))
 
-    pos[PL3] = [ w_p,0,0]
-    pos[PL2] = [w_p,L_p/2,h_b]
-    pos[PL1] = [w_p,-L_p/2,h_b]
+    pos[PL2] = [0,w_p,0]
+    pos[PL3] = [L_p/2,w_p,h_b]
+    pos[PL1] = [-L_p/2,w_p,h_b]
 
-    pos[PR3] = [-w_p,0,0]
-    pos[PR2] = [-w_p,L_p/2,h_b]
-    pos[PR1] = [-w_p,-L_p/2,h_b]
+    pos[PR2] = [0,-w_p,0]
+    pos[PR3] = [L_p/2,-w_p,h_b]
+    pos[PR1] = [-L_p/2,-w_p,h_b]
 
     #
-    pos[L1] = [ w_p+H,L_t/2,0]
-    pos[L2] = [w_p+H,0,h_t]
-    pos[L3] = [w_p+H,-L_t/2,0]
+    pos[L1] = [L_t/2,w_p+H,0]
+    pos[L2] = [0,w_p+H,h_t]
+    pos[L3] = [-L_t/2,w_p+H,0]
 
-    pos[R1] = [-w_p-H,L_t/2,0]
-    pos[R2] = [-w_p-H,0,h_t]
-    pos[R3] = [-w_p-H,-L_t/2,0]
+    pos[R1] = [L_t/2,-w_p-H,0]
+    pos[R2] = [0,-w_p-H,h_t]
+    pos[R3] = [-L_t/2,-w_p-H,0]
 
     mass = np.zeros(len(pos))
     mass[FEET] = 1.

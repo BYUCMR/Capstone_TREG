@@ -27,13 +27,13 @@ async def animate(
 ) -> None:
     animator = rover.make_animator(init_pos)
     robot = rover.make_robot(init_pos)
-    stabilizer = rover.make_stabilizer(init_pos)
+    # stabilizer = rover.make_stabilizer(init_pos)
     positions = asyncio.Queue[Matrix](resolution)
 
     async def move() -> None:
-        for *_, dr in robot.take_step(motion, resolution=resolution, allow_redundant=True):
-            stabilizer.update_pos(robot.pos)
-            await positions.put(stabilizer.pos)
+        for *_, dr in robot.take_step(motion, resolution=resolution, allow_redundant=False):
+            # stabilizer.update_pos(robot.pos)
+            await positions.put(robot.pos.copy())
             if rollqueue is not None:
                 await rollqueue.put(dr)
 
@@ -72,18 +72,18 @@ async def command(rollqueue: asyncio.Queue[Vector]) -> None:
 async def main(
     init_pos: Matrix = rover.CRAWLING_POS,
     *,
-    resolution: int = 10,
+    resolution: int = 50,
 ) -> None:
     payload_mass = np.zeros(12)
     payload_mass[rover.PAYLOAD] = 1
     motion = cstr.CompoundConstraint([
-        cstr.Motion.make(rover.CR1,z=.1),
+        cstr.Motion.make(rover.CR1, z=1/resolution),
         cstr.Motion.lock(rover.CR2),
-        cstr.Motion.lock(rover.CL1),
-        cstr.Motion.lock(rover.CL2),
-        cstr.Motion.lock(rover.CPR3),
-        cstr.Motion.lock(rover.CPL3),
-        cstr.Motion.make(cstr.Point.com(payload_mass), x=0),
+        # cstr.Motion.lock(rover.CL1),
+        # cstr.Motion.lock(rover.CL2),
+        # cstr.Motion.lock(rover.CPR3),
+        # cstr.Motion.lock(rover.CPL3),
+        # cstr.Motion.make(cstr.Point.com(payload_mass), x=0),
     ])
     rollqueue = asyncio.Queue[Vector]()
     animation_task = asyncio.create_task(animate(
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
         time.sleep(2)
         pyqtgraph.mkQApp()
-        QtAsyncio.run(main(config))
+        QtAsyncio.run(main(config, resolution=1000))
 
     except serial.SerialException as e:
         print(f"Error opening or communicating with serial port: {e}")
