@@ -11,10 +11,11 @@ def send_command(ser, commands):
     message = f"VEL:{','.join(str(int(c)) for c in commands.ravel())}\n"
     ser.write(message.encode('utf-8'))
     ser.flush()
+    time.sleep(2) # can adjust, 1.5 matches transmitter
     print(f"[SENT] {message.strip()}")
 
 def send_stop(ser):
-    message = "STOP"
+    message = "STOP\n"
     ser.write(message.encode('utf-8'))
     ser.flush()
     print(f"[SENT] {message.strip()}")
