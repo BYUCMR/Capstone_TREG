@@ -2,6 +2,7 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
 import asyncio
+from collections.abc import Generator
 
 import numpy as np
 import pyqtgraph
@@ -11,10 +12,34 @@ from PySide6 import QtAsyncio
 import rift.constrain as cstr
 from rift import rover
 from rift.arraytypes import Matrix, Vector
-from rift.robot import InverseKinematicsError
+from rift.robot import InverseKinematicsError, RobotInverse
 from rift.transmit.conversion import *
 SERIAL_PORT = '/dev/ttyUSB0'
 BAUD_RATE = 115200
+
+
+def roll(
+    robot: RobotInverse,
+    *,
+    resolution: int = 100,
+) -> Generator[tuple[Matrix, Vector]]:
+    base = cstr.Point.avg(rover.CPL3, rover.CPR3)
+    face = cstr.Point.avg(rover.CPL2, rover.CPR2)
+    other_feet = [rover.CL2, rover.CR2, rover.CL3, rover.CR3]
+    payload_mass = np.zeros(len(robot.pos))
+    payload_mass[rover.PAYLOAD] = 1.
+    step_1 = cstr.CompoundConstraint((
+        cstr.Motion.lock(base),
+        cstr.Orbit.about_y(robot.pos, face-base, np.pi, resolution),
+        cstr.Motion.make(face - base, y=0.),
+        cstr.Motion.lock(rover.CL1),
+        cstr.Motion.lock(rover.CR1),
+        *(
+            cstr.Motion.make(foot, y=0.)
+            for foot in other_feet
+        ),
+    ))
+    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
 
 
 async def animate(
@@ -26,13 +51,13 @@ async def animate(
 ) -> None:
     animator = rover.make_animator(init_pos)
     robot = rover.make_robot(init_pos)
-    # stabilizer = rover.make_stabilizer(init_pos)
+    stabilizer = rover.make_stabilizer(init_pos)
     positions = asyncio.Queue[Matrix](resolution)
 
     async def move() -> None:
-        for *_, dr in robot.take_step(motion, resolution=resolution, allow_redundant=False):
-            # stabilizer.update_pos(robot.pos)
-            await positions.put(robot.pos.copy())
+        for *_, dr in roll(robot, resolution=resolution):
+            stabilizer.update_pos(robot.pos)
+            await positions.put(stabilizer.pos)
             if rollqueue is not None:
                 await rollqueue.put(dr)
 

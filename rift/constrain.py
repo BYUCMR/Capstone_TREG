@@ -118,6 +118,19 @@ class Orbit:
     axis: Vector
     rate: CanCall[float]
 
+    @classmethod
+    def about_y(
+        cls,
+        x: Matrix,
+        radius: Point,
+        target: float,
+        resolution: int,
+    ) -> Self:
+        r = radius.get(x)
+        th0 = np.atan2(r[2], -r[0])
+        rate = (target - th0) / resolution
+        return cls(radius, np.array([0, 1, 0]), rate)
+
     def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
         r = self.radius.get(x)
         r -= (self.axis @ r) * self.axis
