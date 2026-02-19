@@ -75,16 +75,6 @@ class TubeTruss:
         return get_incidence(self)
 
     @cached_property
-    def roll_to_length(self) -> Matrix[np.intp]:
-        """See `get_roll_to_length`."""
-        return get_roll_to_length(self)
-
-    @cached_property
-    def length_to_roll(self) -> Matrix:
-        """See `get_length_to_roll`."""
-        return get_length_to_roll(self)
-
-    @cached_property
     def length_summer(self) -> Matrix[np.bool]:
         """See `get_length_summer`."""
         return get_length_summer(self)
@@ -162,41 +152,6 @@ def normalize_rigidity(rigidity: Matrix) -> Matrix:
     """
     norms = np.linalg.vector_norm(rigidity, axis=1, keepdims=True)
     return math.sqrt(2.) * rigidity / norms
-
-
-def get_roll_to_length(structure: TubeTruss) -> Matrix[np.intp]:
-    """Return a matrix describing how each roller affects the length of each link.
-
-    This matrix converts a column of roller roll changes into a column of link length
-    changes. It is the transpose of the incidence matrix of links to rollers, but some
-    links are only attached to a single roller.
-    """
-    mats: list[Matrix[np.intp]] = []
-    for tube in structure:
-        n_roll = len(tube.rollers)
-        mat = np.zeros((n_roll+1, n_roll), dtype=np.intp)
-        i = np.arange(n_roll)
-        mat[i  , i] = -1
-        mat[i+1, i] =  1
-        mats.append(mat)
-    return block_diag(mats)
-
-
-def get_length_to_roll(structure: TubeTruss) -> Matrix:
-    """Return a matrix describing how each roller affects the length of each link.
-
-    This matrix converts a column of link length changes into a column of roller roll
-    changes. It is the pseudo-inverse of the matrix returned by `get_roller_incidence`.
-    """
-    mats: list[Matrix] = []
-    for tube in structure:
-        n_roll = len(tube.rollers)
-        n_link = n_roll + 1
-        mat = np.full((n_roll, n_link), 1 / n_link)
-        mat *= np.arange(1, n_link).reshape(n_roll, 1)
-        mat -= np.tri(n_link)[:-1]
-        mats.append(mat)
-    return block_diag(mats)
 
 
 def get_length_summer(structure: TubeTruss) -> Matrix[np.bool]:

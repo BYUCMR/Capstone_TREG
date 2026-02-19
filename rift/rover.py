@@ -40,6 +40,27 @@ PR3: Final = 11
 FEET: Final = slice(L1, R3+1)
 PAYLOAD: Final = slice(PL1, PR3+1)
 
+# Links
+L1_L2: Final = 1
+L2_L3: Final = 4
+L3_L1: Final = 7
+L1_PL2: Final = 8
+L1_PL3: Final = 0
+L2_PL3: Final = 2
+L2_PL1: Final = 3
+L3_PL1: Final = 5
+L3_PL2: Final = 6
+
+R1_R2: Final = 10
+R2_R3: Final = 13
+R3_R1: Final = 16
+R1_PR2: Final = 17
+R1_PR3: Final = 9
+R2_PR3: Final = 11
+R2_PR1: Final = 12
+R3_PR1: Final = 14
+R3_PR2: Final = 15
+
 # Truss structures
 LEG_STRUCTURE: Final = tt.TubeTruss.make_tris([
     (PL3, L1, L2),
@@ -64,6 +85,21 @@ PAYLOAD_STRUCTURE: Final = tt.TubeTruss.make_bars([
     (PR2, PR3),
     (PR3, PR1),
 ])
+
+# Roller setup
+CONTROL: Final = np.zeros((18, 30), dtype=np.intp)
+CONTROL[(L1_L2, L1_PL3), 0] = (-1, 1)
+CONTROL[(L1_L2, L2_PL3), 1] = (1, -1)
+CONTROL[(L2_L3, L2_PL1), 2] = (-1, 1)
+CONTROL[(L2_L3, L3_PL1), 3] = (1, -1)
+CONTROL[(L3_L1, L3_PL2), 4] = (-1, 1)
+CONTROL[(L3_L1, L1_PL2), 5] = (1, -1)
+CONTROL[(R1_R2, R1_PR3), 7] = (1, -1)
+CONTROL[(R1_R2, R2_PR3), 6] = (-1, 1)
+CONTROL[(R2_R3, R2_PR1),11] = (1, -1)
+CONTROL[(R2_R3, R3_PR1),10] = (-1, 1)
+CONTROL[(R3_R1, R3_PR2), 9] = (1, -1)
+CONTROL[(R3_R1, R1_PR2), 8] = (-1, 1)
 
 # Point masses
 MASS: Final = np.zeros(12)
@@ -143,7 +179,7 @@ CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> RobotInverse:
     structure = LEG_STRUCTURE + PAYLOAD_STRUCTURE
     pos = init_pos.copy()
-    return RobotInverse(structure, pos)
+    return RobotInverse(structure, CONTROL, pos)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
