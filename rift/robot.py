@@ -22,6 +22,7 @@ type Lock = tuple[Index, Index]
 @dataclass(slots=True)
 class RobotForward:
     structure: TubeTruss
+    roll_to_length: Matrix
     pos: Matrix
 
     def update_state(
@@ -38,7 +39,7 @@ class RobotForward:
         R = self.structure.norm_rigidity_at(self.pos)
         R_reduced = R[:, unlocked_indices]
         R_inv = np.linalg.inv(R_reduced)
-        d_pos_reduced = R_inv @ self.structure.roll_to_length @ d_roll
+        d_pos_reduced = R_inv @ self.roll_to_length @ d_roll
 
         d_pos = np.zeros_like(self.pos)
         d_pos.put(unlocked_indices, d_pos_reduced)
@@ -49,6 +50,7 @@ class RobotForward:
 @dataclass(slots=True)
 class RobotInverse:
     structure: TubeTruss
+    length_to_roll: Matrix[np.intp]
     pos: Matrix
 
     @property
@@ -77,7 +79,7 @@ class RobotInverse:
             raise SolverError("Could not find valid node velocities")
         dx = dx.reshape(self.pos.shape)
         self.pos += dx
-        dr = self.structure.length_to_roll @ rigidity @ dx.ravel()
+        dr = self.length_to_roll @ rigidity @ dx.ravel()
         return dx, dr
 
     def take_step(
