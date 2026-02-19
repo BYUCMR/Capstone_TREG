@@ -87,7 +87,7 @@ PAYLOAD_STRUCTURE: Final = tt.TubeTruss.make_bars([
 ])
 
 # Roller setup
-CONTROL: Final = np.zeros((18, 30), dtype=np.intp)
+CONTROL: Final = np.zeros((30, 12), dtype=np.intp)
 CONTROL[(L1_L2, L1_PL3), 0] = (-1, 1)
 CONTROL[(L1_L2, L2_PL3), 1] = (1, -1)
 CONTROL[(L2_L3, L2_PL1), 2] = (-1, 1)
@@ -217,7 +217,7 @@ CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> RobotInverse:
     structure = LEG_STRUCTURE + PAYLOAD_STRUCTURE
     pos = init_pos.copy()
-    return RobotInverse(structure, CONTROL, pos)
+    return RobotInverse(structure, np.linalg.pinv(CONTROL), pos)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:

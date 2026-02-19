@@ -50,7 +50,7 @@ class RobotForward:
 @dataclass(slots=True)
 class RobotInverse:
     structure: TubeTruss
-    length_to_roll: Matrix[np.intp]
+    length_to_roll: Matrix
     pos: Matrix
 
     @property
