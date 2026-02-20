@@ -51,13 +51,6 @@ class RobotInverse:
     structure: TubeTruss
     pos: Matrix
 
-    @property
-    def length_constraint(self) -> cstr.FixedLength:
-        return cstr.FixedLength(
-            self.structure.pos_to_rigidity,
-            self.structure.length_summer,
-        )
-
     def take_substep(
         self,
         *constraints: cstr.Constraint,
@@ -66,7 +59,8 @@ class RobotInverse:
     ) -> tuple[Matrix, Vector]:
         rigidity = self.structure.norm_rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint((
-            self.length_constraint, *constraints
+            cstr.CustomConstraint(self.structure.length_summer @ rigidity),
+            *constraints
         ))
         A, b = constraint.get(self.pos, t)
         e, v = cstr.singularity_eig(A, b if allow_redundant else None)
