@@ -40,17 +40,51 @@ PR3: Final = 11
 FEET: Final = slice(L1, R3+1)
 PAYLOAD: Final = slice(PL1, PR3+1)
 
-# Truss structures
-LEG_STRUCTURE: Final = tt.TubeTruss.make_tris([
-    (PL3, L1, L2),
-    (PL1, L2, L3),
-    (PL2, L3, L1),
-    (PR3, R1, R2),
-    (PR1, R2, R3),
-    (PR2, R3, R1),
-])
+# Links
+L1_L2: Final = 0
+L2_PL3: Final = 1
+PL3_L1: Final = 2
+PL1_L2: Final = 3
+L2_L3: Final = 4
+L3_PL1: Final = 5
+L1_PL2: Final = 6
+PL2_L3: Final = 7
+L3_L1: Final = 8
 
-PAYLOAD_STRUCTURE: Final = tt.TubeTruss.make_bars([
+R1_R2: Final = 9
+R2_PR3: Final = 10
+PR3_R1: Final = 11
+PR1_R2: Final = 12
+R2_R3: Final = 13
+R3_PR1: Final = 14
+R1_PR2: Final = 15
+PR2_R3: Final = 16
+R3_R1: Final = 17
+
+# Truss structures
+LEG_INCIDENCE: Final = np.zeros((18, 12), dtype=np.int8)
+LEG_INCIDENCE[L1_L2, (L1, L2)] = (1, -1)
+LEG_INCIDENCE[L2_PL3, (L2, PL3)] = (1, -1)
+LEG_INCIDENCE[PL3_L1, (PL3, L1)] = (1, -1)
+LEG_INCIDENCE[PL1_L2, (PL1, L2)] = (1, -1)
+LEG_INCIDENCE[L2_L3, (L2, L3)] = (1, -1)
+LEG_INCIDENCE[L3_PL1, (L3, PL1)] = (1, -1)
+LEG_INCIDENCE[L1_PL2, (L1, PL2)] = (1, -1)
+LEG_INCIDENCE[PL2_L3, (PL2, L3)] = (1, -1)
+LEG_INCIDENCE[L3_L1, (L3, L1)] = (1, -1)
+
+LEG_INCIDENCE[R1_R2, (R1, R2)] = (1, -1)
+LEG_INCIDENCE[R2_PR3, (R2, PR3)] = (1, -1)
+LEG_INCIDENCE[PR3_R1, (PR3, R1)] = (1, -1)
+LEG_INCIDENCE[PR1_R2, (PR1, R2)] = (1, -1)
+LEG_INCIDENCE[R2_R3, (R2, R3)] = (1, -1)
+LEG_INCIDENCE[R3_PR1, (R3, PR1)] = (1, -1)
+LEG_INCIDENCE[R1_PR2, (R1, PR2)] = (1, -1)
+LEG_INCIDENCE[PR2_R3, (PR2, R3)] = (1, -1)
+LEG_INCIDENCE[R3_R1, (R3, R1)] = (1, -1)
+
+LEG_TRUSS: Final = tt.Truss(LEG_INCIDENCE)
+PAYLOAD_TRUSS: Final = tt.Truss.from_trails(
     (PL1, PR1),
     (PL2, PR2),
     (PL3, PR3),
@@ -63,7 +97,22 @@ PAYLOAD_STRUCTURE: Final = tt.TubeTruss.make_bars([
     (PR1, PR2),
     (PR2, PR3),
     (PR3, PR1),
-])
+)
+
+# Roller setup
+ROLL_TO_LENGTH: Final = np.zeros((30, 12), dtype=np.intp)
+ROLL_TO_LENGTH[(L1_L2, PL3_L1), 0] = (-1, 1)
+ROLL_TO_LENGTH[(L1_L2, L2_PL3), 1] = (1, -1)
+ROLL_TO_LENGTH[(L2_L3, PL1_L2), 2] = (-1, 1)
+ROLL_TO_LENGTH[(L2_L3, L3_PL1), 3] = (1, -1)
+ROLL_TO_LENGTH[(L3_L1, PL2_L3), 4] = (-1, 1)
+ROLL_TO_LENGTH[(L3_L1, L1_PL2), 5] = (1, -1)
+ROLL_TO_LENGTH[(R1_R2, PR3_R1), 7] = (1, -1)
+ROLL_TO_LENGTH[(R1_R2, R2_PR3), 6] = (-1, 1)
+ROLL_TO_LENGTH[(R2_R3, PR1_R2),11] = (1, -1)
+ROLL_TO_LENGTH[(R2_R3, R3_PR1),10] = (-1, 1)
+ROLL_TO_LENGTH[(R3_R1, PR2_R3), 9] = (1, -1)
+ROLL_TO_LENGTH[(R3_R1, R1_PR2), 8] = (-1, 1)
 
 # Point masses
 MASS: Final = np.zeros(12)
@@ -184,9 +233,10 @@ ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 0.875)
 
 
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> RobotInverse:
-    structure = LEG_STRUCTURE + PAYLOAD_STRUCTURE
     pos = init_pos.copy()
-    return RobotInverse(structure, pos)
+    truss = LEG_TRUSS.attach(PAYLOAD_TRUSS)
+    control = tt.LengthControl.from_forward(ROLL_TO_LENGTH)
+    return RobotInverse(pos, truss, control)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -195,19 +245,18 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
     return grav.Stabilizer(source_pos, rel_mass=rel_mass)
 
 
-def draw_payload_bars(payload: tt.TubeTruss, pos: Matrix) -> anim.DrawnLinks:
-    return anim.draw_links(payload.links, pos, color='black', width=4)
+def draw_payload_bars(payload: tt.Truss, pos: Matrix) -> anim.DrawnLinks:
+    return anim.draw_links(payload.links.ravel(), pos, color='black', width=4)
 
 
-def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> anim.BodyMesh:
-    nodes = sorted(set(payload.nodes))
+def draw_payload_mesh(payload: tt.Truss, pos: Matrix) -> anim.BodyMesh:
     payload_faces = [[0, 1, 2], [3, 4, 5],
                      [0, 3, 5], [0, 2, 5],
                      [1, 4, 5], [1, 2, 5],
                      [0, 1, 4], [0, 3, 4]]
 
     meshdata = gl.MeshData(
-        vertexes=pos[nodes],
+        vertexes=pos[payload.nodes],
         faces=payload_faces,
     )
     mesh = gl.GLMeshItem(
@@ -215,14 +264,15 @@ def draw_payload_mesh(payload: tt.TubeTruss, pos: Matrix) -> anim.BodyMesh:
         color=pg.mkColor(anim.OKABE_ITO[-1]),
     )
     mesh.setGLOptions('opaque')
-    return anim.BodyMesh(nodes, mesh)
+    return anim.BodyMesh(payload.nodes, mesh)
 
 
-def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[anim.DrawnLinks]:
+def draw_triangles(truss: tt.Truss, pos: Matrix) -> list[anim.DrawnLinks]:
     drawn_tubes: list[anim.DrawnLinks] = []
-    for i, tube in enumerate(triangles):
+    for i, j in enumerate(range(0, len(truss.links), 3)):
+        nodes = truss.links[j:j+3].ravel()
         color = anim.OKABE_ITO[i % (len(anim.OKABE_ITO) - 1) + 1]
-        drawn_tube = anim.draw_links(tube.links, pos, color=color)
+        drawn_tube = anim.draw_links(nodes, pos, color=color)
         drawn_tubes.append(drawn_tube)
     return drawn_tubes
 
@@ -230,9 +280,9 @@ def draw_triangles(triangles: tt.TubeTruss, pos: Matrix) -> list[anim.DrawnLinks
 def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
-    payload_mesh = draw_payload_mesh(PAYLOAD_STRUCTURE, init_pos)
-    payload_bars = draw_payload_bars(PAYLOAD_STRUCTURE, init_pos)
-    triangles = draw_triangles(LEG_STRUCTURE, init_pos)
+    payload_mesh = draw_payload_mesh(PAYLOAD_TRUSS, init_pos)
+    payload_bars = draw_payload_bars(PAYLOAD_TRUSS, init_pos)
+    triangles = draw_triangles(LEG_TRUSS, init_pos)
     traces = anim.draw_traces(range(12), init_pos)
     items = [payload_mesh, payload_bars, *triangles, *traces]
     for item in items:

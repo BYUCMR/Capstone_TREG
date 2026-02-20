@@ -3,11 +3,9 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Final, Protocol
 
-import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
-from . import tubetruss as tt
 from .arraytypes import IndexVector, Matrix, SingleIndex
 
 
@@ -70,8 +68,7 @@ class BodyMesh(AnimationItem):
         self.mesh.setMeshData(meshdata=mesh_data)
 
 
-def draw_links(links: Iterable[tt.Link], pos: Matrix, *, color: str = 'gray', width: int = 6) -> DrawnLinks:
-    nodes = list(np.array(list(links)).flat)
+def draw_links(nodes: IndexVector, pos: Matrix, *, color: str = 'gray', width: int = 6) -> DrawnLinks:
     drawing = gl.GLLinePlotItem(
         pos=pos[nodes],
         width=width,

@@ -24,7 +24,7 @@ def record_motion(
     n = 4 * cycles * resolution
     pos = np.zeros((n + 1, *robot.pos.shape))
     d_pos = np.zeros((n, *robot.pos.shape))
-    d_roll = np.zeros((n, len(robot.structure.length_to_roll)))
+    d_roll = np.zeros((n, len(robot.control.inverse)))
     pos[0] = robot.pos
     for i, (dx, dr) in enumerate(rover.crawl(
         robot, cycles, step_length, resolution=resolution
@@ -158,10 +158,10 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
 def measure_length_change(init_pos: Matrix, pos_hist: MatrixStack) -> tuple[float, float]:
     robot = rover.make_robot(init_pos)
     p0 = pos_hist[0]
-    d0 = np.array([p0[i] - p0[j] for i, j in robot.structure.links])
+    d0 = robot.truss.incidence @ p0
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
     p1 = pos_hist[-1]
-    d1 = np.array([p1[i] - p1[j] for i, j in robot.structure.links])
+    d1 = robot.truss.incidence @ p1
     L1 = np.sqrt(np.sum(np.square(d1), axis=1))
     delta_L = L1 - L0
     error = np.abs(np.sum(delta_L))
