@@ -11,6 +11,7 @@ class Mode(Enum):
     crawling = "crawling"
     offline = "offline"
     node_control = "node_control"
+    calibration = "calibration"
 
 
 @dataclass

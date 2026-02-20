@@ -15,7 +15,7 @@ from rift import rover
 from rift.robot import InverseKinematicsError
 from rift.arraytypes import Matrix
 
-from rift.steps import Command
+from rift.steps import Command, Mode
 
 class MainWindow(QMainWindow): #referenced as widget by sim window class
     def __init__(self, parent=None):
@@ -26,7 +26,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.term_log = self.term_log
         self.ui.term_log("Welcome to R.I.F.T. Control!")
 
-        self.cmd_state = Command('offline', 0, 0, 0, 0)
+        self.cmd_state = Command(Mode.offline, 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
         self.vis_handler = SimWindow(self.cmd_update)
@@ -86,14 +86,14 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         if mode == "crawling":
             self.plainify_modes()
             self.greenify(self.ui.crawling)
-            self.cmd_state.mode = 'crawling'
+            self.cmd_state.mode = Mode.crawling
             self.cmd_state.item = 0
             self.ui.selector_label.setVisible(False)
             self.ui.selector.setVisible(False)
         elif mode == "node_control":
             self.plainify_modes()
             self.greenify(self.ui.node_control)
-            self.cmd_state.mode = 'node_control'
+            self.cmd_state.mode = Mode.node_control
             self.cmd_state.item = self.ui.selector.value()
             self.ui.selector_label.setVisible(True)
             self.ui.selector_label.setText("Node")
@@ -101,7 +101,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         elif mode == "calibration":
             self.plainify_modes()
             self.greenify(self.ui.calibration)
-            self.cmd_state.mode = 'calibration'
+            self.cmd_state.mode = Mode.calibration
             self.cmd_state.item = self.ui.selector.value()
             self.ui.selector_label.setVisible(True)
             self.ui.selector_label.setText("Roller")
@@ -110,7 +110,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.del_left.setEnabled(False)
             self.ui.right.setEnabled(False)
             self.ui.del_right.setEnabled(False)
-        self.cmd_state.mode = mode
         self.ui.term_log(f"Control Mode switched to {mode.replace('_',' ')}")
 
     def cmd_update(self, x: float, y: float, z: float):

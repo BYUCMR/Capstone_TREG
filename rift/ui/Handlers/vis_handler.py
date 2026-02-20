@@ -1,14 +1,12 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QObject, Signal
 from PySide6.QtWidgets import QWidget
 from Handlers.ui_vis import Ui_vis_window
 
+from rift import rover
+from rift.robot import InverseKinematicsError
+from rift.arraytypes import Matrix
+
 class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
-    # forward = Signal()
-    # backward = Signal()
-    # right = Signal()
-    # left = Signal()
-    # del_left = Signal()
-    # del_right = Signal()
 
     def __init__(self, cmd_update, parent=None):
         super().__init__(parent)
@@ -21,17 +19,8 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
         self.task_running = False
         self.view_live = False
 
-
     def start_sim(self):
-        # if not self.view_live:
-        #     self.animator = rift.anim.Animator.from_config(config)
-        #     self.animator.view.setFocusPolicy(Qt.NoFocus)
-        #     self.robot = RobotInverse.from_config(config)
-        #     self.positions = asyncio.Queue[Matrix](50)
-        #     self.ui.layout.addWidget(self.animator.view)
-        #     self.loop = asyncio.get_event_loop()
-        #     self.view_live = True
-        # self.show()
+        self.show()
         print('yuh')
         self.show()
         self.view_live = True
@@ -74,3 +63,8 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
         elif key == Qt.Key.Key_Q:
             self.cmd_update(0, 0, 1)
         event.accept()
+
+
+class VizWorker(QObject):
+    ready = Signal()
+

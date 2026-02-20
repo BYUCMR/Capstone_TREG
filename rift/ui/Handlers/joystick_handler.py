@@ -54,29 +54,3 @@ class JoyWorker(QObject):
                         self.action.emit()
             self.finished.emit()
                 # time.sleep(0.5)
-
-# class JoyWorker(QThread):
-#     action = Signal()
-#     message = Signal(str)
-#     finished = Signal()
-
-#     def run(self):
-#         self.message.emit("Pygame Running")
-#         pygame.init()
-#         pygame.joystick.init()
-#         if(pygame.joystick.get_count() == 0):
-#             pygame.joystick.quit()
-#             pygame.quit()
-#             self.finished.emit()
-#             self.message.emit("No Joystick Found")
-#         else:
-#             joystick = pygame.joystick.Joystick(0)
-#             self.message.emit(f"Jostick Initialized: {joystick.get_name()}")
-#             self.hosting = True
-#             while self.hosting:
-#                 for event in pygame.event.get():
-#                     if event.type == pygame.JOYBUTTONDOWN:
-#                         self.message.emit("Joystick Button Pressed")
-#                         self.action.emit()
-#                 # time.sleep(0.5)
-
