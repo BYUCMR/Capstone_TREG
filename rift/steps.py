@@ -33,6 +33,7 @@ def find_dx(
     f: Vector | None = None,
     A: Matrix | None = None,
     b: Vector | None = None,
+    solver: str = 'kkt',
 ) -> Vector | None:
     _, n = R.shape
     if f is None:
@@ -49,6 +50,9 @@ def find_dx(
         raise ValueError(f"Wrong shape for b: expected ({len(A)}, [1]), got {b.shape}")
 
     H = R.T @ R
+    if solver != 'kkt':
+        return qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver=solver)
+
     m, n = A.shape
     O = np.zeros((m, m))
     K = np.vstack([np.hstack([H, A.T]), np.hstack([A, O])])
