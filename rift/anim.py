@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Final, Protocol
 
@@ -8,7 +8,7 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
 from . import tubetruss as tt
-from .arraytypes import Matrix
+from .arraytypes import IndexVector, Matrix, SingleIndex
 
 
 OKABE_ITO: Final = (
@@ -30,7 +30,7 @@ class AnimationItem(Protocol):
 
 @dataclass(slots=True, frozen=True)
 class DrawnLinks(AnimationItem):
-    nodes: Sequence[tt.Node]
+    nodes: IndexVector
     drawing: gl.GLLinePlotItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
@@ -42,7 +42,7 @@ class DrawnLinks(AnimationItem):
 
 @dataclass(slots=True, frozen=True)
 class NodeTrace(AnimationItem):
-    node: tt.Node
+    node: SingleIndex
     drawing: gl.GLScatterPlotItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
@@ -55,7 +55,7 @@ class NodeTrace(AnimationItem):
 
 @dataclass(slots=True, frozen=True)
 class BodyMesh(AnimationItem):
-    nodes: Sequence[tt.Node]
+    nodes: IndexVector
     mesh: gl.GLMeshItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
@@ -82,7 +82,7 @@ def draw_links(links: Iterable[tt.Link], pos: Matrix, *, color: str = 'gray', wi
     return DrawnLinks(nodes, drawing)
 
 
-def draw_traces(nodes: Iterable[tt.Node], pos: Matrix, *, size: int = 4) -> list[NodeTrace]:
+def draw_traces(nodes: Iterable[SingleIndex], pos: Matrix, *, size: int = 4) -> list[NodeTrace]:
     traces: list[NodeTrace] = []
     for node in nodes:
         drawing = gl.GLScatterPlotItem(pos=[pos[node]], size=size)
