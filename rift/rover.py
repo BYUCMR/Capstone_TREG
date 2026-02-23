@@ -344,6 +344,45 @@ def crawl(
         yield from robot.take_step(motion, resolution=resolution)
 
 
+def lean(
+    robot: RobotInverse,
+    dist: float = 0.6,
+    *,
+    resolution: int = 100,
+) -> Generator[tuple[Matrix, Vector]]:
+    dx = dist / resolution
+    constraint = cstr.CompoundConstraint((
+        cstr.Motion.make(CPL2, dx),
+        cstr.Motion.make(CPR2, dx),
+        cstr.Motion.lock(CL1),
+        cstr.Motion.lock(CR1),
+        cstr.Motion.lock(CL2),
+        cstr.Motion.lock(CR2),
+    ))
+    yield from robot.take_step(constraint, resolution=resolution)
+
+
+def reach(
+    robot: RobotInverse,
+    dist: float = 1.,
+    *,
+    resolution: int = 100,
+) -> Generator[tuple[Matrix, Vector]]:
+    constraint = cstr.CompoundConstraint((
+        cstr.Motion.make(CL3, x=dist / resolution),
+        cstr.Motion.make(CR3, x=dist / resolution),
+        cstr.Motion.lock(CPL3),
+        cstr.Motion.lock(CPR3),
+        cstr.Motion.lock(CL1),
+        cstr.Motion.lock(CR1),
+    ))
+    yield from robot.take_step(
+        constraint,
+        resolution=resolution,
+        allow_redundant=True,
+    )
+
+
 def roll(
     robot: RobotInverse,
     *,
