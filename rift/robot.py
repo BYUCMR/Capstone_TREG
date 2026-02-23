@@ -68,7 +68,7 @@ class RobotInverse:
         e, v = cstr.singularity_eig(A, b if allow_redundant else None)
         if abs(e) <= 1e-3:
             raise SingularityError("Robot state is singular")
-        dx = steps.find_dx(R=rigidity, A=A, b=b)
+        dx = steps.find_dx(R=rigidity, A=A, b=b, solver='piqp' if allow_redundant else 'kkt')
         if dx is None:
             raise SolverError("Could not find valid node velocities")
         dx = dx.reshape(self.pos.shape)
