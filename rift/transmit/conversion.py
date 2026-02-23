@@ -7,16 +7,27 @@ def dist_to_ticks(perimeter, command):
     cmd_np = np.array(command)*perimeter*ticks_per_foot
     return cmd_np
 
-def ticks_to_tsp(command, time=1.5):
-    return command/time
+def ticks_to_tsp(command, t=1.5):
+    return command/t
 
-def send_command(ser, commands):
+def send_command(ser, commands,t):
     commands = -1* commands
-    message = f"VEL:{','.join(str(int(c)) for c in commands.ravel())}\n"
+    
+    message = f"VEL_DUR:{','.join(str(int(c)) for c in commands.ravel())}"+f":{t}\n"
     ser.write(message.encode('utf-8'))
     ser.flush()
     time.sleep(2) # can adjust, 1.5 matches transmitter
     print(f"[SENT] {message.strip()}")
+
+def send_command_pos(ser, commands,t):
+    # commands = -1* commands
+    
+    message = f"Pos:{','.join(str(int(c)) for c in commands.ravel())}\n"
+    ser.write(message.encode('utf-8'))
+    ser.flush()
+    time.sleep(2) # can adjust, 1.5 matches transmitter
+    print(f"[SENT] {message.strip()}")
+    return message
 
 def send_stop(ser):
     message = "STOP\n"

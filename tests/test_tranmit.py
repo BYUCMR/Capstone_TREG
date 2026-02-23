@@ -55,13 +55,17 @@ async def animate(
     positions = asyncio.Queue[Matrix](resolution)
 
     async def move() -> None:
+        dq = np.zeros(12)
         for i, (*_, dr) in enumerate(roll(robot, resolution=resolution)):
             stabilizer.update_pos(robot.pos)
             await positions.put(stabilizer.pos)
-            if rollqueue is not None:
-                await rollqueue.put(dr)
-            if i >= 3:
+            # if rollqueue is not None:
+            #     await rollqueue.put(dr)
+            dq += dr
+            if i >= 5:
                 break
+        if rollqueue is not None:
+            await rollqueue.put(dq)
             
 
     crawling_task = asyncio.create_task(move())
@@ -76,19 +80,19 @@ async def animate(
     print("Done with animation")
 
 
-async def command(rollqueue: asyncio.Queue[Vector]) -> None:
+async def command(rollqueue: asyncio.Queue[Vector],resolution) -> None:
     async def cmd() -> None:
+        t=1.5/resolution*25
         while True:
             try:
                 d_roll = await rollqueue.get()
             except asyncio.QueueShutDown:
                 break
             # print(d_roll)
-            cmnd = ticks_to_tsp(dist_to_ticks(18,d_roll),1.5)
-            message = f"VEL:{','.join(str(int(c)) for c in cmnd.ravel())}\n"
+            cmnd = dist_to_ticks(6,d_roll)
+            # send_stop(ser)
+            message = send_command_pos(ser,cmnd,t)
             print(message)
-            send_stop(ser)
-            send_command(ser,cmnd)
 
     crawling_task = asyncio.create_task(cmd())
     await crawling_task
@@ -118,7 +122,7 @@ async def main(
         motion=motion,
         resolution=resolution,
     ))
-    command_task = asyncio.create_task(command(rollqueue))
+    command_task = asyncio.create_task(command(rollqueue,resolution))
     await animation_task
     await command_task
 
@@ -138,6 +142,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
     finally:
+        # send_stop(ser)
         # Close the serial port
         if 'ser' in locals() and ser.isOpen():
             ser.close()
