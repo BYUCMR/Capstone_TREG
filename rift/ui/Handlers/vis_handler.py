@@ -1,28 +1,51 @@
-from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
 from PySide6.QtWidgets import QWidget
 from Handlers.ui_vis import Ui_vis_window
+import time
 
+from rift.steps import Mode
 from rift import rover
 from rift.robot import InverseKinematicsError
 from rift.arraytypes import Matrix
 
 class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
-    def __init__(self, cmd_update, parent=None):
+    send_cmd = Signal(Mode, int, float, float, float)
+
+    def __init__(self, cmd_state, parent=None):
         super().__init__(parent)
 
         self.ui = Ui_vis_window()
         self.ui.setupUi(self)
 
-        self.cmd_update = cmd_update
+        self.cmd_state = cmd_state
 
         self.task_running = False
         self.view_live = False
 
+        self.thread = QThread()
+        self.worker = VizWorker()
+        self.worker.moveToThread(self.thread)
+
+        self.send_cmd.connect(self.worker.run_next)
+        self.worker.ready.connect(self.send_new)
+        self.worker.message.connect(print)
+        print('thread starting')
+        self.send_new()
+        self.thread.start()
+
+
+    def send_new(self):
+        mode = self.cmd_state.mode
+        item = self.cmd_state.item
+        x = self.cmd_state.x
+        y = self.cmd_state.y
+        z = self.cmd_state.z
+        self.send_cmd.emit(mode, item, x, y, z)
+
     def start_sim(self):
         self.show()
         print('yuh')
-        self.show()
         self.view_live = True
 
     def kill_sim(self):
@@ -67,4 +90,15 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
 class VizWorker(QObject):
     ready = Signal()
+    message = Signal(str)
+
+    @Slot(Mode, int, float, float, float)
+    def run_next(self, mode, item, x, y, z):
+        self.message.emit(str(x))
+        #do other stuff with this very helpful data!
+
+        time.sleep(1)
+        self.ready.emit()
+
+
 

@@ -29,7 +29,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state = Command(Mode.offline, 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
-        self.vis_handler = SimWindow(self.cmd_update)
+        self.vis_handler = SimWindow(self.cmd_state)
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
