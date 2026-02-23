@@ -1,5 +1,5 @@
 import math
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from functools import partial
 from typing import Final
 
@@ -12,7 +12,7 @@ from . import constrain as cstr
 from . import grav
 from . import steps
 from . import tubetruss as tt
-from .arraytypes import Matrix, Vector
+from .arraytypes import IndexVector, Matrix, Vector
 from .robot import RobotInverse
 
 
@@ -277,6 +277,20 @@ def draw_triangles(truss: tt.Truss, pos: Matrix) -> list[anim.DrawnLinks]:
     return drawn_tubes
 
 
+def draw_markers(trails: Iterable[IndexVector], pos: Matrix) -> list[anim.Markers]:
+    all_markers: list[anim.Markers] = []
+    for trail in trails:
+        marks = gl.GLScatterPlotItem(
+            pos=pos[trail],
+            size=8,
+            color=pg.mkColor(anim.OKABE_ITO[0]),
+        )
+        marks.setGLOptions('opaque')
+        markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
+        all_markers.append(markers)
+    return all_markers
+
+
 def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
@@ -284,7 +298,18 @@ def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
     payload_bars = draw_payload_bars(PAYLOAD_TRUSS, init_pos)
     triangles = draw_triangles(LEG_TRUSS, init_pos)
     traces = anim.draw_traces(range(12), init_pos)
-    items = [payload_mesh, payload_bars, *triangles, *traces]
+    markers = draw_markers(
+        [
+            [PL1, L2, L3, PL1],
+            [PL2, L3, L1, PL2],
+            [PL3, L1, L2, PL3],
+            [PR1, R2, R3, PR1],
+            [PR2, R3, R1, PR2],
+            [PR3, R1, R2, PR3],
+        ],
+        init_pos,
+    )
+    items = [payload_mesh, payload_bars, *triangles, *traces, *markers]
     for item in items:
         item.add_to_view(view)
     return anim.Animator(view, items)

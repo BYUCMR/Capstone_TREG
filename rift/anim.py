@@ -1,12 +1,14 @@
 import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass
+from itertools import pairwise
 from typing import Final, Protocol
 
+import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
-from .arraytypes import IndexVector, Matrix, SingleIndex
+from .arraytypes import IndexVector, Matrix, SingleIndex, Vector
 
 
 OKABE_ITO: Final = (
@@ -49,6 +51,37 @@ class NodeTrace(AnimationItem):
     def update_pos(self, pos: Matrix) -> None:
         points = () if self.drawing.pos is None else self.drawing.pos
         self.drawing.setData(pos=[*points, pos[self.node]])
+
+
+@dataclass(slots=True, frozen=True)
+class Markers:
+    trail: IndexVector
+    ts: Iterable[float]
+    mark: gl.GLScatterPlotItem
+
+    def add_to_view(self, view: gl.GLViewWidget) -> None:
+        view.addItem(self.mark)
+
+    def update_pos(self, pos: Matrix) -> None:
+        t_iter = iter(self.ts)
+        try:
+            t = next(t_iter)
+        except StopIteration:
+            return
+        points: list[Vector] = []
+        d_accum = 0.
+        for i, j in pairwise(self.trail):
+            v = pos[j] - pos[i]
+            d = np.linalg.norm(v)
+            while t < d:
+                points.append(pos[i] + v * t / d)
+                try:
+                    t = next(t_iter) - d_accum
+                except StopIteration:
+                    t = np.inf
+            d_accum += d
+            t -= d
+        self.mark.setData(pos=points)
 
 
 @dataclass(slots=True, frozen=True)
