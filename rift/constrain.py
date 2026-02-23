@@ -4,8 +4,7 @@ from typing import Protocol, Self
 
 import numpy as np
 
-from . import tubetruss as tt
-from .arraytypes import Matrix, MatrixStack, Vector
+from .arraytypes import Matrix, Vector
 
 
 type CanCall[T] = Callable[[float], T] | T
@@ -57,19 +56,6 @@ class CustomConstraint:
     def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
         b = np.zeros(len(self.A)) if self.b is None else self.b
         return self.A, b
-
-
-@dataclass(slots=True)
-class FixedLength:
-    multiplier: MatrixStack
-    summer: Matrix[np.bool]
-
-    def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
-        R = self.multiplier @ x.ravel()
-        RN = tt.normalize_rigidity(R)
-        A = self.summer @ RN
-        b = np.zeros(len(self.summer))
-        return A, b
 
 
 @dataclass(slots=True)

@@ -58,7 +58,7 @@ def tests(h, d_p, theta, w_p, d_f, resolution, step_length, roll_rate_limit, cyc
     try:
         config = rift.rover.make_pos(h, d_p, theta, w_p, d_f)
     except Exception:
-        return [np.nan] * 8
+        return [np.nan] * 9
     max_incline = or_nan(measure.measure_max_incline, config)
     try:
         pos_hist, d_pos_hist, d_roll_hist = measure.record_motion(
@@ -69,11 +69,13 @@ def tests(h, d_p, theta, w_p, d_f, resolution, step_length, roll_rate_limit, cyc
         )
     except Exception:
         stable_substeps = np.nan
+        max_shoulder_angle = np.nan
         max_crawl_speed = np.nan
         error = np.nan
         degen = np.nan
     else:
         stable_substeps = or_nan(measure.measure_stable_substeps, config, pos_hist)
+        max_shoulder_angle = or_nan(measure.measure_max_shoulder_angle, pos_hist)
         max_crawl_speed = or_nan(
             measure.measure_max_crawl_speed,
             d_roll_hist,
@@ -91,6 +93,7 @@ def tests(h, d_p, theta, w_p, d_f, resolution, step_length, roll_rate_limit, cyc
     return [
         max_incline,
         stable_substeps,
+        max_shoulder_angle,
         max_crawl_speed,
         max_foot_lift,
         max_foot_forward,
@@ -139,6 +142,7 @@ def tests_from_ranges_mp():
         'cycles',
         'maximum_incline (deg)',
         'stable_substeps',
+        'max_shoulder_angle (deg)',
         'max_crawl_speed (ft/s)',
         'max_foot_lift (ft/s)',
         'max_foot_forward (ft)',
