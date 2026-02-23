@@ -2,11 +2,13 @@ from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
 from PySide6.QtWidgets import QWidget
 from Handlers.ui_vis import Ui_vis_window
 import time
+from numpy import ndarray
 
 from rift.steps import Mode
 from rift import rover
 from rift.robot import InverseKinematicsError
 from rift.arraytypes import Matrix
+from rift.rover import make_animator
 
 class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
@@ -29,12 +31,13 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
         self.send_cmd.connect(self.worker.run_next)
         self.worker.ready.connect(self.send_new)
-        self.worker.message.connect(print)
+        self.worker.anim_update.connect(self.update_anim)
         self.thread.finished.connect(self.worker.deleteLater)
-        # print('thread starting')
         self.send_new()
         self.thread.start()
 
+    def update_anim(self, matrix):
+        print("update matrix yo")
 
     def send_new(self):
         mode = self.cmd_state.mode
@@ -47,10 +50,13 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
     def start_sim(self):
         self.show()
         print('yuh')
+        animator = make_animator()
+        self.ui.layout.addWidget(animator.view)
         self.view_live = True
 
     def kill_sim(self):
         print('nuh')
+        # self.thread.requestInterruption()
         self.view_live = False
 
     #overwriting key input handlers
@@ -91,6 +97,7 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
 class VizWorker(QObject):
     ready = Signal()
+    anim_update = Signal(ndarray)
     message = Signal(str)
 
     @Slot(Mode, int, float, float, float)
@@ -99,7 +106,6 @@ class VizWorker(QObject):
         if(cur_thread.isInterruptionRequested()):
             cur_thread.exit()
             return
-        self.message.emit(str(x))
         #do other stuff with this very helpful data!
 
         time.sleep(1)
