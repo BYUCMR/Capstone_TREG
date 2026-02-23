@@ -55,11 +55,14 @@ async def animate(
     positions = asyncio.Queue[Matrix](resolution)
 
     async def move() -> None:
-        for *_, dr in roll(robot, resolution=resolution):
+        for i, (*_, dr) in enumerate(roll(robot, resolution=resolution)):
             stabilizer.update_pos(robot.pos)
             await positions.put(stabilizer.pos)
             if rollqueue is not None:
                 await rollqueue.put(dr)
+            if i >= 3:
+                break
+            
 
     crawling_task = asyncio.create_task(move())
     animation_task = asyncio.create_task(animator.animate(positions))
@@ -81,7 +84,7 @@ async def command(rollqueue: asyncio.Queue[Vector]) -> None:
             except asyncio.QueueShutDown:
                 break
             # print(d_roll)
-            cmnd = dist_to_ticks(18,d_roll)
+            cmnd = ticks_to_tsp(dist_to_ticks(18,d_roll),1.5)
             message = f"VEL:{','.join(str(int(c)) for c in cmnd.ravel())}\n"
             print(message)
             send_stop(ser)
@@ -128,7 +131,7 @@ if __name__ == "__main__":
 
         time.sleep(2)
         pyqtgraph.mkQApp()
-        QtAsyncio.run(main(config, resolution=10))
+        QtAsyncio.run(main(config, resolution=25))
 
     except serial.SerialException as e:
         print(f"Error opening or communicating with serial port: {e}")

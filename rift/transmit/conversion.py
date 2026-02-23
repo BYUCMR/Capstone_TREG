@@ -7,7 +7,11 @@ def dist_to_ticks(perimeter, command):
     cmd_np = np.array(command)*perimeter*ticks_per_foot
     return cmd_np
 
+def ticks_to_tsp(command, time=1.5):
+    return command/time
+
 def send_command(ser, commands):
+    commands = -1* commands
     message = f"VEL:{','.join(str(int(c)) for c in commands.ravel())}\n"
     ser.write(message.encode('utf-8'))
     ser.flush()
