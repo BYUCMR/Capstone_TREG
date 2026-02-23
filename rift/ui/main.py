@@ -39,6 +39,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.selector.valueChanged.connect(self.update_item)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
+        # self.ui.forward.pressed.connect(self.cleanup)
         self.ui.backward.pressed.connect(lambda: self.cmd_update(-1, 0, 0))
         self.ui.left.pressed.connect(lambda: self.cmd_update(0, -1, 0))
         self.ui.right.pressed.connect(lambda: self.cmd_update(0, 1, 0))
@@ -122,8 +123,15 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         print("attempting cleanup")
         try:
             self.joystick_handler.js_thread.requestInterruption()
+            self.joystick_handler.js_thread.quit()
+            self.joystick_handler.js_worker.deleteLater()
         except:
-            print("nothing to kill")
+            print("No Joystick to kill")
+        try:
+            self.vis_handler.thread.requestInterruption()
+            print("Sim killed")
+        except:
+            print("No Sim to kill")
 
     #overwriting key input handlers
     def keyPressEvent(self, event):
@@ -160,6 +168,9 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.cmd_update(0, 0, 1)
         event.accept()
 
+    def closeEvent(self, event):
+        self.cleanup()
+
     #Methods for quickly changing style sheets
     def greenify(self, item):
         item.setStyleSheet("background-color: rgb(135, 255, 135); color: rgb(0, 0, 0);")
@@ -180,10 +191,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         time = datetime.now().strftime("%m/%d/%y %H:%M:%S")
         self.ui.term.appendPlainText(f"{time} - {text}")
 
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     widget = MainWindow()
     widget.show()
-    app.aboutToQuit.connect(widget.cleanup)
     sys.exit(app.exec())

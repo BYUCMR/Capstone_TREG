@@ -30,7 +30,8 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
         self.send_cmd.connect(self.worker.run_next)
         self.worker.ready.connect(self.send_new)
         self.worker.message.connect(print)
-        print('thread starting')
+        self.thread.finished.connect(self.worker.deleteLater)
+        # print('thread starting')
         self.send_new()
         self.thread.start()
 
@@ -94,6 +95,10 @@ class VizWorker(QObject):
 
     @Slot(Mode, int, float, float, float)
     def run_next(self, mode, item, x, y, z):
+        cur_thread = QThread.currentThread()
+        if(cur_thread.isInterruptionRequested()):
+            cur_thread.exit()
+            return
         self.message.emit(str(x))
         #do other stuff with this very helpful data!
 
