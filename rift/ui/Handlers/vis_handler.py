@@ -8,11 +8,12 @@ from rift.steps import Mode
 from rift import rover
 from rift.robot import InverseKinematicsError
 from rift.arraytypes import Matrix
-from rift.rover import make_animator
+from rift.rover import make_animator, make_robot
 
 class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
     send_cmd = Signal(Mode, int, float, float, float)
+    send_startup = Signal()
 
     def __init__(self, cmd_state, parent=None):
         super().__init__(parent)
@@ -29,6 +30,9 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
         self.worker = VizWorker()
         self.worker.moveToThread(self.thread)
 
+
+        self.send_startup.connect(self.worker.setup)
+        self.send_startup.emit()
         self.send_cmd.connect(self.worker.run_next)
         self.worker.ready.connect(self.send_new)
         self.worker.anim_update.connect(self.update_anim)
@@ -99,6 +103,10 @@ class VizWorker(QObject):
     ready = Signal()
     anim_update = Signal(ndarray)
     message = Signal(str)
+
+    @Slot()
+    def setup(self):
+        self.robot = make_robot()
 
     @Slot(Mode, int, float, float, float)
     def run_next(self, mode, item, x, y, z):
