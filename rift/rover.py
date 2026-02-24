@@ -448,3 +448,33 @@ def roll(
         cstr.Orbit.about_y(robot.pos, arm_r-foot_r, np.pi, resolution),
     ))
     yield from robot.take_step(step_3, resolution=resolution)
+
+
+def take_command(
+    robot: RobotInverse,
+    command: steps.Command,
+    *,
+    resolution: int,
+) -> Generator[tuple[Matrix, Vector]]:
+    if command.mode is steps.Mode.crawling:
+        x = command.x * 0.125
+        y = -command.y * 0.125
+        if x == 0 and y == 0:
+            return
+        yield from crawl(robot, 1, (x, y), resolution=resolution)
+    elif command.mode is steps.Mode.node_control:
+        feet = {L1, L2, R1, R2}
+        feet.discard(command.item)
+        motion = cstr.CompoundConstraint([
+            cstr.Motion.make(
+                cstr.Point.node(command.item, len(robot.pos)),
+                x=command.x * 0.001,
+                y=command.y * 0.001,
+                z=command.z * 0.001,
+            ),
+            *(
+                cstr.Motion.lock(cstr.Point.node(foot, len(robot.pos)))
+                for foot in feet
+            ),
+        ])
+        yield from robot.take_step(motion, resolution=resolution)
