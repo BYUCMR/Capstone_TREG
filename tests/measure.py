@@ -27,7 +27,7 @@ def record_motion(
     d_roll = np.zeros((n, len(robot.control.inverse)))
     pos[0] = robot.pos
     for i, (dx, dr) in enumerate(rover.crawl(
-        robot, cycles, step_length, resolution=resolution
+        robot, cycles, (step_length, 0), resolution=resolution
     )):
         pos[i + 1] = robot.pos
         d_pos[i] = dx

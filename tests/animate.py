@@ -24,7 +24,7 @@ async def main(
     positions = asyncio.Queue[Matrix](resolution)
 
     async def crawl() -> None:
-        for _ in rover.crawl(robot, cycles, step_length, resolution=resolution):
+        for _ in rover.crawl(robot, cycles, (step_length, 0), resolution=resolution):
             stabilizer.update_pos(robot.pos)
             await positions.put(stabilizer.pos)
 

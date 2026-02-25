@@ -318,7 +318,7 @@ def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
 def crawl(
     robot: RobotInverse,
     cycles: int = 1,
-    step_length: float = 0.125,
+    step_length: tuple[float, float] = (0.125, 0.),
     *,
     resolution: int = 50,
 ) -> Generator[tuple[Matrix, Vector]]:
@@ -327,12 +327,15 @@ def crawl(
     payload_com = cstr.Point.com(payload_mass)
     payload_up = payload_com - cstr.Point.avg(CPL3, CPR3)
     no_wobble = cstr.Motion(payload_up, np.eye(3)[0:2], np.zeros(2))
-    dx = step_length / resolution
+    dx, dy = step_length
+    dx /= resolution
+    dy /= resolution
+    ds = math.hypot(dx, dy)
     steadily_forward = cstr.Motion.make(payload_com, x=0.25 * dx)
     feet = (CL2, CL1, CR2, CR1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
-            cstr.Motion.make(foot, x=dx, y=0., z=partial(steps.parabolic, dx)),
+            cstr.Motion.make(foot, x=dx, y=dy, z=partial(steps.parabolic, ds)),
             *(
                 cstr.Motion.lock(other_foot)
                 for other_foot in feet
