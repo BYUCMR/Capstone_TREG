@@ -13,7 +13,7 @@ from . import grav
 from . import steps
 from . import tubetruss as tt
 from .arraytypes import IndexVector, Matrix, Vector
-from .robot import RobotInverse
+from .robot import TrussRobot
 
 
 # Left feet / end-effectors
@@ -232,11 +232,11 @@ CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 0.875)
 
 
-def make_robot(init_pos: Matrix = CRAWLING_POS) -> RobotInverse:
+def make_robot(init_pos: Matrix = CRAWLING_POS) -> TrussRobot:
     pos = init_pos.copy()
     truss = LEG_TRUSS.attach(PAYLOAD_TRUSS)
     control = tt.LengthControl.from_forward(ROLL_TO_LENGTH)
-    return RobotInverse(pos, truss, control)
+    return TrussRobot(pos, truss, control)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -316,7 +316,7 @@ def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
 
 
 def crawl(
-    robot: RobotInverse,
+    robot: TrussRobot,
     cycles: int = 1,
     step_length: tuple[float, float] = (0.125, 0.),
     *,
@@ -348,7 +348,7 @@ def crawl(
 
 
 def lean(
-    robot: RobotInverse,
+    robot: TrussRobot,
     dist: float = 0.6,
     *,
     resolution: int = 100,
@@ -366,7 +366,7 @@ def lean(
 
 
 def reach(
-    robot: RobotInverse,
+    robot: TrussRobot,
     dist: float = 1.,
     *,
     resolution: int = 100,
@@ -387,7 +387,7 @@ def reach(
 
 
 def roll(
-    robot: RobotInverse,
+    robot: TrussRobot,
     *,
     i: int = 0,
     resolution: int = 100,
@@ -451,7 +451,7 @@ def roll(
 
 
 def take_command(
-    robot: RobotInverse,
+    robot: TrussRobot,
     command: steps.Command,
     *,
     resolution: int,
