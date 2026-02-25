@@ -15,30 +15,34 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
     send_cmd = Signal(Mode, int, float, float, float)
     send_startup = Signal()
 
-    def __init__(self, cmd_state, parent=None):
+    def __init__(self, cmd_state, cmd_update, parent=None):
         super().__init__(parent)
 
         self.ui = Ui_vis_window()
         self.ui.setupUi(self)
 
         self.cmd_state = cmd_state
+        self.cmd_update = cmd_update
 
-        self.task_running = False
+        # self.task_running = False
         self.view_live = False
 
-        self.thread = QThread()
-        self.worker = VizWorker()
-        self.worker.moveToThread(self.thread)
+        self.animator = make_animator()
+        self.ui.layout.addWidget(self.animator.view)
+        self.animator.view.setFocusPolicy(Qt.NoFocus)
 
+        # self.thread = QThread()
+        # self.worker = VizWorker()
+        # self.worker.moveToThread(self.thread)
 
-        self.send_startup.connect(self.worker.setup)
-        self.send_startup.emit()
-        self.send_cmd.connect(self.worker.run_next)
-        self.worker.ready.connect(self.send_new)
-        self.worker.anim_update.connect(self.update_anim)
-        self.thread.finished.connect(self.worker.deleteLater)
-        self.send_new()
-        self.thread.start()
+        # self.send_startup.connect(self.worker.setup)
+        # self.send_startup.emit()
+        # self.send_cmd.connect(self.worker.run_next)
+        # self.worker.ready.connect(self.send_new)
+        # self.worker.anim_update.connect(self.update_anim)
+        # self.thread.finished.connect(self.worker.deleteLater)
+        # self.send_new()
+        # self.thread.start()
 
     def update_anim(self, matrix):
         print("update matrix yo")
@@ -53,14 +57,30 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
     def start_sim(self):
         self.show()
-        print('yuh')
-        animator = make_animator()
-        self.ui.layout.addWidget(animator.view)
+        # print('yuh')
+
+        self.thread = QThread()
+        self.worker = VizWorker()
+        self.worker.moveToThread(self.thread)
+
+        self.send_startup.connect(self.worker.setup)
+        self.send_startup.emit()
+        self.send_cmd.connect(self.worker.run_next)
+        self.worker.ready.connect(self.send_new)
+        self.worker.anim_update.connect(self.update_anim)
+        self.thread.finished.connect(self.worker.deleteLater)
+        self.send_new()
+        self.thread.start()
+
+        # self.animator = make_animator()
+        # self.ui.layout.addWidget(self.animator.view)
+        # self.animator.view.setFocusPolicy(Qt.NoFocus)
         self.view_live = True
 
     def kill_sim(self):
-        print('nuh')
-        # self.thread.requestInterruption()
+        # print('nuh')
+        self.hide()
+        self.thread.requestInterruption()
         self.view_live = False
 
     #overwriting key input handlers

@@ -29,7 +29,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state = Command(Mode.offline, 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
-        self.vis_handler = SimWindow(self.cmd_state)
+        self.vis_handler = SimWindow(self.cmd_state, self.cmd_update)
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
@@ -67,7 +67,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         else:
             self.redify(self.ui.sim_label)
             self.ui.sim_label.setText("Simulation Offline")
-            self.ui.sim_toggle.setText("Kill Simulation")
+            self.ui.sim_toggle.setText("Begin Simulation")
             self.ui.term_log("Simulation Closed")
             self.vis_handler.kill_sim()
 
@@ -120,7 +120,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
     def cleanup(self):
-        print("attempting cleanup")
+        print("Attempting Cleanup")
         try:
             self.joystick_handler.js_thread.requestInterruption()
             self.joystick_handler.js_thread.quit()

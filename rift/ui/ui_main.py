@@ -107,8 +107,8 @@ class Ui_Control(object):
 
         self.selector = QSpinBox(self.verticalLayoutWidget_2)
         self.selector.setObjectName(u"selector")
-        self.selector.setMinimum(1)
-        self.selector.setMaximum(12)
+        self.selector.setMinimum(0)
+        self.selector.setMaximum(11)
 
         self.L12.addWidget(self.selector)
 
@@ -129,8 +129,7 @@ class Ui_Control(object):
 
         self.crawling = QPushButton(self.verticalLayoutWidget_2)
         self.crawling.setObjectName(u"crawling")
-        self.crawling.setStyleSheet(u"background-color: rgb(135, 255, 135);\n"
-"color: rgb(0, 0, 0);")
+        self.crawling.setStyleSheet(u"")
 
         self.L14.addWidget(self.crawling, 0, 1, 1, 1)
 
