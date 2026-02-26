@@ -18,10 +18,9 @@ This file contains a `Stabilizer` class that we use to simulate the effect of
 gravity on the robot.
 
 ## robot.py
-We have two robot classes: one for forward kinematics, and one for inverse.
-
-Both classes have methods for updating their state based on some input:
-joint motion for forward and node motion for inverse.
+Here we have a class called `TrussRobot` that simulates a generic truss robot.
+It has methods for updating its position based on commands and constraints
+with either forward or inverse kinematics.
 
 ## rover.py
 This is where we define the specific configuration of our physical robot. We

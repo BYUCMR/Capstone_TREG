@@ -4,7 +4,7 @@ from Handlers.ui_vis import Ui_vis_window
 import time
 from numpy import ndarray
 
-from rift.steps import Mode
+from rift.steps import Command, Mode
 from rift import rover
 from rift.robot import InverseKinematicsError
 from rift.arraytypes import Matrix
@@ -45,7 +45,7 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
         # self.thread.start()
 
     def update_anim(self, matrix):
-        print("update matrix yo")
+        self.animator.update_pos(matrix)
 
     def send_new(self):
         mode = self.cmd_state.mode
@@ -134,10 +134,8 @@ class VizWorker(QObject):
         if(cur_thread.isInterruptionRequested()):
             cur_thread.exit()
             return
-        #do other stuff with this very helpful data!
-
-        time.sleep(1)
+        cmd = Command(mode, item, x, y, z)
+        for _ in rover.take_command(self.robot, cmd, resolution=100):
+            self.anim_update.emit(self.robot.pos.copy())
+            time.sleep(0.01)
         self.ready.emit()
-
-
-
