@@ -16,6 +16,14 @@ def get_contact_transform(
     *,
     tol: float = DEFAULT_TOL,
 ) -> Matrix | None:
+    """
+    Return a transformation matrix to keep a truss above ground.
+
+    Given a truss attempting to move from `old_pos` to `new_pos` (each N x 3),
+    return a transformation matrix representing the effect of normal force
+    from a plane at z = 0; return `None` if `new_pos` is strictly above
+    z = `tol`.
+    """
     i = np.argmin(new_pos[:, 2])
     min_z = new_pos[i, 2]
     if min_z >= -tol:
@@ -38,6 +46,19 @@ def get_fall_transform(
     gravity: Vector = np.array([0., 0., -1.]),
     tol: float = DEFAULT_TOL,
 ) -> Matrix | None:
+    """
+    Return a transformation matrix simulating gravity on a truss.
+
+    Given a truss at position `pos` (N x 3) with center of mass `com`, return
+    a transformation matrix representing the effect of gravity on the truss
+    (as well as normal force from the ground at z = 0).
+
+    The direction of gravity can be specified with `gravity`, which should be
+    a unit vector.
+
+    Normal force from the ground will be considered for any nodes whose z
+    coordinate is within `tol` of 0.
+    """
     contacts = pos[np.abs(pos[:, 2]) <= tol]
     if len(contacts) == 0:
         xform = np.eye(4)
@@ -68,6 +89,13 @@ def get_fall_transform(
 
 
 def tipping_rotation(rel_pos: Matrix, rel_axis: Vector) -> Matrix:
+    """
+    Return a transformation to rotate a collection of nodes about an axis.
+
+    Given a collection of nodes at `rel_pos` (N x 3), rotate them about a line
+    emanating at their origin in the direction of `rel_axis` until one of them
+    has a z coordinate of 0.
+    """
     unit_axis = rel_axis / np.linalg.norm(rel_axis)
     rel_z = rel_pos[:, 2]
     rel_x = np.vecdot(rel_pos, np.cross(unit_axis, [0., 0., 1.]))
@@ -83,6 +111,7 @@ def tipping_rotation(rel_pos: Matrix, rel_axis: Vector) -> Matrix:
 
 @dataclass
 class Stabilizer:
+    """A simulation of the effects of gravity and normal force on a truss."""
     source_pos: Matrix
     xform: Matrix = field(default_factory=lambda: np.eye(4))
     gravity: Vector = field(default_factory=lambda: np.array([0., 0., -1.]), kw_only=True)
@@ -90,14 +119,17 @@ class Stabilizer:
     rel_mass: Vector | Literal[1] = field(default=1, kw_only=True)
 
     def apply_xform(self, pos: Matrix) -> Matrix:
+        """Apply the accumulated transform to the given positions."""
         hom_pos = np.hstack([pos, np.ones((len(pos), 1))])
         return np.matvec(self.xform, hom_pos)[:, :3]
 
     @property
     def pos(self) -> Matrix:
+        """Returned the transformed source positions."""
         return self.apply_xform(self.source_pos)
 
     def adjust_for(self, source_pos: Matrix) -> bool:
+        """Adjust `self.xform` in preparation to move to `soure_pos`."""
         pos = self.apply_xform(source_pos)
         push_xform = get_contact_transform(self.pos, pos, tol=self.tol)
         if push_xform is not None:
@@ -111,6 +143,7 @@ class Stabilizer:
         return False
 
     def update_pos(self, source_pos: Matrix) -> None:
+        """Adjust for and update to `source_pos`."""
         while self.adjust_for(source_pos):
             pass
         self.source_pos = source_pos
