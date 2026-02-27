@@ -141,7 +141,7 @@ class Orbit:
         M = np.cross(self.axis, r) / (r @ r)
         A = self.radius.expand(M)
         b = self.rate(t) if callable(self.rate) else self.rate
-        return A, np.array([b])
+        return np.array([A]), np.array([b])
 
 
 @dataclass(slots=True)
