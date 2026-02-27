@@ -1,14 +1,12 @@
 from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
 from PySide6.QtWidgets import QWidget
-from Handlers.ui_vis import Ui_vis_window
 import time
 from numpy import ndarray
 
 from rift.steps import Command, Mode
 from rift import rover
-from rift.robot import InverseKinematicsError
-from rift.arraytypes import Matrix
 from rift.rover import make_animator, make_robot
+from .ui_vis import Ui_vis_window
 
 class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 

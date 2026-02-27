@@ -7,15 +7,11 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 # from PySide6.QtWebEngineWidgets import QWebEngineView
 # from PySide6 import QtAsyncio
 
-from ui_main import Ui_Control
-from Handlers.joystick_handler import JoystickHandler
-from Handlers.vis_handler import SimWindow
+from .ui_main import Ui_Control
+from .Handlers.joystick_handler import JoystickHandler
+from .Handlers.vis_handler import SimWindow
 
-from rift import rover
-from rift.robot import InverseKinematicsError
-from rift.arraytypes import Matrix
-
-from rift.steps import Command, Mode
+from ..steps import Command, Mode
 
 class MainWindow(QMainWindow): #referenced as widget by sim window class
     def __init__(self, parent=None):
