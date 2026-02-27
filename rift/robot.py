@@ -31,7 +31,7 @@ class TrussRobot:
         *constraints: cstr.Constraint,
         t: float = 0.,
     ) -> Matrix:
-        rigidity = self.truss.norm_rigidity_at(self.pos)
+        rigidity = self.truss.rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint((
             cstr.CustomConstraint(self.control.unreachable @ rigidity),
             *constraints
@@ -51,7 +51,7 @@ class TrussRobot:
         t: float = 0.,
         allow_redundant: bool = False,
     ) -> tuple[Matrix, Vector]:
-        rigidity = self.truss.norm_rigidity_at(self.pos)
+        rigidity = self.truss.rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint((
             cstr.CustomConstraint(self.control.unreachable @ rigidity),
             *constraints

@@ -49,23 +49,21 @@ class Truss:
         # later on, but this keeps the interface simpler.
         return np.kron(M, np.eye(3))
 
-    def rigidity_at(self, pos: Matrix | Vector) -> Matrix:
-        """Return the rigidity matrix of a tube structure in a given state.
-
-        This matrix converts a column of node velocities into a column comprising
-        the length of each link times its rate of change.
+    def rigidity_at(self, pos: Matrix, *, normalize: bool = True) -> Matrix:
         """
-        return self.pos_to_rigidity @ pos.ravel()
+        Return the rigidity matrix of the truss in a given state.
 
-    def norm_rigidity_at(self, pos: Matrix | Vector) -> Matrix:
-        """Return a normalized copy of a rigidity matrix.
+        This matrix converts a flattened vector of node velocities into a
+        vector comprising the rate of change of each link.
 
-        This matrix converts a column of node velocities into a column comprising
-        the rate of change of the length of each link.
+        If `normalize == False`, then each value in the resulting vector will
+        be multiplied by the length of the corresponding link.
         """
-        rigidity = self.rigidity_at(pos)
-        norms = np.linalg.vector_norm(rigidity, axis=1, keepdims=True)
-        return math.sqrt(2.) * rigidity / norms
+        rigidity = self.pos_to_rigidity @ pos.ravel()
+        if normalize:
+            norms = np.linalg.vector_norm(rigidity, axis=1, keepdims=True)
+            rigidity *= math.sqrt(2.) / norms
+        return rigidity
 
     def attach(self, other: Self, nodemap: IndexVector | None = None) -> Self:
         """
