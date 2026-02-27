@@ -16,6 +16,11 @@ class SingularityError(InverseKinematicsError): ...
 
 @dataclass(slots=True)
 class TrussRobot:
+    """
+    A representation of a truss robot.
+
+    It comprises a position, a truss structure, and a control setup.
+    """
     pos: Matrix
     truss: Truss
     control: LengthControl

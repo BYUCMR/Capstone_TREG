@@ -12,6 +12,7 @@ from rift.arraytypes import IndexVector, Matrix, MatrixStack, SingleIndex, Vecto
 
 @dataclass(frozen=True)
 class Truss:
+    """A representation of a truss structure."""
     incidence: Matrix[np.int8]
 
     @classmethod
@@ -67,6 +68,13 @@ class Truss:
         return math.sqrt(2.) * rigidity / norms
 
     def attach(self, other: Self, nodemap: IndexVector | None = None) -> Self:
+        """
+        Combine this truss with another.
+
+        If specified, `nodemap` should be a vector of the indices that the
+        nodes of the other truss should map to in the new truss. The nodes
+        of this truss keep their indices in the new one.
+        """
         n_links_self, n_nodes_self = self.incidence.shape
         n_links_other, n_nodes_other = other.incidence.shape
         n_links_total = n_links_self + n_links_other

@@ -35,6 +35,14 @@ def find_dx(
     b: Vector | None = None,
     solver: str = 'kkt',
 ) -> Vector | None:
+    """
+    Find `x` such that `x'*R'*R*x + f'*x` is minimized and `A*x = b`.
+
+    Return `None` if no such `x` exists.
+
+    `R` must be specificed, and all other inputs default to zeros of the
+    correct shapes.
+    """
     _, n = R.shape
     if f is None:
         f = np.zeros(n)
@@ -60,7 +68,5 @@ def find_dx(
         x_l = np.linalg.solve(K, np.concat([-f, b]))
     except np.linalg.LinAlgError:
         return None
-    # `x` is equivalent to what we'd get from solving a quadratic program
-    # minimizing `x'*H*x + f'*x` subject to `A*x = b`.
     x, l = np.split(x_l, [n])
     return x
