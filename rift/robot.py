@@ -39,7 +39,7 @@ class TrussRobot:
         A, b = constraint.get(self.pos, t)
         d_length = self.control.forward @ d_roll
         d_pos = np.linalg.solve(
-            np.vstack((rigidity, A)),
+            np.concat((rigidity, A)),
             np.concat((d_length, b)),
         )
         self.pos += d_pos

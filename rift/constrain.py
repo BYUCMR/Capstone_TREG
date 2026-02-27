@@ -156,7 +156,7 @@ class CompoundConstraint:
             Ai, bi = c.get(x, t)
             As.append(Ai)
             bs.append(bi)
-        A = np.vstack(As)
+        A = np.concat(As)
         b = np.concat(bs)
         return A, b
 
@@ -165,7 +165,7 @@ def singularity_eig(A: Matrix, b: Vector | None = None) -> tuple[float, Vector]:
     evals, evecs = np.linalg.eigh(A.T @ A)
     m, n = A.shape
     if b is not None:
-        aug = np.hstack((A, b.reshape(-1, 1)))
+        aug = np.concat((A, b.reshape(-1, 1)), axis=1)
         # Note that this takes about as much time as getting the eigenvalues;
         # it's better to develop minimal constraints by hand.
         m = np.linalg.matrix_rank(aug)

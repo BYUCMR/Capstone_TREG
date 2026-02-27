@@ -35,7 +35,7 @@ def cokernel[T: np.integer](mat: Matrix[T]) -> Matrix[T]:
     """
     m, n = mat.shape
     eye = np.identity(m, dtype=mat.dtype)
-    aug = np.hstack((mat, eye))
+    aug = np.concat((mat, eye), axis=1)
     row = 0
     col = 0
     while True:

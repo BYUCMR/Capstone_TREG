@@ -120,7 +120,8 @@ class Stabilizer:
 
     def apply_xform(self, pos: Matrix) -> Matrix:
         """Apply the accumulated transform to the given positions."""
-        hom_pos = np.hstack([pos, np.ones((len(pos), 1))])
+        one = np.ones((len(pos), 1))
+        hom_pos = np.concat((pos, one), axis=1)
         return np.matvec(self.xform, hom_pos)[:, :3]
 
     @property

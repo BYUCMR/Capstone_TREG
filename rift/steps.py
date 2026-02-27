@@ -63,9 +63,9 @@ def find_dx(
 
     m, n = A.shape
     O = np.zeros((m, m))
-    K = np.vstack([np.hstack([H, A.T]), np.hstack([A, O])])
+    K = np.concat((np.concat((H, A.T), axis=1), np.concat((A, O), axis=1)))
     try:
-        x_l = np.linalg.solve(K, np.concat([-f, b]))
+        x_l = np.linalg.solve(K, np.concat((-f, b)))
     except np.linalg.LinAlgError:
         return None
     x, l = np.split(x_l, [n])
