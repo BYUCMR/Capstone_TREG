@@ -1,31 +1,29 @@
-import sys, pathlib
-sys.path.append(str(pathlib.Path.cwd().parent.parent))
 from datetime import datetime
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QMainWindow
-# from PySide6.QtWebEngineWidgets import QWebEngineView
-# from PySide6 import QtAsyncio
+from PySide6.QtCore import Qt, Slot
+from PySide6.QtGui import QCloseEvent, QKeyEvent
+from PySide6.QtWidgets import QMainWindow, QWidget
 
+from rift.steps import Command, Mode
 from .ui_main import Ui_Control
 from .Handlers.joystick_handler import JoystickHandler
 from .Handlers.vis_handler import SimWindow
 
-from ..steps import Command, Mode
 
 class MainWindow(QMainWindow): #referenced as widget by sim window class
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         self.ui = Ui_Control()
         self.ui.setupUi(self)
-        self.ui.term_log = self.term_log
-        self.ui.term_log("Welcome to R.I.F.T. Control!")
+        self.term_log("Welcome to R.I.F.T. Control!")
 
         self.cmd_state = Command(Mode.offline, 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
-        self.vis_handler = SimWindow(self.cmd_state, self.cmd_update)
+        self.vis_handler = SimWindow(self.cmd_state)
+        self.vis_handler.keyPressEvent = self.keyPressEvent
+        self.vis_handler.keyReleaseEvent = self.keyReleaseEvent
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
@@ -49,45 +47,48 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.del_right.released.connect(lambda: self.cmd_update(0, 0, -1))
         self.ui.del_left.released.connect(lambda: self.cmd_update(0, 0, 1))
 
-        self.ui.crawling.clicked.connect(lambda: self.mode_select('crawling'))
-        self.ui.node_control.clicked.connect(lambda: self.mode_select('node_control'))
-        self.ui.calibration.clicked.connect(lambda: self.mode_select('calibration'))
+        self.ui.crawling.clicked.connect(lambda: self.mode_select(Mode.crawling))
+        self.ui.node_control.clicked.connect(lambda: self.mode_select(Mode.node_control))
+        self.ui.calibration.clicked.connect(lambda: self.mode_select(Mode.calibration))
 
-    def toggle_sim(self):
+    @Slot()
+    def toggle_sim(self) -> None:
         if not self.vis_handler.view_live:
             self.greenify(self.ui.sim_label)
             self.ui.sim_label.setText("Click to Open")
             self.ui.sim_toggle.setText("Kill Simulation")
-            self.ui.term_log("Simulation Initialized")
+            self.term_log("Simulation Initialized")
             self.vis_handler.start_sim()
         else:
             self.redify(self.ui.sim_label)
             self.ui.sim_label.setText("Simulation Offline")
             self.ui.sim_toggle.setText("Begin Simulation")
-            self.ui.term_log("Simulation Closed")
+            self.term_log("Simulation Closed")
             self.vis_handler.kill_sim()
 
-    def update_item(self):
+    @Slot()
+    def update_item(self) -> None:
         self.cmd_state.item = self.ui.selector.value()
 
-    def open_sim(self):
+    @Slot()
+    def open_sim(self) -> None:
         if self.vis_handler.view_live:
             self.vis_handler.show()
 
-    def mode_select(self, mode):
+    def mode_select(self, mode: Mode) -> None:
         self.ui.left.setEnabled(True)
         self.ui.del_left.setEnabled(True)
         self.ui.right.setEnabled(True)
         self.ui.del_right.setEnabled(True)
 
-        if mode == "crawling":
+        if mode is Mode.crawling:
             self.plainify_modes()
             self.greenify(self.ui.crawling)
             self.cmd_state.mode = Mode.crawling
             self.cmd_state.item = 0
             self.ui.selector_label.setVisible(False)
             self.ui.selector.setVisible(False)
-        elif mode == "node_control":
+        elif mode is Mode.node_control:
             self.plainify_modes()
             self.greenify(self.ui.node_control)
             self.cmd_state.mode = Mode.node_control
@@ -95,7 +96,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.selector_label.setVisible(True)
             self.ui.selector_label.setText("Node")
             self.ui.selector.setVisible(True)
-        elif mode == "calibration":
+        elif mode is Mode.calibration:
             self.plainify_modes()
             self.greenify(self.ui.calibration)
             self.cmd_state.mode = Mode.calibration
@@ -107,15 +108,15 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.del_left.setEnabled(False)
             self.ui.right.setEnabled(False)
             self.ui.del_right.setEnabled(False)
-        self.ui.term_log(f"Control Mode switched to {mode.replace('_',' ')}")
+        self.term_log(f"Control Mode switched to {mode.value.replace('_', ' ')}")
 
-    def cmd_update(self, x: float, y: float, z: float):
+    def cmd_update(self, x: float, y: float, z: float) -> None:
         self.cmd_state.x += x
         self.cmd_state.y += y
         self.cmd_state.z += z
         print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         print("Attempting Cleanup")
         try:
             self.joystick_handler.js_thread.requestInterruption()
@@ -124,13 +125,13 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         except:
             print("No Joystick to kill")
         try:
-            self.vis_handler.thread.requestInterruption()
+            self.vis_handler.work_thread.requestInterruption()
             print("Sim killed")
         except:
             print("No Sim to kill")
 
     #overwriting key input handlers
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.isAutoRepeat(): return
         key = event.key()
         if key == Qt.Key.Key_A:
@@ -147,7 +148,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.cmd_update(0, 0, -1)
         event.accept()
 
-    def keyReleaseEvent(self, event):
+    def keyReleaseEvent(self, event: QKeyEvent) -> None:
         if event.isAutoRepeat(): return
         key = event.key()
         if key == Qt.Key.Key_A:
@@ -164,31 +165,26 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.cmd_update(0, 0, 1)
         event.accept()
 
-    def closeEvent(self, event):
+    def closeEvent(self, event: QCloseEvent) -> None:
         self.cleanup()
 
     #Methods for quickly changing style sheets
-    def greenify(self, item):
+    def greenify(self, item: QWidget) -> None:
         item.setStyleSheet("background-color: rgb(135, 255, 135); color: rgb(0, 0, 0);")
 
-    def redify(self, item):
+    def redify(self, item: QWidget) -> None:
         item.setStyleSheet("background-color: rgb(255, 155, 155); color: rgb(0, 0, 0);")
 
-    def plainify(self, item):
+    def plainify(self, item: QWidget) -> None:
         item.setStyleSheet("")
 
-    def plainify_modes(self):
+    def plainify_modes(self) -> None:
         self.plainify(self.ui.node_control)
         self.plainify(self.ui.crawling)
         self.plainify(self.ui.calibration)
 
     #Method for quickly logging to the faux terminal
-    def term_log(self, text):
-        time = datetime.now().strftime("%m/%d/%y %H:%M:%S")
-        self.ui.term.appendPlainText(f"{time} - {text}")
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    widget = MainWindow()
-    widget.show()
-    sys.exit(app.exec())
+    @Slot(str)
+    def term_log(self, text: object) -> None:
+        now = datetime.now()
+        self.ui.term.appendPlainText(f"{now:%m/%d/%y %H:%M:%S} - {text}")

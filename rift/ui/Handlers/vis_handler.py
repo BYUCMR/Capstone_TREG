@@ -1,120 +1,68 @@
+import time
+
+from numpy import ndarray
 from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
 from PySide6.QtWidgets import QWidget
-import time
-from numpy import ndarray
 
-from rift.steps import Command, Mode
 from rift import rover
-from rift.rover import make_animator, make_robot
+from rift.arraytypes import Matrix
+from rift.steps import Command
 from .ui_vis import Ui_vis_window
 
 class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
-
-    send_cmd = Signal(Mode, int, float, float, float)
+    send_cmd = Signal(Command)
     send_startup = Signal()
 
-    def __init__(self, cmd_state, cmd_update, parent=None):
+    def __init__(
+        self,
+        cmd_state: Command,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
 
         self.ui = Ui_vis_window()
         self.ui.setupUi(self)
 
         self.cmd_state = cmd_state
-        self.cmd_update = cmd_update
 
-        # self.task_running = False
         self.view_live = False
 
-        self.animator = make_animator()
+        self.animator = rover.make_animator()
         self.ui.layout.addWidget(self.animator.view)
-        self.animator.view.setFocusPolicy(Qt.NoFocus)
+        self.animator.view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        # self.thread = QThread()
-        # self.worker = VizWorker()
-        # self.worker.moveToThread(self.thread)
-
-        # self.send_startup.connect(self.worker.setup)
-        # self.send_startup.emit()
-        # self.send_cmd.connect(self.worker.run_next)
-        # self.worker.ready.connect(self.send_new)
-        # self.worker.anim_update.connect(self.update_anim)
-        # self.thread.finished.connect(self.worker.deleteLater)
-        # self.send_new()
-        # self.thread.start()
-
-    def update_anim(self, matrix):
+    @Slot(ndarray)
+    def update_anim(self, matrix: Matrix) -> None:
         self.animator.update_pos(matrix)
 
+    @Slot()
     def send_new(self):
-        mode = self.cmd_state.mode
-        item = self.cmd_state.item
-        x = self.cmd_state.x
-        y = self.cmd_state.y
-        z = self.cmd_state.z
-        self.send_cmd.emit(mode, item, x, y, z)
+        self.send_cmd.emit(self.cmd_state)
 
-    def start_sim(self):
+    def start_sim(self) -> None:
         self.show()
         # print('yuh')
 
-        self.thread = QThread()
+        self.work_thread = QThread()
         self.worker = VizWorker()
-        self.worker.moveToThread(self.thread)
+        self.worker.moveToThread(self.work_thread)
 
         self.send_startup.connect(self.worker.setup)
         self.send_startup.emit()
         self.send_cmd.connect(self.worker.run_next)
         self.worker.ready.connect(self.send_new)
         self.worker.anim_update.connect(self.update_anim)
-        self.thread.finished.connect(self.worker.deleteLater)
+        self.work_thread.finished.connect(self.worker.deleteLater)
         self.send_new()
-        self.thread.start()
+        self.work_thread.start()
 
-        # self.animator = make_animator()
-        # self.ui.layout.addWidget(self.animator.view)
-        # self.animator.view.setFocusPolicy(Qt.NoFocus)
         self.view_live = True
 
-    def kill_sim(self):
+    def kill_sim(self) -> None:
         # print('nuh')
         self.hide()
-        self.thread.requestInterruption()
+        self.work_thread.requestInterruption()
         self.view_live = False
-
-    #overwriting key input handlers
-    def keyPressEvent(self, event):
-        if event.isAutoRepeat(): return
-        key = event.key()
-        if key == Qt.Key.Key_A:
-            self.cmd_update(0, -1, 0)
-        elif key == Qt.Key.Key_S:
-            self.cmd_update(-1, 0, 0)
-        elif key == Qt.Key.Key_D:
-            self.cmd_update(0, 1, 0)
-        elif key == Qt.Key.Key_W:
-            self.cmd_update(1, 0, 0)
-        elif key == Qt.Key.Key_E:
-            self.cmd_update(0, 0, 1)
-        elif key == Qt.Key.Key_Q:
-            self.cmd_update(0, 0, -1)
-        event.accept()
-
-    def keyReleaseEvent(self, event):
-        if event.isAutoRepeat(): return
-        key = event.key()
-        if key == Qt.Key.Key_A:
-            self.cmd_update(0, 1, 0)
-        elif key == Qt.Key.Key_S:
-            self.cmd_update(1, 0, 0)
-        elif key == Qt.Key.Key_D:
-            self.cmd_update(0, -1, 0)
-        elif key == Qt.Key.Key_W:
-            self.cmd_update(-1, 0, 0)
-        elif key == Qt.Key.Key_E:
-            self.cmd_update(0, 0, -1)
-        elif key == Qt.Key.Key_Q:
-            self.cmd_update(0, 0, 1)
-        event.accept()
 
 
 class VizWorker(QObject):
@@ -123,16 +71,15 @@ class VizWorker(QObject):
     message = Signal(str)
 
     @Slot()
-    def setup(self):
-        self.robot = make_robot()
+    def setup(self) -> None:
+        self.robot = rover.make_robot()
 
-    @Slot(Mode, int, float, float, float)
-    def run_next(self, mode, item, x, y, z):
+    @Slot(Command)
+    def run_next(self, cmd: Command) -> None:
         cur_thread = QThread.currentThread()
-        if(cur_thread.isInterruptionRequested()):
+        if cur_thread.isInterruptionRequested():
             cur_thread.exit()
             return
-        cmd = Command(mode, item, x, y, z)
         for _ in rover.take_command(self.robot, cmd, resolution=100):
             self.anim_update.emit(self.robot.pos.copy())
             time.sleep(0.01)
