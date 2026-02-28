@@ -3,11 +3,39 @@ from dataclasses import dataclass, field
 from typing import Final, Literal
 
 import numpy as np
+from scipy.spatial import ConvexHull
 
 from .arraytypes import Matrix, Vector
-from .mathtools import check_inside_and_closest_edge
 
 DEFAULT_TOL: Final = 1e-6
+
+
+def get_closest_edge(point: Vector, hull: ConvexHull) -> tuple[int, int] | None:
+    """
+    Check if a point is inside a convex hull and find the closest edge if not.
+
+    If `point` is within the bounds of `hull`, return `None`. Otherwise,
+    return the indices of the vertices of `hull` that form the the edge
+    closest to `point`
+    """
+    A = hull.equations[:, :2]
+    c = hull.equations[:, 2]
+    y = A @ point + c  # positive => outside
+    if np.all(y <= 0.):
+        return None
+    n = len(hull.vertices)
+    i = np.arange(n)
+    j = (i + 1) % n
+    a = hull.points[i]
+    b = hull.points[j]
+    ab = b - a
+    ap = point - a
+    t = np.vecdot(ap, ab) / np.vecdot(ab, ab)
+    t = np.clip(t, 0, 1)
+    point_to_edge = -ap + ab*t.reshape(-1, 1)
+    dist_sq = np.vecdot(point_to_edge, point_to_edge)
+    k = np.argmin(dist_sq)
+    return i[k], j[k]
 
 
 def get_contact_transform(
@@ -72,7 +100,8 @@ def get_fall_transform(
         direction = contacts[1] - origin
     else:
         com_on_ground = com[:2] - com[2] / gravity[2] * gravity[:2]
-        _, _, edge, _ = check_inside_and_closest_edge(com_on_ground, contacts[:,:2])
+        shadow = ConvexHull(contacts[:,:2])
+        edge = get_closest_edge(com_on_ground, shadow)
         if edge is None:
             return None
         i, j = edge
