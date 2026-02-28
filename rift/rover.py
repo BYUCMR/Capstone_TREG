@@ -299,7 +299,7 @@ def set_up_animation(
     payload_mesh = draw_payload_mesh(PAYLOAD_TRUSS, init_pos)
     payload_bars = draw_payload_bars(PAYLOAD_TRUSS, init_pos)
     triangles = draw_triangles(LEG_TRUSS, init_pos)
-    traces = anim.draw_traces(range(12), init_pos)
+    traces = anim.draw_traces(range(12), 100, init_pos)
     markers = draw_markers(
         [
             [PL1, L2, L3, PL1],

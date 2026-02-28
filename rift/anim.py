@@ -52,6 +52,7 @@ class DrawnLinks(AnimationItem):
 @dataclass(slots=True, frozen=True)
 class NodeTrace(AnimationItem):
     node: SingleIndex
+    length: int
     drawing: gl.GLScatterPlotItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
@@ -59,7 +60,7 @@ class NodeTrace(AnimationItem):
 
     def update_pos(self, pos: Matrix) -> None:
         points = () if self.drawing.pos is None else self.drawing.pos
-        self.drawing.setData(pos=[*points, pos[self.node]])
+        self.drawing.setData(pos=[*points[-self.length:], pos[self.node]])
 
 
 @dataclass(slots=True, frozen=True)
@@ -121,11 +122,17 @@ def draw_links(nodes: IndexVector, pos: Matrix, *, color: str = 'gray', width: i
     return DrawnLinks(nodes, drawing)
 
 
-def draw_traces(nodes: Iterable[SingleIndex], pos: Matrix, *, size: int = 4) -> list[NodeTrace]:
+def draw_traces(
+    nodes: Iterable[SingleIndex],
+    length: int,
+    pos: Matrix,
+    *,
+    size: int = 4,
+) -> list[NodeTrace]:
     traces: list[NodeTrace] = []
     for node in nodes:
         drawing = gl.GLScatterPlotItem(pos=[pos[node]], size=size)
         drawing.setGLOptions('opaque')
-        trace = NodeTrace(node, drawing)
+        trace = NodeTrace(node, length, drawing)
         traces.append(trace)
     return traces
