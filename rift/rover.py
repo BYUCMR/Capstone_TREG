@@ -1,5 +1,5 @@
 import math
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable
 from functools import partial
 from typing import Final
 
@@ -291,7 +291,9 @@ def draw_markers(trails: Iterable[IndexVector], pos: Matrix) -> list[anim.Marker
     return all_markers
 
 
-def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
+def set_up_animation(
+    init_pos: Matrix = CRAWLING_POS
+) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
     payload_mesh = draw_payload_mesh(PAYLOAD_TRUSS, init_pos)
@@ -310,9 +312,8 @@ def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
         init_pos,
     )
     items = [payload_mesh, payload_bars, *triangles, *traces, *markers]
-    for item in items:
-        item.add_to_view(view)
-    return anim.Animator(view, items)
+    anim.add_all_to_view(items, view)
+    return view, partial(anim.update_all_pos, items)
 
 
 def crawl(

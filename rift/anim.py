@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import pairwise
@@ -26,6 +25,16 @@ OKABE_ITO: Final = (
 class AnimationItem(Protocol):
     def add_to_view(self, view: gl.GLViewWidget, /) -> None: ...
     def update_pos(self, pos: Matrix, /) -> None: ...
+
+
+def add_all_to_view(items: Iterable[AnimationItem], view: gl.GLViewWidget) -> None:
+    for item in items:
+        item.add_to_view(view)
+
+
+def update_all_pos(items: Iterable[AnimationItem], pos: Matrix) -> None:
+    for item in items:
+        item.update_pos(pos)
 
 
 @dataclass(slots=True, frozen=True)
@@ -120,24 +129,3 @@ def draw_traces(nodes: Iterable[SingleIndex], pos: Matrix, *, size: int = 4) -> 
         trace = NodeTrace(node, drawing)
         traces.append(trace)
     return traces
-
-
-@dataclass(slots=True, frozen=True)
-class Animator:
-    view: gl.GLViewWidget
-    items: Iterable[AnimationItem] = ()
-
-    def update_pos(self, pos: Matrix) -> None:
-        for item in self.items:
-            item.update_pos(pos)
-
-    async def animate(self, positions: asyncio.Queue[Matrix]) -> None:
-        self.view.show()
-        while True:
-            try:
-                pos = await positions.get()
-            except asyncio.QueueShutDown:
-                break
-            self.update_pos(pos)
-            positions.task_done()
-            await asyncio.sleep(0.01)

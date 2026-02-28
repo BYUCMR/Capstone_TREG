@@ -18,25 +18,22 @@ async def main(
     cycles: int = 1,
     resolution: int = 50,
 ) -> None:
-    animator = rover.make_animator(init_pos)
     robot = rover.make_robot(init_pos)
     stabilizer = rover.make_stabilizer(init_pos)
-    positions = asyncio.Queue[Matrix](resolution)
-
-    async def crawl() -> None:
-        for _ in rover.crawl(robot, cycles, (step_length, 0), resolution=resolution):
-            stabilizer.update_pos(robot.pos)
-            await positions.put(stabilizer.pos)
-
-    crawling_task = asyncio.create_task(crawl())
-    animation_task = asyncio.create_task(animator.animate(positions))
+    view, animate = rover.set_up_animation(init_pos)
+    view.show()
     try:
-        await crawling_task
+        for _ in rover.crawl(
+            robot,
+            cycles,
+            (step_length, 0),
+            resolution=resolution,
+        ):
+            stabilizer.update_pos(robot.pos)
+            animate(stabilizer.pos)
+            await asyncio.sleep(0.01)
     except InverseKinematicsError as e:
         print(e.args[0])
-    print("Done with IK")
-    positions.shutdown()
-    await animation_task
     print("Done with animation")
 
 

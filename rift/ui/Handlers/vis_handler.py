@@ -27,13 +27,13 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
         self.view_live = False
 
-        self.animator = rover.make_animator()
-        self.ui.layout.addWidget(self.animator.view)
-        self.animator.view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        view, self.animate = rover.set_up_animation()
+        self.ui.layout.addWidget(view)
+        view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
     @Slot(ndarray)
     def update_anim(self, matrix: Matrix) -> None:
-        self.animator.update_pos(matrix)
+        self.animate(matrix)
 
     @Slot()
     def send_new(self):
