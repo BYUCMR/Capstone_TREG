@@ -6,12 +6,14 @@ from PySide6.QtWidgets import QWidget
 
 from rift import rover
 from rift.arraytypes import Matrix
+from rift.robot import InverseKinematicsError
 from rift.steps import Command
 from .ui_vis import Ui_vis_window
 
 class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
     send_cmd = Signal(Command)
     send_startup = Signal()
+    message = Signal(str)
 
     def __init__(
         self,
@@ -52,6 +54,7 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
         self.send_cmd.connect(self.worker.run_next)
         self.worker.ready.connect(self.send_new)
         self.worker.anim_update.connect(self.update_anim)
+        self.worker.message.connect(self.message.emit)
         self.work_thread.finished.connect(self.worker.deleteLater)
         self.send_new()
         self.work_thread.start()
@@ -80,7 +83,10 @@ class VizWorker(QObject):
         if cur_thread.isInterruptionRequested():
             cur_thread.exit()
             return
-        for _ in rover.take_command(self.robot, cmd, resolution=100):
-            self.anim_update.emit(self.robot.pos.copy())
-            time.sleep(0.01)
+        try:
+            for _ in rover.take_command(self.robot, cmd, resolution=100):
+                self.anim_update.emit(self.robot.pos.copy())
+                time.sleep(0.001)
+        except InverseKinematicsError as e:
+            self.message.emit(e.args[0])
         self.ready.emit()

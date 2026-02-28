@@ -24,6 +24,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.vis_handler = SimWindow(self.cmd_state)
         self.vis_handler.keyPressEvent = self.keyPressEvent
         self.vis_handler.keyReleaseEvent = self.keyReleaseEvent
+        self.vis_handler.message.connect(self.term_log)
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)

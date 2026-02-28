@@ -457,11 +457,11 @@ def take_command(
     *,
     resolution: int,
 ) -> Generator[tuple[Matrix, Vector]]:
-    if command.mode is steps.Mode.crawling:
+    if command.x ==0 and command.y == 0 and command.z == 0:
+        return
+    elif command.mode is steps.Mode.crawling:
         x = command.x * 0.125
         y = -command.y * 0.125
-        if x == 0 and y == 0:
-            return
         yield from crawl(robot, 1, (x, y), resolution=resolution)
     elif command.mode is steps.Mode.node_control:
         feet = {L1, L2, R1, R2}
@@ -469,9 +469,9 @@ def take_command(
         motion = cstr.CompoundConstraint([
             cstr.Motion.make(
                 cstr.Point.node(command.item, len(robot.pos)),
-                x=command.x * 0.001,
-                y=command.y * 0.001,
-                z=command.z * 0.001,
+                x=command.x * 0.0005,
+                y=command.y * 0.0005,
+                z=command.z * 0.0005,
             ),
             *(
                 cstr.Motion.lock(cstr.Point.node(foot, len(robot.pos)))
