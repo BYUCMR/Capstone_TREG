@@ -26,9 +26,16 @@ class LengthControl:
 
 
 def cokernel[T: np.integer](mat: Matrix[T]) -> Matrix[T]:
+    """
+    Return a basis for the co-kernel of a matrix.
+
+    The co-kernel of a matrix is the null space, or kernel, of its transpose.
+    Each column of a basis for the co-kernel is perpendicular to every row of
+    the matrix.
+    """
     m, n = mat.shape
     eye = np.identity(m, dtype=mat.dtype)
-    aug = np.hstack((mat, eye))
+    aug = np.concat((mat, eye), axis=1)
     row = 0
     col = 0
     while True:

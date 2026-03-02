@@ -1,5 +1,5 @@
 import math
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Iterable
 from functools import partial
 from typing import Final
 
@@ -12,8 +12,8 @@ from . import constrain as cstr
 from . import grav
 from . import steps
 from . import tubetruss as tt
-from .arraytypes import Matrix, Vector
-from .robot import RobotInverse
+from .arraytypes import IndexVector, Matrix, Vector
+from .robot import TrussRobot
 
 
 # Left feet / end-effectors
@@ -271,11 +271,11 @@ CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 0.875)
 
 
-def make_robot(init_pos: Matrix = CRAWLING_POS) -> RobotInverse:
+def make_robot(init_pos: Matrix = CRAWLING_POS) -> TrussRobot:
     pos = init_pos.copy()
     truss = LEG_TRUSS.attach(PAYLOAD_TRUSS)
     control = tt.LengthControl.from_forward(ROLL_TO_LENGTH)
-    return RobotInverse(pos, truss, control)
+    return TrussRobot(pos, truss, control)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -316,23 +316,51 @@ def draw_triangles(truss: tt.Truss, pos: Matrix) -> list[anim.DrawnLinks]:
     return drawn_tubes
 
 
-def make_animator(init_pos: Matrix = CRAWLING_POS) -> anim.Animator:
+def draw_markers(trails: Iterable[IndexVector], pos: Matrix) -> list[anim.Markers]:
+    all_markers: list[anim.Markers] = []
+    for trail in trails:
+        marks = gl.GLScatterPlotItem(
+            pos=pos[trail],
+            size=8,
+            color=pg.mkColor(anim.OKABE_ITO[0]),
+        )
+        marks.setGLOptions('opaque')
+        markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
+        all_markers.append(markers)
+    return all_markers
+
+
+def set_up_animation(
+    init_pos: Matrix = CRAWLING_POS,
+    *,
+    trace_len: int = 100,
+) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
     payload_mesh = draw_payload_mesh(PAYLOAD_TRUSS, init_pos)
     payload_bars = draw_payload_bars(PAYLOAD_TRUSS, init_pos)
     triangles = draw_triangles(LEG_TRUSS, init_pos)
-    traces = anim.draw_traces(range(12), init_pos)
-    items = [payload_mesh, payload_bars, *triangles, *traces]
-    for item in items:
-        item.add_to_view(view)
-    return anim.Animator(view, items)
+    traces = anim.draw_traces(range(12), trace_len, init_pos)
+    markers = draw_markers(
+        [
+            [PL1, L2, L3, PL1],
+            [PL2, L3, L1, PL2],
+            [PL3, L1, L2, PL3],
+            [PR1, R2, R3, PR1],
+            [PR2, R3, R1, PR2],
+            [PR3, R1, R2, PR3],
+        ],
+        init_pos,
+    )
+    items = [payload_mesh, payload_bars, *triangles, *traces, *markers]
+    anim.add_all_to_view(items, view)
+    return view, partial(anim.update_all_pos, items)
 
 
 def crawl(
-    robot: RobotInverse,
+    robot: TrussRobot,
     cycles: int = 1,
-    step_length: float = 0.125,
+    step_length: tuple[float, float] = (0.125, 0.),
     *,
     resolution: int = 50,
 ) -> Generator[tuple[Matrix, Vector]]:
@@ -341,12 +369,15 @@ def crawl(
     payload_com = cstr.Point.com(payload_mass)
     payload_up = payload_com - cstr.Point.avg(CPL3, CPR3)
     no_wobble = cstr.Motion(payload_up, np.eye(3)[0:2], np.zeros(2))
-    dx = step_length / resolution
+    dx, dy = step_length
+    dx /= resolution
+    dy /= resolution
+    ds = math.hypot(dx, dy)
     steadily_forward = cstr.Motion.make(payload_com, x=0.25 * dx)
     feet = (CL2, CL1, CR2, CR1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
-            cstr.Motion.make(foot, x=dx, y=0., z=partial(steps.parabolic, dx)),
+            cstr.Motion.make(foot, x=dx, y=dy, z=partial(steps.parabolic, ds)),
             *(
                 cstr.Motion.lock(other_foot)
                 for other_foot in feet
@@ -358,8 +389,47 @@ def crawl(
         yield from robot.take_step(motion, resolution=resolution)
 
 
+def lean(
+    robot: TrussRobot,
+    dist: float = 0.6,
+    *,
+    resolution: int = 100,
+) -> Generator[tuple[Matrix, Vector]]:
+    dx = dist / resolution
+    constraint = cstr.CompoundConstraint((
+        cstr.Motion.make(CPL2, dx),
+        cstr.Motion.make(CPR2, dx),
+        cstr.Motion.lock(CL1),
+        cstr.Motion.lock(CR1),
+        cstr.Motion.lock(CL2),
+        cstr.Motion.lock(CR2),
+    ))
+    yield from robot.take_step(constraint, resolution=resolution)
+
+
+def reach(
+    robot: TrussRobot,
+    dist: float = 1.,
+    *,
+    resolution: int = 100,
+) -> Generator[tuple[Matrix, Vector]]:
+    constraint = cstr.CompoundConstraint((
+        cstr.Motion.make(CL3, x=dist / resolution),
+        cstr.Motion.make(CR3, x=dist / resolution),
+        cstr.Motion.lock(CPL3),
+        cstr.Motion.lock(CPR3),
+        cstr.Motion.lock(CL1),
+        cstr.Motion.lock(CR1),
+    ))
+    yield from robot.take_step(
+        constraint,
+        resolution=resolution,
+        allow_redundant=True,
+    )
+
+
 def roll(
-    robot: RobotInverse,
+    robot: TrussRobot,
     *,
     i: int = 0,
     resolution: int = 100,
@@ -420,3 +490,33 @@ def roll(
         cstr.Orbit.about_y(robot.pos, arm_r-foot_r, np.pi, resolution),
     ))
     yield from robot.take_step(step_3, resolution=resolution)
+
+
+def take_command(
+    robot: TrussRobot,
+    command: steps.Command,
+    *,
+    resolution: int,
+) -> Generator[tuple[Matrix, Vector]]:
+    if command.x ==0 and command.y == 0 and command.z == 0:
+        return
+    elif command.mode is steps.Mode.crawling:
+        x = command.x * 0.125
+        y = -command.y * 0.125
+        yield from crawl(robot, 1, (x, y), resolution=resolution)
+    elif command.mode is steps.Mode.node_control:
+        feet = {L1, L2, R1, R2}
+        feet.discard(command.item)
+        motion = cstr.CompoundConstraint([
+            cstr.Motion.make(
+                cstr.Point.node(command.item, len(robot.pos)),
+                x=command.x * 0.0005,
+                y=command.y * 0.0005,
+                z=command.z * 0.0005,
+            ),
+            *(
+                cstr.Motion.lock(cstr.Point.node(foot, len(robot.pos)))
+                for foot in feet
+            ),
+        ])
+        yield from robot.take_step(motion, resolution=resolution)

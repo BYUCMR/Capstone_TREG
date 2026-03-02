@@ -3,30 +3,32 @@ This module handles the configuration, kinematics (forward and inverse), and
 visualization of a rover made of inflatable, flexible tubes.
 
 ## anim.py
-This file contains functions used for visualizing the rover using plotly.
-An example of its use can be found in `../tests/rover.py`.
+This file contains functions used for visualizing the rover using pyqtgraph.
+An example of its use can be found in `../tests/animate.py`.
+
+## arraytypes.py
+This file contains descriptions of important types for static type analysis.
+
+## constrain.py
+This file contains a system for describing the constraints we use to generate
+motion commands for our robot.
+
+## grav.py
+This file contains a `Stabilizer` class that we use to simulate the effect of
+gravity on the robot.
 
 ## robot.py
-We have two robot classes: one for forward kinematics, and one for inverse.
+Here we have a class called `TrussRobot` that simulates a generic truss robot.
+It has methods for updating its position based on commands and constraints
+with either forward or inverse kinematics.
 
-Both classes have configurable callbacks to respond to changes in state.
-
-The inverse kinematics class is more fully developed and contains methods
-for easily generating crawling motion.
+## rover.py
+This is where we define the specific configuration of our physical robot. We
+also define various kinds of motion that this robot can perform.
 
 ## steps.py
-This file contains functions to assist in building matrices describing desired
-node motion.
+We use this file to help generate commands to control robots.
 
-## truss_config.py
-This file contains code for generating possible starting configurations for
-the rover.
-
-## tubetruss.py
-This file contains `TubeTruss`, which is a class that describes generalized
-truss structures made from fixed-length tubes. The class has cached properties
-for various matrices used for kinematic simulation.
-
-## typing.py
-This file contains typing constructs used as annotations elsewhere in the
-module.
+## tubetruss
+This module contains classes and functions used to describe, simulate, and
+control general variable-shape truss robots.
