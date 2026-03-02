@@ -2,12 +2,12 @@
 This module handles the configuration, kinematics (forward and inverse), and
 visualization of a rover made of inflatable, flexible tubes.
 
-## arraytype.py
-This file contains descriptions of important types for static type analysis.
-
 ## anim.py
-This file contains functions used for visualizing the rover using plotly.
+This file contains functions used for visualizing the rover using pyqtgraph.
 An example of its use can be found in `../tests/animate.py`.
+
+## arraytypes.py
+This file contains descriptions of important types for static type analysis.
 
 ## constrain.py
 This file contains a system for describing the constraints we use to generate
