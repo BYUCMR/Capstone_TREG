@@ -31,7 +31,7 @@ async def main(
         ):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
-            await asyncio.sleep(0.01)
+            await asyncio.sleep(0)
     except InverseKinematicsError as e:
         print(e.args[0])
     print("Done with animation")
