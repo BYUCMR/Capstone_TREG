@@ -480,4 +480,4 @@ def take_command(
                 for foot in feet
             ),
         ])
-        yield from robot.take_step(motion, resolution=resolution)
+        yield from robot.take_step(motion, resolution=resolution, respect_floor=True)

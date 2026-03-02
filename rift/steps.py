@@ -33,6 +33,8 @@ def find_dx(
     f: Vector | None = None,
     A: Matrix | None = None,
     b: Vector | None = None,
+    G: Matrix | None = None,
+    h: Vector | None = None,
     solver: str = 'kkt',
 ) -> Vector | None:
     """
@@ -56,10 +58,20 @@ def find_dx(
         b = np.zeros(len(A))
     elif len(b) != len(A):
         raise ValueError(f"Wrong shape for b: expected ({len(A)}, [1]), got {b.shape}")
+    if solver == 'kkt' and (G is not None or h is not None):
+        raise ValueError("Cannot use KKT to solve with inequality constraints")
+    if G is None:
+        G = np.zeros((0, n))
+    elif G.shape[1] != n:
+        raise ValueError(f"Wrong shape for G: expected (_, {n}), got {G.shape}")
+    if h is None:
+        h = np.zeros(len(G))
+    elif len(h) != len(G):
+        raise ValueError(f"Wrong shape for b: expected ({len(G)}, [1]), got {h.shape}")
 
     H = R.T @ R
     if solver != 'kkt':
-        return qpsolvers.solve_qp(P=H, q=f, A=A, b=b, solver=solver)
+        return qpsolvers.solve_qp(P=H, q=f, A=A, b=b, G=G, h=h, solver=solver)
 
     m, n = A.shape
     O = np.zeros((m, m))

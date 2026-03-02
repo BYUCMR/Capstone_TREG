@@ -50,6 +50,7 @@ class TrussRobot:
         *constraints: cstr.Constraint,
         t: float = 0.,
         allow_redundant: bool = False,
+        respect_floor: bool = False,
     ) -> tuple[Matrix, Vector]:
         rigidity = self.truss.rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint((
@@ -60,7 +61,16 @@ class TrussRobot:
         e, v = cstr.singularity_eig(A, b if allow_redundant else None)
         if abs(e) <= 1e-3:
             raise SingularityError("Robot state is singular")
-        dx = steps.find_dx(R=rigidity, A=A, b=b, solver='piqp' if allow_redundant else 'kkt')
+        if respect_floor:
+            G = np.zeros((len(self.pos), self.pos.size))
+            G[range(len(self.pos)), range(2, self.pos.size, 3)] = -1.
+            h = self.pos[:,2]
+            solver = 'piqp'
+        else:
+            G = None
+            h = None
+            solver = 'piqp' if allow_redundant else 'kkt'
+        dx = steps.find_dx(R=rigidity, A=A, b=b, G=G, h=h, solver=solver)
         if dx is None:
             raise SolverError("Could not find valid node velocities")
         dx = dx.reshape(self.pos.shape)
@@ -73,10 +83,12 @@ class TrussRobot:
         *constraints: cstr.Constraint,
         resolution: int,
         allow_redundant: bool = False,
+        respect_floor: bool = False,
     ) -> Generator[tuple[Matrix, Vector]]:
         for t in np.linspace(0., 1., resolution):
             yield self.take_substep(
                 *constraints,
                 t=t,
                 allow_redundant=allow_redundant,
+                respect_floor=respect_floor,
             )
