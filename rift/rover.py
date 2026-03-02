@@ -292,14 +292,16 @@ def draw_markers(trails: Iterable[IndexVector], pos: Matrix) -> list[anim.Marker
 
 
 def set_up_animation(
-    init_pos: Matrix = CRAWLING_POS
+    init_pos: Matrix = CRAWLING_POS,
+    *,
+    trace_len: int = 100,
 ) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
     payload_mesh = draw_payload_mesh(PAYLOAD_TRUSS, init_pos)
     payload_bars = draw_payload_bars(PAYLOAD_TRUSS, init_pos)
     triangles = draw_triangles(LEG_TRUSS, init_pos)
-    traces = anim.draw_traces(range(12), 100, init_pos)
+    traces = anim.draw_traces(range(12), trace_len, init_pos)
     markers = draw_markers(
         [
             [PL1, L2, L3, PL1],
