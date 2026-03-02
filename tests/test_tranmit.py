@@ -56,16 +56,16 @@ async def animate(
 
     async def move() -> None:
         dq = np.zeros(12)
-        for i, (*_, dr) in enumerate(roll(robot, resolution=resolution)):
+        for i, (*_, dr) in enumerate(rover.roll(robot, resolution=resolution)):
             stabilizer.update_pos(robot.pos)
             await positions.put(stabilizer.pos)
-            # if rollqueue is not None:
-            #     await rollqueue.put(dr)
-            dq += dr
-            if i >= 5:
-                break
-        if rollqueue is not None:
-            await rollqueue.put(dq)
+            if rollqueue is not None:
+                await rollqueue.put(dr)
+            # dq += dr
+            # if i >= 5:
+            #     break
+        # if rollqueue is not None:
+        #     await rollqueue.put(dq)
             
 
     crawling_task = asyncio.create_task(move())
@@ -89,9 +89,9 @@ async def command(rollqueue: asyncio.Queue[Vector],resolution) -> None:
             except asyncio.QueueShutDown:
                 break
             # print(d_roll)
-            cmnd = dist_to_ticks(6,d_roll)
-            # send_stop(ser)
-            message = send_command_pos(ser,cmnd,t)
+            cmnd = ticks_to_tps(dist_to_ticks(6,d_roll))
+            send_stop(ser)
+            message = send_command(ser,cmnd,t)
             print(message)
 
     crawling_task = asyncio.create_task(cmd())
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
     finally:
-        # send_stop(ser)
+        send_stop(ser)
         # Close the serial port
         if 'ser' in locals() and ser.isOpen():
             ser.close()

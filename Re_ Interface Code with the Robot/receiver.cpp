@@ -248,7 +248,7 @@ void updatePositionControl()
 void receiveRadioCommand()
 {
   // Serial command
-  if (Serial.available())
+  if (Serial.available()).
   {
     isVelocityControl = true;
     String input = Serial.readStringUntil('\n');
@@ -286,10 +286,10 @@ void receiveRadioCommand()
     ack.currentPosition = encoderPosition;
     ack.currentTPS = currentTPS;
     // unsigned long now = millis();
-    radio.writeAckPayload(0, &ack, sizeof(ack));
+    radio.writeAckPayload(0, &ack, sizeof(ack));// sends acknowledgement to  transmitter of message recieved consisting of current position and speed of roller
 
     RadioPayload cmd;
-    radio.read(&cmd, sizeof(cmd));
+    radio.read(&cmd, sizeof(cmd));// read command from radio into cmd object
 
     if (cmd.reset)
     {
