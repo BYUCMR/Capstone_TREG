@@ -24,11 +24,11 @@ class Ui_Control(object):
     def setupUi(self, Control):
         if not Control.objectName():
             Control.setObjectName(u"Control")
-        Control.resize(600, 400)
+        Control.resize(600, 800)
         self.centralwidget = QWidget(Control)
         self.centralwidget.setObjectName(u"centralwidget")
-        self.verticalLayout_2 = QVBoxLayout(self.centralwidget)
-        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+        self.ctr_layout = QVBoxLayout(self.centralwidget)
+        self.ctr_layout.setObjectName(u"ctr_layout")
         self.Full_Splitter = QSplitter(self.centralwidget)
         self.Full_Splitter.setObjectName(u"Full_Splitter")
         self.Full_Splitter.setOrientation(Qt.Orientation.Horizontal)
@@ -215,7 +215,7 @@ class Ui_Control(object):
 
         self.Full_Splitter.addWidget(self.verticalLayoutWidget)
 
-        self.verticalLayout_2.addWidget(self.Full_Splitter)
+        self.ctr_layout.addWidget(self.Full_Splitter)
 
         Control.setCentralWidget(self.centralwidget)
 

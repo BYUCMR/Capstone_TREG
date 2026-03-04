@@ -1,5 +1,0 @@
-[project]
-name = "PySide Project"
-
-[tool.pyside6-project]
-files = ["Handlers/joystick_handler.py", "Handlers/testbench.py", "Handlers/ui_vis.py", "Handlers/vis.ui", "Handlers/vis_handler.py", "Notes.txt", "cmd_class.py", "main.py", "main.ui", "ui_main.py"]
