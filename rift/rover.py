@@ -269,7 +269,7 @@ def draw_payload_mesh(payload: tt.Truss, pos: Matrix) -> anim.BodyMesh:
 
 def draw_triangles(truss: tt.Truss, pos: Matrix) -> list[anim.DrawnLinks]:
     drawn_tubes: list[anim.DrawnLinks] = []
-    for i, j in enumerate(range(0, len(truss.links), 3)):
+    for i, j in enumerate(range(0, truss.n_links, 3)):
         nodes = truss.links[j:j+3].ravel()
         color = anim.OKABE_ITO[i % (len(anim.OKABE_ITO) - 1) + 1]
         drawn_tube = anim.draw_links(nodes, pos, color=color)
@@ -325,7 +325,7 @@ def crawl(
     *,
     resolution: int = 50,
 ) -> Generator[Vector]:
-    payload_mass = np.zeros(len(robot.pos))
+    payload_mass = np.zeros(robot.n_nodes)
     payload_mass[PAYLOAD] = 1.
     payload_com = cstr.Point.com(payload_mass)
     payload_up = payload_com - cstr.Point.avg(CPL3, CPR3)
@@ -415,7 +415,7 @@ def roll(
         for foot in pair
         if j != i
     ]
-    payload_mass = np.zeros(len(robot.pos))
+    payload_mass = np.zeros(robot.n_nodes)
     payload_mass[PAYLOAD] = 1.
     payload_com = cstr.Point.com(payload_mass)
     feet_midpoint = cstr.Point.avg(foot_l, foot_r)
@@ -470,13 +470,13 @@ def take_command(
         feet.discard(command.item)
         motion = cstr.CompoundConstraint([
             cstr.Motion.make(
-                cstr.Point.node(command.item, len(robot.pos)),
+                cstr.Point.node(command.item, robot.n_nodes),
                 x=command.x * 0.0005,
                 y=command.y * 0.0005,
                 z=command.z * 0.0005,
             ),
             *(
-                cstr.Motion.lock(cstr.Point.node(foot, len(robot.pos)))
+                cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
                 for foot in feet
             ),
         ])

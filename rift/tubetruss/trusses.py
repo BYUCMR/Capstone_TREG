@@ -15,6 +15,14 @@ class Truss:
     """A representation of a truss structure."""
     incidence: Matrix[np.int8]
 
+    @property
+    def n_links(self) -> int:
+        return self.incidence.shape[0]
+
+    @property
+    def n_nodes(self) -> int:
+        return self.incidence.shape[1]
+
     @classmethod
     def from_trails(cls, *trails: Iterable[SingleIndex]) -> Self:
         n_nodes = 1 + max(node for trail in trails for node in trail)

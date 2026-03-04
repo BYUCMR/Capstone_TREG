@@ -12,6 +12,14 @@ class LengthControl:
     forward: Matrix[np.integer]
     inverse: Matrix
 
+    @property
+    def n_inputs(self) -> int:
+        return len(self.inverse)
+
+    @property
+    def n_outputs(self) -> int:
+        return len(self.forward)
+
     @classmethod
     def from_unreachable(cls, unreachable: Matrix[np.integer]) -> Self:
         forward = cokernel(unreachable.T).T

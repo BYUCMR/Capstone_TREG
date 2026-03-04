@@ -25,6 +25,14 @@ class TrussRobot:
     truss: Truss
     control: LengthControl
 
+    @property
+    def n_nodes(self) -> int:
+        return self.truss.n_nodes
+
+    @property
+    def n_rollers(self) -> int:
+        return self.control.n_inputs
+
     def apply_roll(
         self,
         d_roll: Vector,
@@ -62,8 +70,8 @@ class TrussRobot:
         if abs(e) <= 1e-3:
             raise SingularityError("Robot state is singular")
         if respect_floor:
-            G = np.zeros((len(self.pos), self.pos.size))
-            G[range(len(self.pos)), range(2, self.pos.size, 3)] = -1.
+            G = np.zeros((self.n_nodes, self.pos.size))
+            G[range(self.n_nodes), range(2, self.pos.size, 3)] = -1.
             h = self.pos[:,2]
             solver = 'piqp'
         else:

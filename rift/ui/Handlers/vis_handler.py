@@ -77,7 +77,7 @@ class VizWorker(QObject):
             cur_thread.exit()
             return
         gen = rover.take_command(self.robot, cmd, resolution=self.resolution)
-        delta_q = np.zeros(len(self.robot.control.inverse))
+        delta_q = np.zeros(self.robot.n_rollers)
         try:
             for i, dq in enumerate(gen):
                 delta_q += dq

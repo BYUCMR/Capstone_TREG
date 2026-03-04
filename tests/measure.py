@@ -23,7 +23,7 @@ def record_motion(
     robot = rover.make_robot(init_pos)
     n = 4 * cycles * resolution
     pos = np.zeros((n + 1, *robot.pos.shape))
-    d_roll = np.zeros((n, len(robot.control.inverse)))
+    d_roll = np.zeros((n, robot.n_rollers))
     pos[0] = robot.pos
     for i, dq in enumerate(rover.crawl(
         robot, cycles, (step_length, 0), resolution=resolution
