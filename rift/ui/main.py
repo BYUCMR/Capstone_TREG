@@ -22,15 +22,13 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
         self.joystick_handler = JoystickHandler(self.ui)
         self.vis_handler = SimWindow(self.cmd_state, self.ui)
-        self.vis_handler.keyPressEvent = self.keyPressEvent
-        self.vis_handler.keyReleaseEvent = self.keyReleaseEvent
-        # self.vis_handler.message.connect(self.term_log)
+        self.vis_handler.message.connect(self.term_log)
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
 
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
-        self.ui.sim_label.clicked.connect(self.open_sim)
+        # self.ui.sim_label.clicked.connect(self.open_sim)
         self.ui.selector.valueChanged.connect(self.update_item)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
@@ -56,7 +54,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     @Slot()
     def toggle_sim(self) -> None:
-        if not self.vis_handler.view_live:
+        if not self.vis_handler.sim_live:
             self.greenify(self.ui.sim_label)
             self.ui.sim_label.setText("Click to Open")
             self.ui.sim_toggle.setText("Kill Simulation")
@@ -72,11 +70,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
     @Slot()
     def update_item(self) -> None:
         self.cmd_state.item = self.ui.selector.value()
-
-    @Slot()
-    def open_sim(self) -> None:
-        if self.vis_handler.view_live:
-            self.vis_handler.show()
 
     def mode_select(self, mode: Mode) -> None:
         self.ui.left.setEnabled(True)
