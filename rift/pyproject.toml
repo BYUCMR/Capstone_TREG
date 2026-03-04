@@ -1,0 +1,5 @@
+[project]
+name = "PySide Project"
+
+[tool.pyside6-project]
+files = ["rift/__main__.py", "rift/ui/Handlers/joystick_handler.py", "rift/ui/Handlers/testbench.py", "rift/ui/Handlers/ui_vis.py", "rift/ui/Handlers/vis.ui", "rift/ui/Handlers/vis_handler.py", "rift/ui/Notes.txt", "ui/main.py", "rift/ui/main.ui", "rift/ui/ui_main.py"]
