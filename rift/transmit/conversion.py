@@ -1,41 +1,36 @@
+import io
+from collections.abc import Iterable
+from typing import SupportsInt
+
 import numpy as np
-import serial
-import time
 
-def dist_to_ticks(perimeter, command):
-    ticks_per_foot = 1125*12
-    cmd_np = np.array(command)*perimeter*ticks_per_foot
-    return cmd_np
+from rift.arraytypes import Matrix, Vector
 
-def ticks_to_tps(command, t=1.5):
-    return command/t
+from . import commands as commands
 
-def send_command(ser, commands,t):
-    commands = commands
-    
-    message = f"VEL_DUR:{','.join(str(int(c)) for c in commands.ravel())}"+f":{t}\n"
-    ser.write(message.encode('utf-8'))
-    ser.flush()
-    time.sleep(2) # can adjust, 1.5 matches transmitter
-    print(f"[SENT] {message.strip()}")
 
-def send_command_pos(ser, commands,t):
-    # commands = -1* commands
-    
-    message = f"Pos:{','.join(str(int(c)) for c in commands.ravel())}\n"
-    ser.write(message.encode('utf-8'))
-    ser.flush()
-    time.sleep(2) # can adjust, 1.5 matches transmitter
-    print(f"[SENT] {message.strip()}")
-    return message
+def dist_to_ticks(perimeter: float, command: Vector):
+    ticks_per_foot = 1125 * 12
+    return np.array(command) * perimeter * ticks_per_foot
 
-def send_stop(ser):
-    message = "STOP\n"
-    ser.write(message.encode('utf-8'))
-    ser.flush()
-    print(f"[SENT] {message.strip()}")
 
-def read_positions(ser):
+def ticks_to_tps(command: Vector, t: float = 1.5):
+    return command / t
+
+
+def send_command(ser: io.IOBase, v: Iterable[SupportsInt], t: float) -> None:
+    commands.send(ser, commands.VEL(map(int, v), t))
+
+
+def send_command_pos(ser: io.IOBase, q: Iterable[SupportsInt]) -> None:
+    commands.send(ser, commands.VEL(map(int, q)))
+
+
+def send_stop(ser: io.IOBase) -> None:
+    commands.send(ser, commands.STOP())
+
+
+def read_positions(ser: io.IOBase) -> Matrix | None:
     while True:
         line = ser.readline().decode('utf-8', errors='ignore').strip()
         if not line:

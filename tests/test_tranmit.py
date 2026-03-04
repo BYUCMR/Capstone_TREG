@@ -2,6 +2,7 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
 import asyncio
+import io
 
 import pyqtgraph
 import serial
@@ -14,7 +15,7 @@ from rift.transmit.conversion import *
 
 
 async def main(
-    ser: serial.Serial | None = None,
+    ser: io.IOBase | None = None,
     init_pos: Matrix = rover.CRAWLING_POS,
     *,
     resolution: int = 100,
@@ -44,7 +45,10 @@ if __name__ == "__main__":
     try:
         ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
     except serial.SerialException:
-        ser = None
+        ser = open("commands.txt", 'wb')
+        def readline(size: int | None = -1):
+            return b'\n'
+        ser.readline = readline
     else:
         print(f"Serial port {SERIAL_PORT} opened successfully at {BAUD_RATE} baud.")
     pyqtgraph.mkQApp()
