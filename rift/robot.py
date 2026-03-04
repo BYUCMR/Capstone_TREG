@@ -51,7 +51,7 @@ class TrussRobot:
         t: float = 0.,
         allow_redundant: bool = False,
         respect_floor: bool = False,
-    ) -> tuple[Matrix, Vector]:
+    ) -> Vector:
         rigidity = self.truss.rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint((
             cstr.CustomConstraint(self.control.unreachable @ rigidity),
@@ -73,10 +73,9 @@ class TrussRobot:
         dx = steps.find_dx(R=rigidity, A=A, b=b, G=G, h=h, solver=solver)
         if dx is None:
             raise SolverError("Could not find valid node velocities")
-        dx = dx.reshape(self.pos.shape)
-        self.pos += dx
-        dr = self.control.inverse @ rigidity @ dx.ravel()
-        return dx, dr
+        dq = self.control.inverse @ rigidity @ dx
+        self.pos += dx.reshape(self.pos.shape)
+        return dq
 
     def take_step(
         self,
@@ -84,7 +83,7 @@ class TrussRobot:
         resolution: int,
         allow_redundant: bool = False,
         respect_floor: bool = False,
-    ) -> Generator[tuple[Matrix, Vector]]:
+    ) -> Generator[Vector]:
         for t in np.linspace(0., 1., resolution):
             yield self.take_substep(
                 *constraints,

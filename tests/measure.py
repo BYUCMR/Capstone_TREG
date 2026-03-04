@@ -19,20 +19,18 @@ def record_motion(
     step_length: float = 0.125,
     cycles: int = 1,
     resolution: int,
-) -> tuple[MatrixStack, MatrixStack, Matrix]:
+) -> tuple[MatrixStack, Matrix]:
     robot = rover.make_robot(init_pos)
     n = 4 * cycles * resolution
     pos = np.zeros((n + 1, *robot.pos.shape))
-    d_pos = np.zeros((n, *robot.pos.shape))
     d_roll = np.zeros((n, len(robot.control.inverse)))
     pos[0] = robot.pos
-    for i, (dx, dr) in enumerate(rover.crawl(
+    for i, dq in enumerate(rover.crawl(
         robot, cycles, (step_length, 0), resolution=resolution
     )):
         pos[i + 1] = robot.pos
-        d_pos[i] = dx
-        d_roll[i] = dr
-    return pos, d_pos, d_roll
+        d_roll[i] = dq
+    return pos, d_roll
 
 
 def measure_max_incline(init_pos: Matrix, *, da: float = 1.) -> float:
@@ -177,7 +175,7 @@ def main() -> None:
     step_length = 0.125
     da = 1.
     max_incline = measure_max_incline(init_pos, da=da)
-    pos_hist, d_pos_hist, d_roll_hist = record_motion(
+    pos_hist, d_roll_hist = record_motion(
         init_pos,
         step_length=step_length,
         cycles=cycles,

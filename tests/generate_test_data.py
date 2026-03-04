@@ -61,7 +61,7 @@ def tests(h, d_p, theta, w_p, d_f, resolution, step_length, roll_rate_limit, cyc
         return [np.nan] * 9
     max_incline = or_nan(measure.measure_max_incline, config)
     try:
-        pos_hist, d_pos_hist, d_roll_hist = measure.record_motion(
+        pos_hist, d_roll_hist = measure.record_motion(
             config,
             step_length=step_length,
             cycles=cycles,

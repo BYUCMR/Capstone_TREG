@@ -324,7 +324,7 @@ def crawl(
     step_length: tuple[float, float] = (0.125, 0.),
     *,
     resolution: int = 50,
-) -> Generator[tuple[Matrix, Vector]]:
+) -> Generator[Vector]:
     payload_mass = np.zeros(len(robot.pos))
     payload_mass[PAYLOAD] = 1.
     payload_com = cstr.Point.com(payload_mass)
@@ -355,7 +355,7 @@ def lean(
     dist: float = 0.6,
     *,
     resolution: int = 100,
-) -> Generator[tuple[Matrix, Vector]]:
+) -> Generator[Vector]:
     dx = dist / resolution
     constraint = cstr.CompoundConstraint((
         cstr.Motion.make(CPL2, dx),
@@ -373,7 +373,7 @@ def reach(
     dist: float = 1.,
     *,
     resolution: int = 100,
-) -> Generator[tuple[Matrix, Vector]]:
+) -> Generator[Vector]:
     constraint = cstr.CompoundConstraint((
         cstr.Motion.make(CL3, x=dist / resolution),
         cstr.Motion.make(CR3, x=dist / resolution),
@@ -394,7 +394,7 @@ def roll(
     *,
     i: int = 0,
     resolution: int = 100,
-) -> Generator[tuple[Matrix, Vector]]:
+) -> Generator[Vector]:
     payload_midpoints = (
         cstr.Point.avg(CPL1, CPR1),
         cstr.Point.avg(CPL3, CPR3),
@@ -458,7 +458,7 @@ def take_command(
     command: steps.Command,
     *,
     resolution: int,
-) -> Generator[tuple[Matrix, Vector]]:
+) -> Generator[Vector]:
     if command.x ==0 and command.y == 0 and command.z == 0:
         return
     elif command.mode is steps.Mode.crawling:

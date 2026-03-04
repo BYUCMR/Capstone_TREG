@@ -25,8 +25,8 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
         ui.ctr_layout.insertWidget(0, view)
         view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-    @Slot(ndarray, ndarray, ndarray)
-    def update_anim(self, x: Matrix, dx: Matrix, dq: Vector) -> None:
+    @Slot(ndarray, ndarray)
+    def update_anim(self, x: Matrix, dq: Vector) -> None:
         self.animate(x)
 
     @Slot()
@@ -55,7 +55,7 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
 
 class VizWorker(QObject):
     done = Signal()
-    results = Signal(ndarray, ndarray, ndarray)
+    results = Signal(ndarray, ndarray)
     message = Signal(str)
 
     def __init__(
@@ -77,14 +77,12 @@ class VizWorker(QObject):
             cur_thread.exit()
             return
         gen = rover.take_command(self.robot, cmd, resolution=self.resolution)
-        delta_x = np.zeros_like(self.robot.pos)
         delta_q = np.zeros(len(self.robot.control.inverse))
         try:
-            for i, (dx, dq) in enumerate(gen):
-                delta_x += dx
+            for i, dq in enumerate(gen):
                 delta_q += dq
                 if not i % self.period:
-                    self.results.emit(self.robot.pos.copy(), delta_x, delta_q)
+                    self.results.emit(self.robot.pos.copy(), delta_q)
         except InverseKinematicsError as e:
             self.message.emit(e.args[0])
         self.done.emit()
