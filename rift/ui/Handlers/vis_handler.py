@@ -1,6 +1,3 @@
-import time
-from collections.abc import Generator
-
 import numpy as np
 from numpy import ndarray
 from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
@@ -13,8 +10,6 @@ from rift.steps import Command
 
 class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     send_cmd = Signal(Command)
-    query_next = Signal()
-    send_startup = Signal()
     message = Signal(str)
 
     def __init__(
@@ -33,7 +28,6 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     @Slot(ndarray, ndarray, ndarray)
     def update_anim(self, x: Matrix, dx: Matrix, dq: Vector) -> None:
         self.animate(x)
-        self.query_next.emit()
 
     @Slot()
     def send_new(self):
@@ -41,16 +35,12 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
 
     def start_sim(self) -> None:
         self.work_thread = QThread()
-        self.worker = VizWorker()
-        self.worker.period = 10
+        self.worker = VizWorker(period=10)
         self.worker.moveToThread(self.work_thread)
 
-        self.send_startup.connect(self.worker.setup)
-        self.send_startup.emit()
         self.send_cmd.connect(self.worker.run_cmd)
-        self.query_next.connect(self.worker.run_next)
-        self.worker.ready.connect(self.send_new)
-        self.worker.anim_update.connect(self.update_anim)
+        self.worker.done.connect(self.send_new)
+        self.worker.results.connect(self.update_anim, Qt.ConnectionType.BlockingQueuedConnection)
         self.worker.message.connect(self.message.emit)
         self.work_thread.finished.connect(self.worker.deleteLater)
         self.send_new()
@@ -64,17 +54,21 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
 
 
 class VizWorker(QObject):
-    ready = Signal()
-    anim_update = Signal(ndarray, ndarray, ndarray)
+    done = Signal()
+    results = Signal(ndarray, ndarray, ndarray)
     message = Signal(str)
 
-    period: int = 1
-    resolution: int = 100
-    gen: Generator[tuple[Matrix, Vector]] | None = None
-
-    @Slot()
-    def setup(self) -> None:
-        self.robot = rover.make_robot()
+    def __init__(
+        self,
+        init_pos: Matrix = rover.CRAWLING_POS,
+        *,
+        resolution: int = 100,
+        period: int = 1,
+    ) -> None:
+        super().__init__()
+        self.period = period
+        self.resolution = resolution
+        self.robot = rover.make_robot(init_pos)
 
     @Slot(Command)
     def run_cmd(self, cmd: Command) -> None:
@@ -82,28 +76,15 @@ class VizWorker(QObject):
         if cur_thread.isInterruptionRequested():
             cur_thread.exit()
             return
-        self.gen = rover.take_command(self.robot, cmd, resolution=self.resolution)
-        self.run_next()
-
-    @Slot()
-    def run_next(self) -> None:
-        if self.gen is None:
-            self.ready.emit()
-            return
+        gen = rover.take_command(self.robot, cmd, resolution=self.resolution)
         delta_x = np.zeros_like(self.robot.pos)
         delta_q = np.zeros(len(self.robot.control.inverse))
-        for _ in range(self.period):
-            try:
-                dx, dq = next(self.gen)
-            except StopIteration:
-                self.ready.emit()
-                break
-            except InverseKinematicsError as e:
-                self.message.emit(e.args[0])
-                self.ready.emit()
-                break
-            delta_x += dx
-            delta_q += dq
-        else:
-            time.sleep(0.001)
-            self.anim_update.emit(self.robot.pos.copy(), delta_x, delta_q)
+        try:
+            for i, (dx, dq) in enumerate(gen):
+                delta_x += dx
+                delta_q += dq
+                if not i % self.period:
+                    self.results.emit(self.robot.pos.copy(), delta_x, delta_q)
+        except InverseKinematicsError as e:
+            self.message.emit(e.args[0])
+        self.done.emit()
