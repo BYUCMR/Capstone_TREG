@@ -25,6 +25,12 @@ class TrussRobot:
     truss: Truss
     control: LengthControl
 
+    def __post_init__(self) -> None:
+        if len(self.pos) != self.truss.n_nodes:
+            raise ValueError("Robot position and truss have mismatched node counts")
+        if self.truss.n_links != self.control.n_outputs:
+            raise ValueError("Robot truss and control have mismatched link counts")
+
     @property
     def n_nodes(self) -> int:
         return self.truss.n_nodes

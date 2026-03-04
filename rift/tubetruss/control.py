@@ -12,6 +12,16 @@ class LengthControl:
     forward: Matrix[np.integer]
     inverse: Matrix
 
+    def __post_init__(self) -> None:
+        if self.forward.shape != self.inverse.T.shape:
+            raise ValueError("Forward and inverse matrices have mismatched shapes")
+        if self.inverse.shape[1] != self.unreachable.shape[1]:
+            raise ValueError("Inverse and unreachable matrices have unequal column counts")
+        round_trip = self.inverse @ self.forward
+        identity = np.eye(self.forward.shape[1])
+        if not np.allclose(round_trip, identity):
+            raise ValueError("Inverse matrix times forward matrix is not an identity")
+
     @property
     def n_inputs(self) -> int:
         return len(self.inverse)
