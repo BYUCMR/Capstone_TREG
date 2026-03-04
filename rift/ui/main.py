@@ -21,10 +21,10 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state = Command(Mode.offline, 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
-        self.vis_handler = SimWindow(self.cmd_state)
+        self.vis_handler = SimWindow(self.cmd_state, self.ui)
         self.vis_handler.keyPressEvent = self.keyPressEvent
         self.vis_handler.keyReleaseEvent = self.keyReleaseEvent
-        self.vis_handler.message.connect(self.term_log)
+        # self.vis_handler.message.connect(self.term_log)
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
@@ -51,6 +51,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.crawling.clicked.connect(lambda: self.mode_select(Mode.crawling))
         self.ui.node_control.clicked.connect(lambda: self.mode_select(Mode.node_control))
         self.ui.calibration.clicked.connect(lambda: self.mode_select(Mode.calibration))
+
+        self.ui.sim_toggle.clicked.emit()
 
     @Slot()
     def toggle_sim(self) -> None:
@@ -115,7 +117,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state.x += x
         self.cmd_state.y += y
         self.cmd_state.z += z
-        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+        # print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
     def cleanup(self) -> None:
         print("Attempting Cleanup")

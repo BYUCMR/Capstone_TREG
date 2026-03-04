@@ -4,15 +4,15 @@ from collections.abc import Generator
 import numpy as np
 from numpy import ndarray
 from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
-from PySide6.QtWidgets import QWidget
+# from PySide6.QtWidgets import QWidget
 
 from rift import rover
 from rift.arraytypes import Matrix, Vector
 from rift.robot import InverseKinematicsError
 from rift.steps import Command
-from .ui_vis import Ui_vis_window
+# from .ui_vis import Ui_vis_window
 
-class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
+class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     send_cmd = Signal(Command)
     query_next = Signal()
     send_startup = Signal()
@@ -21,19 +21,19 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
     def __init__(
         self,
         cmd_state: Command,
-        parent: QWidget | None = None,
+        ui,
+        parent: QObject | None = None
     ) -> None:
-        super().__init__(parent)
+        super().__init__()
 
-        self.ui = Ui_vis_window()
-        self.ui.setupUi(self)
+        self.ui = ui
 
         self.cmd_state = cmd_state
 
         self.view_live = False
 
         view, self.animate = rover.set_up_animation(trace_len=10)
-        self.ui.layout.addWidget(view)
+        self.ui.ctr_layout.insertWidget(0,view)
         view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
     @Slot(ndarray, ndarray, ndarray)
@@ -46,7 +46,7 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
         self.send_cmd.emit(self.cmd_state)
 
     def start_sim(self) -> None:
-        self.show()
+        # self.show()
         # print('yuh')
 
         self.work_thread = QThread()
@@ -69,7 +69,7 @@ class SimWindow(QWidget): #referenced as sim_widget by mainwindow class
 
     def kill_sim(self) -> None:
         # print('nuh')
-        self.hide()
+        # self.hide()
         self.work_thread.requestInterruption()
         self.view_live = False
 
