@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QMainWindow, QWidget
 from rift.steps import Command, Mode
 from .ui_main import Ui_Control
 from .Handlers.joystick_handler import JoystickHandler
+from .Handlers.transmit import TransmitHandler
 from .Handlers.vis_handler import SimWindow
 
 
@@ -22,13 +23,16 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
         self.joystick_handler = JoystickHandler(self.ui)
         self.vis_handler = SimWindow(self.cmd_state, self.ui)
+        self.bot_handler = TransmitHandler()
         self.vis_handler.message.connect(self.term_log)
+        self.bot_handler.message.connect(self.term_log)
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
 
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
         # self.ui.sim_label.clicked.connect(self.open_sim)
+        self.ui.bot_toggle.clicked.connect(self.toggle_bot)
         self.ui.selector.valueChanged.connect(self.update_item)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
@@ -60,12 +64,37 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.sim_toggle.setText("Kill Simulation")
             self.term_log("Simulation Initialized")
             self.vis_handler.start_sim()
+            if self.bot_handler.bot_live:
+                self.vis_handler.worker.results.connect(
+                    self.bot_handler.worker.transmit,
+                    Qt.ConnectionType.BlockingQueuedConnection,
+                )
         else:
             self.redify(self.ui.sim_label)
             self.ui.sim_label.setText("Simulation Offline")
             self.ui.sim_toggle.setText("Begin Simulation")
             self.term_log("Simulation Closed")
             self.vis_handler.kill_sim()
+
+    @Slot()
+    def toggle_bot(self) -> None:
+        if not self.bot_handler.bot_live:
+            self.greenify(self.ui.bot_label)
+            self.ui.bot_label.setText("Robot Online")
+            self.ui.bot_toggle.setText("Disconnect Robot")
+            self.term_log("Robot Connected")
+            self.bot_handler.start_transmission()
+            if self.vis_handler.sim_live:
+                self.vis_handler.worker.results.connect(
+                    self.bot_handler.worker.transmit,
+                    Qt.ConnectionType.BlockingQueuedConnection,
+                )
+        else:
+            self.redify(self.ui.bot_label)
+            self.ui.bot_label.setText("Robot Offline")
+            self.ui.bot_toggle.setText("Connect Robot")
+            self.term_log("Robot Disconnected")
+            self.bot_handler.kill_transmission()
 
     @Slot()
     def update_item(self) -> None:
@@ -125,6 +154,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             print("Sim killed")
         except:
             print("No Sim to kill")
+        try:
+            self.bot_handler.work_thread.exit()
+            print("Robot disconnected")
+        except:
+            print("No Robot to disconnect")
 
     #overwriting key input handlers
     def keyPressEvent(self, event: QKeyEvent) -> None:
