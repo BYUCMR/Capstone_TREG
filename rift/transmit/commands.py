@@ -1,44 +1,16 @@
-import io
 from collections.abc import Iterable
-from dataclasses import dataclass
-from typing import Protocol
+from typing import Final
 
 
-class Command(Protocol):
-    def __bytes__(self) -> bytes: ...
+STOP: Final = b"STOP\n"
+RESET: Final = b"RESET\n"
 
+def VEL(v: Iterable[float], t: float | None = None) -> bytes:
+    if t is None:
+        # "VEL" implicitly sets t to 1.5
+        return f"VEL:{','.join(map(str, v))}\n".encode()
+    else:
+        return f"VEL_DUR:{','.join(map(str, v))}:{t}\n".encode()
 
-@dataclass(slots=True, frozen=True)
-class VEL:
-    v: Iterable[float] = ()
-    t: float = 1.5
-
-    def __bytes__(self) -> bytes:
-        return f"VEL_DUR:{','.join(map(str, self.v))}:{self.t}\n".encode()
-
-
-@dataclass(slots=True, frozen=True)
-class POS:
-    q: Iterable[float] = ()
-
-    def __bytes__(self) -> bytes:
-        return f"POS:{','.join(map(str, self.q))}\n".encode()
-
-
-@dataclass(slots=True, frozen=True)
-class STOP:
-    def __bytes__(self) -> bytes:
-        return b"STOP\n"
-
-
-@dataclass(slots=True, frozen=True)
-class RESET:
-    def __bytes__(self) -> bytes:
-        return b"RESET\n"
-
-
-def send(ser: io.IOBase, cmd: Command, *, echo: bool = False) -> bytes:
-    ser.write(bytes(cmd))
-    ser.flush()
-    print(f"[SENT] {b.decode()}", end='')
-    return ser.readline()
+def POS(q: Iterable[float]) -> bytes:
+    return f"POS:{','.join(map(str, q))}\n".encode()

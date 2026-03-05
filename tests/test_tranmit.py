@@ -29,12 +29,13 @@ async def main(
         for dr in rover.roll(robot, resolution=resolution):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
-            t = 1.5
-            ticks_per_sec = map(int, rover.TICKS_PER_SIDE * dr / t)
-            cmd = commands.VEL(ticks_per_sec, t)
+            ticks_per_sec = map(int, rover.TICKS_PER_SIDE * dr / 1.5)
+            cmd = commands.VEL(ticks_per_sec)
             if ser is not None:
-                commands.send(ser, commands.STOP(), echo=True)
-                commands.send(ser, cmd, echo=True)
+                ser.writelines((commands.STOP, cmd))
+                ser.flush()
+                print("[SENT]", cmd.decode(), end="")
+                ser.readline()
             await asyncio.sleep(t * 0.1)
     except InverseKinematicsError as e:
         print(e.args[0])
@@ -58,6 +59,7 @@ if __name__ == "__main__":
         QtAsyncio.run(main(ser, init_pos, resolution=25))
     finally:
         if ser is not None:
-            commands.send(ser, commands.STOP())
+            ser.write(commands.STOP)
+            ser.flush()
             ser.close()
             print(f"Serial port {SERIAL_PORT} closed.")
