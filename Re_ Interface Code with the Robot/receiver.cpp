@@ -286,9 +286,11 @@ void receiveRadioCommand()
     ack.currentPosition = encoderPosition;
     ack.currentTPS = currentTPS;
     // unsigned long now = millis();
+    // Sends acknowledgement to transmitter comprising current position and speed of roller:
     radio.writeAckPayload(0, &ack, sizeof(ack));
 
     RadioPayload cmd;
+    // Read command from radio into cmd object:
     radio.read(&cmd, sizeof(cmd));
 
     if (cmd.reset)

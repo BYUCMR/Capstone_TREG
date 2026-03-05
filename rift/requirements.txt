@@ -1,6 +1,7 @@
 numpy
 PyOpenGL
 pyqtgraph
+pyserial
 PySide6
 qpsolvers[piqp]
 scipy
