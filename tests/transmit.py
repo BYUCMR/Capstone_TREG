@@ -29,14 +29,14 @@ async def main(
         for dr in rover.roll(robot, resolution=resolution):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
-            ticks_per_sec = map(int, rover.TICKS_PER_SIDE * dr / 1.5)
-            cmd = commands.VEL(ticks_per_sec)
+            ticks_per_sec = rover.TICKS_PER_SIDE * dr / t
+            cmd = commands.VEL(map(int, ticks_per_sec), t)
             if ser is not None:
                 ser.writelines((commands.STOP, cmd))
                 ser.flush()
                 print("[SENT]", cmd.decode(), end="")
                 ser.readline()
-            await asyncio.sleep(t * 0.1)
+            await asyncio.sleep(0)
     except InverseKinematicsError as e:
         print(e.args[0])
 
