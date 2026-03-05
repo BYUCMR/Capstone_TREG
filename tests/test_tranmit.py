@@ -11,7 +11,7 @@ from PySide6 import QtAsyncio
 from rift import rover
 from rift.arraytypes import Matrix
 from rift.robot import InverseKinematicsError
-from rift.transmit.conversion import *
+from rift.transmit import commands
 
 
 async def main(
@@ -29,10 +29,12 @@ async def main(
         for dr in rover.roll(robot, resolution=resolution):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
-            cmnd = rover.TICKS_PER_SIDE * dr / 1.5
+            t = 1.5
+            ticks_per_sec = map(int, rover.TICKS_PER_SIDE * dr / t)
+            cmd = commands.VEL(ticks_per_sec, t)
             if ser is not None:
-                send_stop(ser)
-                send_command(ser, cmnd, t)
+                commands.send(ser, commands.STOP())
+                commands.send(ser, cmd)
             await asyncio.sleep(t * 0.1)
     except InverseKinematicsError as e:
         print(e.args[0])
@@ -56,6 +58,6 @@ if __name__ == "__main__":
         QtAsyncio.run(main(ser, init_pos, resolution=25))
     finally:
         if ser is not None:
-            send_stop(ser)
+            commands.send(ser, commands.STOP())
             ser.close()
             print(f"Serial port {SERIAL_PORT} closed.")
