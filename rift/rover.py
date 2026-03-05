@@ -134,6 +134,9 @@ CPR2: Final = cstr.Point.node(PR2, 12)
 CPR3: Final = cstr.Point.node(PR3, 12)
 CCOM: Final = cstr.Point.com(MASS)
 
+# Physical size
+TICKS_PER_SIDE: Final = 1125 * 12 * 6
+
 
 def make_pos(
     height: float,

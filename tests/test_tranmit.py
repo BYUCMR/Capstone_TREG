@@ -29,7 +29,7 @@ async def main(
         for dr in rover.roll(robot, resolution=resolution):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
-            cmnd = ticks_to_tps(dist_to_ticks(6, dr))
+            cmnd = rover.TICKS_PER_SIDE * dr / 1.5
             if ser is not None:
                 send_stop(ser)
                 send_command(ser, cmnd, t)

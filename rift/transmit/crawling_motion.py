@@ -5,6 +5,7 @@ import cProfile
 import pstats
 import time
 
+from rift import rover
 from rift.robot import RobotInverse
 from rift.truss_config import ROVER_CONFIG as config
 from conversion import *
@@ -26,7 +27,7 @@ def main():
     with serial.Serial(SERIAL_PORT, BAUDRATE, timeout=0.2) as ser:
         time.sleep(2.0)  # give Arduino time to reset
         read_positions(ser)  # clear initial buffer
-        
+
         target_hz = 2.0
         period = 1.0 / target_hz
 
@@ -38,7 +39,7 @@ def main():
             i=0
             for *_,d_roll in robot.crawl(1, resolution=4):
                 print(d_roll)
-                cmnd = dist_to_ticks(16/12,d_roll)
+                cmnd = rover.TICKS_PER_SIDE * 16/12/6 * d_roll
                 send_command(cmnd)
                 positions_ticks = read_positions(ser)
 

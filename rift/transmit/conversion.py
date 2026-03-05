@@ -4,18 +4,9 @@ from typing import SupportsInt
 
 import numpy as np
 
-from rift.arraytypes import Matrix, Vector
+from rift.arraytypes import Matrix
 
 from . import commands as commands
-
-
-def dist_to_ticks(perimeter: float, command: Vector):
-    ticks_per_foot = 1125 * 12
-    return np.array(command) * perimeter * ticks_per_foot
-
-
-def ticks_to_tps(command: Vector, t: float = 1.5):
-    return command / t
 
 
 def send_command(ser: io.IOBase, v: Iterable[SupportsInt], t: float) -> None:

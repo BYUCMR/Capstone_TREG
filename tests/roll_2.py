@@ -157,7 +157,7 @@ async def main(
 
     for dq in roll(robot, resolution=resolution):
         stabilizer.update_pos(robot.pos)
-        message = f"VEL:{','.join(str(int(c)) for c in ticks_to_tps(dist_to_ticks(6,dq)).ravel())}"
+        message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
         print(message)
         animate(stabilizer.pos)
         await asyncio.sleep(0)
