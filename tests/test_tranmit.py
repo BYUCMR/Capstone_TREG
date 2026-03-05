@@ -33,8 +33,8 @@ async def main(
             ticks_per_sec = map(int, rover.TICKS_PER_SIDE * dr / t)
             cmd = commands.VEL(ticks_per_sec, t)
             if ser is not None:
-                commands.send(ser, commands.STOP())
-                commands.send(ser, cmd)
+                commands.send(ser, commands.STOP(), echo=True)
+                commands.send(ser, cmd, echo=True)
             await asyncio.sleep(t * 0.1)
     except InverseKinematicsError as e:
         print(e.args[0])

@@ -37,9 +37,8 @@ class RESET:
         return b"RESET\n"
 
 
-def send(ser: io.IOBase, cmd: Command) -> bytes:
-    b = bytes(cmd)
-    ser.write(b)
+def send(ser: io.IOBase, cmd: Command, *, echo: bool = False) -> bytes:
+    ser.write(bytes(cmd))
     ser.flush()
     print(f"[SENT] {b.decode()}", end='')
     return ser.readline()
