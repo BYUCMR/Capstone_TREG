@@ -26,7 +26,7 @@ async def main(
     view.show()
     t = 37.5 / resolution
     try:
-        for dx, dr in rover.roll(robot, resolution=resolution):
+        for dr in rover.roll(robot, resolution=resolution):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
             cmnd = ticks_to_tps(dist_to_ticks(6, dr))

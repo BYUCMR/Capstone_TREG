@@ -9,13 +9,13 @@ from functools import partial
 from rift import steps
 from rift import rover
 from rift.arraytypes import Matrix
-from rift.robot import InverseKinematicsError,RobotInverse
+from rift.robot import InverseKinematicsError,TrussRobot
 import rift.constrain as cstr
 import numpy as np
 from rift.transmit.conversion import *
 
 
-def shrink_in(robot: RobotInverse,
+def shrink_in(robot: TrussRobot,
     *,
     i: int = 0,
     resolution: int = 100,):
@@ -36,13 +36,13 @@ def shrink_in(robot: RobotInverse,
         cstr.Motion.make(rover.CR3,y=dy),
     ))
     yield from robot.take_step(step_0, resolution=resolution, allow_redundant=True)
-    
+
 def roll(
-    robot: RobotInverse,
+    robot: TrussRobot,
     *,
     i: int = 0,
     resolution: int = 100,
-) -> Generator[tuple[Matrix, Vector]]:
+) -> Generator[Vector]:
     payload_midpoints = (
         cstr.Point.avg(rover.CPL1, rover.CPR1),
         cstr.Point.avg(rover.CPL3, rover.CPR3),
@@ -102,11 +102,11 @@ def roll(
     yield from robot.take_step(step_3, resolution=resolution)
 
 def stand(
-            robot: RobotInverse,
+            robot: TrussRobot,
     *,
     i: int = 0,
     resolution: int = 100,
-) -> Generator[tuple[Matrix, Vector]]:
+) -> Generator[Vector]:
     payload_mass = np.zeros(len(robot.pos))
     payload_mass[rover.PAYLOAD] = 1.
     payload_com = cstr.Point.com(payload_mass)
@@ -123,10 +123,10 @@ def stand(
     yield from robot.take_step(step_0, resolution=resolution, allow_redundant=True)
 
 def roll_p1(
-    robot: RobotInverse,
+    robot: TrussRobot,
     *,
     resolution: int = 100,
-) -> Generator[tuple[Matrix, Vector]]:
+) -> Generator[Vector]:
     base = cstr.Point.avg(rover.CPL3, rover.CPR3)
     face = cstr.Point.avg(rover.CPL2, rover.CPR2)
     other_feet = [rover.CL2, rover.CR2, rover.CL3, rover.CR3]
@@ -150,34 +150,19 @@ async def main(
     *,
     resolution: int = 100,
 ) -> None:
-    animator = rover.make_animator(init_pos)
+    view, animate = rover.set_up_animation(init_pos)
     robot = rover.make_robot(init_pos)
     stabilizer = rover.make_stabilizer(init_pos)
-    positions = asyncio.Queue[Matrix](resolution)
+    view.show()
 
-    async def crawl() -> None:
-        for _,dq in roll(robot, resolution=resolution):
-            stabilizer.update_pos(robot.pos)
-            # await positions.put(robot.pos.copy())
-            
-            message = f"VEL:{','.join(str(int(c)) for c in ticks_to_tps(dist_to_ticks(6,dq)).ravel())}"
-            print(message)
-            await positions.put(stabilizer.pos)
-        # for _ in range(3):
-        #     for _ in rover.crawl(robot, resolution=resolution):
-        #         # stabilizer.update_pos(robot.pos)
-        #         await positions.put(robot.pos.copy())
+    for dq in roll(robot, resolution=resolution):
+        stabilizer.update_pos(robot.pos)
+        message = f"VEL:{','.join(str(int(c)) for c in ticks_to_tps(dist_to_ticks(6,dq)).ravel())}"
+        print(message)
+        animate(stabilizer.pos)
+        await asyncio.sleep(0)
 
 
-    crawling_task = asyncio.create_task(crawl())
-    animation_task = asyncio.create_task(animator.animate(positions))
-    try:
-        await crawling_task
-    except InverseKinematicsError as e:
-        print(e.args[0])
-    print("Done with IK")
-    positions.shutdown()
-    await animation_task
     print("Done with animation")
 
 
