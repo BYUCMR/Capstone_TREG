@@ -52,10 +52,11 @@ class TrussRobot:
         ))
         A, b = constraint.get(self.pos, t)
         d_length = self.control.forward @ d_roll
-        d_pos = np.linalg.solve(
+        d_pos, *_ = np.linalg.lstsq(
             np.concat((rigidity, A)),
             np.concat((d_length, b)),
         )
+        d_pos = d_pos.reshape(self.pos.shape)
         self.pos += d_pos
         return d_pos
 
