@@ -79,10 +79,14 @@ class VizWorker(QObject):
         gen = rover.take_command(self.robot, cmd, resolution=self.resolution)
         delta_q = np.zeros(self.robot.n_rollers)
         try:
+            i = None
             for i, dq in enumerate(gen):
                 delta_q += dq
                 if not i % self.period:
-                    self.results.emit(self.robot.pos.copy(), delta_q)
+                    self.results.emit(self.robot.pos.copy(), delta_q.copy())
+                    delta_q[:] = 0.
+            if i is not None and i % self.period:
+                self.results.emit(self.robot.pos.copy(), delta_q)
         except InverseKinematicsError as e:
             self.message.emit(e.args[0])
         self.done.emit()

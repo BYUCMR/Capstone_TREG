@@ -474,9 +474,9 @@ def take_command(
         motion = cstr.CompoundConstraint([
             cstr.Motion.make(
                 cstr.Point.node(command.item, robot.n_nodes),
-                x=command.x * 0.0005,
-                y=command.y * 0.0005,
-                z=command.z * 0.0005,
+                x=command.x * 0.05 / resolution,
+                y=command.y * 0.05 / resolution,
+                z=command.z * 0.05 / resolution,
             ),
             *(
                 cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
