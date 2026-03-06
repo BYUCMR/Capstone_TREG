@@ -109,17 +109,17 @@ def tests_from_ranges_mp():
     resolution = 100
 
     height = np.arange(0.125, 0.75, 0.125)
-    payload_length = np.arange(0.25, 1.0, 0.15)
+    chassis_length = np.arange(0.25, 1.0, 0.15)
     shoulder_angle = np.arange(0, 100, 10)
-    payload_width = np.arange(0.0625, 1.5625, 0.25)
+    chassis_width = np.arange(0.0625, 1.5625, 0.25)
     foot_width = np.arange(0.25, 1.25, 0.125)
     step_length = np.arange(0.125, 0.375, 0.125)
 
     inputs = list(product(
         height,
-        payload_length,
+        chassis_length,
         shoulder_angle,
-        payload_width,
+        chassis_width,
         foot_width,
         [resolution],
         step_length,
