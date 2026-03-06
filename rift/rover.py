@@ -523,3 +523,12 @@ def take_command(
             ),
         ])
         yield from robot.take_step(motion, resolution=resolution, respect_floor=True)
+    elif command.mode is steps.Mode.calibration:
+        dq = np.zeros(robot.n_rollers)
+        dq[command.item] = command.x * 0.0005
+        constraint = cstr.CompoundConstraint([
+            cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
+            for foot in (L1, L2, R1, R2)
+        ])
+        robot.apply_roll(dq, constraint)
+        yield dq
