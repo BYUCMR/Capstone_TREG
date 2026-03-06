@@ -462,7 +462,7 @@ def take_command(
     *,
     resolution: int,
 ) -> Generator[Vector]:
-    if command.x ==0 and command.y == 0 and command.z == 0:
+    if not command:
         return
     elif command.mode is steps.Mode.crawling:
         x = command.x * 0.125
