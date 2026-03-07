@@ -1,10 +1,11 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Self
 
 import numpy as np
 
-from rift.arraytypes import Matrix
-from .linalg import cokernel
+from rift.arraytypes import Matrix, SingleIndex
+from .linalg import cokernel, incidence_from_trails
 
 
 @dataclass(frozen=True)
@@ -44,3 +45,12 @@ class LengthControl:
         inverse = np.linalg.pinv(forward)
         unreachable = cokernel(forward)
         return cls(unreachable, forward, inverse)
+
+    @classmethod
+    def from_trails(
+        cls,
+        *trails: Iterable[SingleIndex],
+        n_static: int = 0,
+    ) -> Self:
+        forward_T = incidence_from_trails(*trails, empty_cols=n_static)
+        return cls.from_forward(forward_T.T)

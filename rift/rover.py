@@ -87,19 +87,15 @@ CHASSIS_TRUSS: Final = tt.Truss.from_trails(
 )
 
 # Roller setup
-ROLL_TO_LENGTH: Final = np.zeros((30, 12), dtype=np.intp)
-ROLL_TO_LENGTH[(L1_L2, P3_L1), 0] = (-1, 1)
-ROLL_TO_LENGTH[(L1_L2, L2_P3), 1] = (1, -1)
-ROLL_TO_LENGTH[(L2_L3, P1_L2), 2] = (-1, 1)
-ROLL_TO_LENGTH[(L2_L3, L3_P1), 3] = (1, -1)
-ROLL_TO_LENGTH[(L3_L1, P2_L3), 4] = (-1, 1)
-ROLL_TO_LENGTH[(L3_L1, L1_P2), 5] = (1, -1)
-ROLL_TO_LENGTH[(R1_R2, Q3_R1), 7] = (1, -1)
-ROLL_TO_LENGTH[(R1_R2, R2_Q3), 6] = (-1, 1)
-ROLL_TO_LENGTH[(R2_R3, Q1_R2),11] = (1, -1)
-ROLL_TO_LENGTH[(R2_R3, R3_Q1),10] = (-1, 1)
-ROLL_TO_LENGTH[(R3_R1, Q2_R3), 9] = (1, -1)
-ROLL_TO_LENGTH[(R3_R1, R1_Q2), 8] = (-1, 1)
+CONTROL: Final = tt.LengthControl.from_trails(
+    (P3_L1, L1_L2, L2_P3),  # Rollers 1 and 2
+    (P1_L2, L2_L3, L3_P1),  # Rollers 3 and 4
+    (P2_L3, L3_L1, L1_P2),  # Rollers 5 and 6
+    (R2_Q3, R1_R2, Q3_R1),  # Rollers 7 and 8
+    (R1_Q2, R3_R1, Q2_R3),  # Rollers 9 and 10
+    (R3_Q1, R2_R3, Q1_R2),  # Rollers 11 and 12
+    n_static=CHASSIS_TRUSS.n_links,
+)
 
 # Point masses
 MASS: Final = np.zeros(12)
@@ -225,8 +221,7 @@ ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 0.875)
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> TrussRobot:
     pos = init_pos.copy()
     truss = LEG_TRUSS.attach(CHASSIS_TRUSS)
-    control = tt.LengthControl.from_forward(ROLL_TO_LENGTH)
-    return TrussRobot(pos, truss, control)
+    return TrussRobot(pos, truss, CONTROL)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
