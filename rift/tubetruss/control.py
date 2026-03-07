@@ -17,6 +17,8 @@ class LengthControl:
             raise ValueError("Forward and inverse matrices have mismatched shapes")
         if self.inverse.shape[1] != self.unreachable.shape[1]:
             raise ValueError("Inverse and unreachable matrices have unequal column counts")
+        if np.any(self.unreachable @ self.forward):
+            raise ValueError("Unreachable null space does not contain forward column space")
         round_trip = self.inverse @ self.forward
         identity = np.eye(self.forward.shape[1])
         if not np.allclose(round_trip, identity):
