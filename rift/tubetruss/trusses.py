@@ -2,12 +2,12 @@ import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cached_property
-from itertools import pairwise
 from typing import Self
 
 import numpy as np
 
 from rift.arraytypes import IndexVector, Matrix, MatrixStack, SingleIndex, Vector
+from .linalg import incidence_from_trails
 
 
 @dataclass(frozen=True)
@@ -25,15 +25,7 @@ class Truss:
 
     @classmethod
     def from_trails(cls, *trails: Iterable[SingleIndex]) -> Self:
-        n_nodes = 1 + max(node for trail in trails for node in trail)
-        rows: list[Vector[np.int8]] = []
-        for nodes in trails:
-            for i, j in pairwise(nodes):
-                row = np.zeros(n_nodes, dtype=np.int8)
-                row[i] =  1
-                row[j] = -1
-                rows.append(row)
-        return cls(np.array(rows, dtype=np.int8))
+        return cls(incidence_from_trails(*trails))
 
     @cached_property
     def nodes(self) -> Vector[np.intp]:
