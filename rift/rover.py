@@ -62,28 +62,15 @@ Q2_R3: Final = 16
 R3_R1: Final = 17
 
 # Truss structures
-LEG_INCIDENCE: Final = np.zeros((18, 12), dtype=np.int8)
-LEG_INCIDENCE[L1_L2, (L1, L2)] = (1, -1)
-LEG_INCIDENCE[L2_P3, (L2, P3)] = (1, -1)
-LEG_INCIDENCE[P3_L1, (P3, L1)] = (1, -1)
-LEG_INCIDENCE[P1_L2, (P1, L2)] = (1, -1)
-LEG_INCIDENCE[L2_L3, (L2, L3)] = (1, -1)
-LEG_INCIDENCE[L3_P1, (L3, P1)] = (1, -1)
-LEG_INCIDENCE[L1_P2, (L1, P2)] = (1, -1)
-LEG_INCIDENCE[P2_L3, (P2, L3)] = (1, -1)
-LEG_INCIDENCE[L3_L1, (L3, L1)] = (1, -1)
-
-LEG_INCIDENCE[R1_R2, (R1, R2)] = (1, -1)
-LEG_INCIDENCE[R2_Q3, (R2, Q3)] = (1, -1)
-LEG_INCIDENCE[Q3_R1, (Q3, R1)] = (1, -1)
-LEG_INCIDENCE[Q1_R2, (Q1, R2)] = (1, -1)
-LEG_INCIDENCE[R2_R3, (R2, R3)] = (1, -1)
-LEG_INCIDENCE[R3_Q1, (R3, Q1)] = (1, -1)
-LEG_INCIDENCE[R1_Q2, (R1, Q2)] = (1, -1)
-LEG_INCIDENCE[Q2_R3, (Q2, R3)] = (1, -1)
-LEG_INCIDENCE[R3_R1, (R3, R1)] = (1, -1)
-
-LEG_TRUSS: Final = tt.Truss(LEG_INCIDENCE)
+LEG_TRUSS: Final = tt.Truss.from_trails(
+    # These must follow the link order defined above.
+    (L1, L2, P3, L1),
+    (P1, L2, L3, P1),
+    (L1, P2, L3, L1),
+    (R1, R2, Q3, R1),
+    (Q1, R2, R3, Q1),
+    (R1, Q2, R3, R1),
+)
 CHASSIS_TRUSS: Final = tt.Truss.from_trails(
     (P1, Q1),
     (P2, Q2),
