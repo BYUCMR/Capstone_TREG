@@ -88,11 +88,11 @@ CHASSIS_TRUSS: Final = tt.Truss.from_trails(
 
 # Roller setup
 CONTROL: Final = tt.LengthControl.from_trails(
-    (P3_L1, L1_L2, L2_P3),  # Rollers 1 and 2
-    (P1_L2, L2_L3, L3_P1),  # Rollers 3 and 4
-    (P2_L3, L3_L1, L1_P2),  # Rollers 5 and 6
-    (R2_Q3, R1_R2, Q3_R1),  # Rollers 7 and 8
-    (R1_Q2, R3_R1, Q2_R3),  # Rollers 9 and 10
+    (P3_L1, L1_L2, L2_P3),  # Rollers 01 and 02
+    (P1_L2, L2_L3, L3_P1),  # Rollers 03 and 04
+    (P2_L3, L3_L1, L1_P2),  # Rollers 05 and 06
+    (R2_Q3, R1_R2, Q3_R1),  # Rollers 07 and 08
+    (R1_Q2, R3_R1, Q2_R3),  # Rollers 09 and 10
     (R3_Q1, R2_R3, Q1_R2),  # Rollers 11 and 12
     n_static=CHASSIS_TRUSS.n_links,
 )
@@ -118,6 +118,8 @@ CQ3: Final = cstr.Point.node(Q3, 12)
 CCOM: Final = cstr.Point.com(MASS)
 
 # Physical size
+# In actuality, we have 1125 * 12 * 4 ticks per side, but we
+# increase this to account for not simulating node offsets.
 TICKS_PER_SIDE: Final = 1125 * 12 * 6
 
 
