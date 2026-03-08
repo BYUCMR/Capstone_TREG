@@ -44,7 +44,7 @@ class TransmitWorker(QObject):
         if not self.ser.is_open:
             return
         ticks_per_sec = rover.TICKS_PER_SIDE * dq / self.dt
-        cmd = commands.VEL(map(int, ticks_per_sec), self.dt)
+        cmd = commands.VEL(ticks_per_sec, self.dt)
         self.ser.writelines((commands.STOP, cmd))
         self.ser.flush()
         if responses := self.ser.read_all():

@@ -14,5 +14,5 @@ def VEL(v: Iterable[float], t: float | None = None) -> bytes:
         return f"VEL_DUR:{','.join(map(str, v))}:{t}\n".encode()
 
 
-def POS(q: Iterable[float]) -> bytes:
+def POS(q: Iterable[int]) -> bytes:
     return f"POS:{','.join(map(str, q))}\n".encode()
