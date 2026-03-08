@@ -83,7 +83,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.bot_label.setText("Robot Online")
             self.ui.bot_toggle.setText("Disconnect Robot")
             self.term_log("Robot Connected")
-            self.bot_handler.start_transmission()
+            self.bot_handler.start_transmission(dt=150/self.vis_handler.worker.resolution)
             if self.vis_handler.sim_live:
                 self.vis_handler.worker.results.connect(
                     self.bot_handler.worker.transmit,

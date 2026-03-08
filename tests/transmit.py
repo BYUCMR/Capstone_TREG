@@ -35,8 +35,7 @@ async def main(
                 ser.writelines((commands.STOP, cmd))
                 ser.flush()
                 print("[SENT]", cmd.decode(), end="")
-                ser.readline()
-            await asyncio.sleep(0)
+            await asyncio.sleep(t)
     except InverseKinematicsError as e:
         print(e.args[0])
 
@@ -49,9 +48,6 @@ if __name__ == "__main__":
         ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
     except serial.SerialException:
         ser = open("commands.txt", 'wb')
-        def readline(size: int | None = -1):
-            return b'\n'
-        ser.readline = readline
     else:
         print(f"Serial port {SERIAL_PORT} opened successfully at {BAUD_RATE} baud.")
     pyqtgraph.mkQApp()

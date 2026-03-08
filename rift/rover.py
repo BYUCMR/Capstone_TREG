@@ -26,98 +26,81 @@ R1: Final = 3
 R2: Final = 4
 R3: Final = 5
 
-# Left side of payload / body
-PL1: Final = 6
-PL2: Final = 7
-PL3: Final = 8
+# Left side of chassis / body
+P1: Final = 6
+P2: Final = 7
+P3: Final = 8
 
-# Right side of payload / body
-PR1: Final = 9
-PR2: Final = 10
-PR3: Final = 11
+# Right side of chassis / body
+Q1: Final = 9
+Q2: Final = 10
+Q3: Final = 11
 
 # Slices
 FEET: Final = slice(L1, R3+1)
-PAYLOAD: Final = slice(PL1, PR3+1)
+CHASSIS: Final = slice(P1, Q3+1)
 
 # Links
 L1_L2: Final = 0
-L2_PL3: Final = 1
-PL3_L1: Final = 2
-PL1_L2: Final = 3
+L2_P3: Final = 1
+P3_L1: Final = 2
+P1_L2: Final = 3
 L2_L3: Final = 4
-L3_PL1: Final = 5
-L1_PL2: Final = 6
-PL2_L3: Final = 7
+L3_P1: Final = 5
+L1_P2: Final = 6
+P2_L3: Final = 7
 L3_L1: Final = 8
 
 R1_R2: Final = 9
-R2_PR3: Final = 10
-PR3_R1: Final = 11
-PR1_R2: Final = 12
+R2_Q3: Final = 10
+Q3_R1: Final = 11
+Q1_R2: Final = 12
 R2_R3: Final = 13
-R3_PR1: Final = 14
-R1_PR2: Final = 15
-PR2_R3: Final = 16
+R3_Q1: Final = 14
+R1_Q2: Final = 15
+Q2_R3: Final = 16
 R3_R1: Final = 17
 
 # Truss structures
-LEG_INCIDENCE: Final = np.zeros((18, 12), dtype=np.int8)
-LEG_INCIDENCE[L1_L2, (L1, L2)] = (1, -1)
-LEG_INCIDENCE[L2_PL3, (L2, PL3)] = (1, -1)
-LEG_INCIDENCE[PL3_L1, (PL3, L1)] = (1, -1)
-LEG_INCIDENCE[PL1_L2, (PL1, L2)] = (1, -1)
-LEG_INCIDENCE[L2_L3, (L2, L3)] = (1, -1)
-LEG_INCIDENCE[L3_PL1, (L3, PL1)] = (1, -1)
-LEG_INCIDENCE[L1_PL2, (L1, PL2)] = (1, -1)
-LEG_INCIDENCE[PL2_L3, (PL2, L3)] = (1, -1)
-LEG_INCIDENCE[L3_L1, (L3, L1)] = (1, -1)
-
-LEG_INCIDENCE[R1_R2, (R1, R2)] = (1, -1)
-LEG_INCIDENCE[R2_PR3, (R2, PR3)] = (1, -1)
-LEG_INCIDENCE[PR3_R1, (PR3, R1)] = (1, -1)
-LEG_INCIDENCE[PR1_R2, (PR1, R2)] = (1, -1)
-LEG_INCIDENCE[R2_R3, (R2, R3)] = (1, -1)
-LEG_INCIDENCE[R3_PR1, (R3, PR1)] = (1, -1)
-LEG_INCIDENCE[R1_PR2, (R1, PR2)] = (1, -1)
-LEG_INCIDENCE[PR2_R3, (PR2, R3)] = (1, -1)
-LEG_INCIDENCE[R3_R1, (R3, R1)] = (1, -1)
-
-LEG_TRUSS: Final = tt.Truss(LEG_INCIDENCE)
-PAYLOAD_TRUSS: Final = tt.Truss.from_trails(
-    (PL1, PR1),
-    (PL2, PR2),
-    (PL3, PR3),
-    (PL1, PR2),
-    (PL2, PR3),
-    (PL3, PR1),
-    (PL1, PL2),
-    (PL2, PL3),
-    (PL3, PL1),
-    (PR1, PR2),
-    (PR2, PR3),
-    (PR3, PR1),
+LEG_TRUSS: Final = tt.Truss.from_trails(
+    # These must follow the link order defined above.
+    (L1, L2, P3, L1),
+    (P1, L2, L3, P1),
+    (L1, P2, L3, L1),
+    (R1, R2, Q3, R1),
+    (Q1, R2, R3, Q1),
+    (R1, Q2, R3, R1),
+)
+CHASSIS_TRUSS: Final = tt.Truss.from_trails(
+    (P1, Q1),
+    (P2, Q2),
+    (P3, Q3),
+    (P1, Q2),
+    (P2, Q3),
+    (P3, Q1),
+    (P1, P2),
+    (P2, P3),
+    (P3, P1),
+    (Q1, Q2),
+    (Q2, Q3),
+    (Q3, Q1),
 )
 
 # Roller setup
-ROLL_TO_LENGTH: Final = np.zeros((30, 12), dtype=np.intp)
-ROLL_TO_LENGTH[(L1_L2, PL3_L1), 0] = (-1, 1)
-ROLL_TO_LENGTH[(L1_L2, L2_PL3), 1] = (1, -1)
-ROLL_TO_LENGTH[(L2_L3, PL1_L2), 2] = (-1, 1)
-ROLL_TO_LENGTH[(L2_L3, L3_PL1), 3] = (1, -1)
-ROLL_TO_LENGTH[(L3_L1, PL2_L3), 4] = (-1, 1)
-ROLL_TO_LENGTH[(L3_L1, L1_PL2), 5] = (1, -1)
-ROLL_TO_LENGTH[(R1_R2, PR3_R1), 7] = (1, -1)
-ROLL_TO_LENGTH[(R1_R2, R2_PR3), 6] = (-1, 1)
-ROLL_TO_LENGTH[(R2_R3, PR1_R2),11] = (1, -1)
-ROLL_TO_LENGTH[(R2_R3, R3_PR1),10] = (-1, 1)
-ROLL_TO_LENGTH[(R3_R1, PR2_R3), 9] = (1, -1)
-ROLL_TO_LENGTH[(R3_R1, R1_PR2), 8] = (-1, 1)
+CONTROL: Final = tt.LengthControl.from_trails(
+    (P3_L1, L1_L2, L2_P3),  # Rollers 1 and 2
+    (P1_L2, L2_L3, L3_P1),  # Rollers 3 and 4
+    (P2_L3, L3_L1, L1_P2),  # Rollers 5 and 6
+    (R2_Q3, R1_R2, Q3_R1),  # Rollers 7 and 8
+    (R1_Q2, R3_R1, Q2_R3),  # Rollers 9 and 10
+    (R3_Q1, R2_R3, Q1_R2),  # Rollers 11 and 12
+    n_static=CHASSIS_TRUSS.n_links,
+)
 
 # Point masses
 MASS: Final = np.zeros(12)
 MASS[FEET] = 1.
-MASS[PAYLOAD] = 6.
+MASS[CHASSIS] = 6.
 
 # Constraint points
 CL1: Final = cstr.Point.node(L1, 12)
@@ -126,12 +109,12 @@ CL3: Final = cstr.Point.node(L3, 12)
 CR1: Final = cstr.Point.node(R1, 12)
 CR2: Final = cstr.Point.node(R2, 12)
 CR3: Final = cstr.Point.node(R3, 12)
-CPL1: Final = cstr.Point.node(PL1, 12)
-CPL2: Final = cstr.Point.node(PL2, 12)
-CPL3: Final = cstr.Point.node(PL3, 12)
-CPR1: Final = cstr.Point.node(PR1, 12)
-CPR2: Final = cstr.Point.node(PR2, 12)
-CPR3: Final = cstr.Point.node(PR3, 12)
+CP1: Final = cstr.Point.node(P1, 12)
+CP2: Final = cstr.Point.node(P2, 12)
+CP3: Final = cstr.Point.node(P3, 12)
+CQ1: Final = cstr.Point.node(Q1, 12)
+CQ2: Final = cstr.Point.node(Q2, 12)
+CQ3: Final = cstr.Point.node(Q3, 12)
 CCOM: Final = cstr.Point.com(MASS)
 
 # Physical size
@@ -140,15 +123,15 @@ TICKS_PER_SIDE: Final = 1125 * 12 * 6
 
 def make_pos(
     height: float,
-    payload_length: float,
-    payload_angle: float,
-    payload_width: float,
+    chassis_length: float,
+    chassis_angle: float,
+    chassis_width: float,
     foot_distance: float,
     *,
     tube_length: float = 3.
 ) -> Matrix:
-    payload_angle = math.radians(payload_angle)
-    y0 = payload_width * 0.5
+    chassis_angle = math.radians(chassis_angle)
+    y0 = chassis_width * 0.5
     pos = np.zeros((12, 3))
 
     # Feet
@@ -159,16 +142,16 @@ def make_pos(
     pos[R1] = [ fx, -y0-fy, 0.]
     pos[R2] = [-fx, -y0-fy, 0.]
 
-    # Payload
-    px = payload_length * 0.5
-    py = px * math.sqrt(3.) * math.sin(payload_angle)
-    pz = px * math.sqrt(3.) * math.cos(payload_angle) + height
-    pos[PL1] = [-px,  y0+py, pz]
-    pos[PL2] = [ px,  y0+py, pz]
-    pos[PR1] = [-px, -y0-py, pz]
-    pos[PR2] = [ px, -y0-py, pz]
-    pos[PL3] = [0.,  y0, height]
-    pos[PR3] = [0., -y0, height]
+    # Chassis
+    px = chassis_length * 0.5
+    py = px * math.sqrt(3.) * math.sin(chassis_angle)
+    pz = px * math.sqrt(3.) * math.cos(chassis_angle) + height
+    pos[P1] = [-px,  y0+py, pz]
+    pos[P2] = [ px,  y0+py, pz]
+    pos[Q1] = [-px, -y0-py, pz]
+    pos[Q2] = [ px, -y0-py, pz]
+    pos[P3] = [0.,  y0, height]
+    pos[Q3] = [0., -y0, height]
 
     # Elbows
     # Don't ask me what physical meaning this has.
@@ -190,20 +173,20 @@ def make_pos(
 
 
 def make_pos_sitting(
-    payload_length: float,
-    payload_angle: float,
-    payload_width: float,
+    chassis_length: float,
+    chassis_angle: float,
+    chassis_width: float,
     foot_distance: float,
     *,
     tube_length: float = 3.
 ) -> Matrix:
-    # Perimter of triangle on payload
-    # angle of payload size
-    # width of payload
+    # Perimter of triangle on chassis
+    # angle of chassis size
+    # width of chassis
     # width of feet
 
-    payload_angle = math.radians(payload_angle)
-    y0 = payload_width * 0.5
+    chassis_angle = math.radians(chassis_angle)
+    y0 = chassis_width * 0.5
     pos = np.zeros((12, 3))
 
     # Feet
@@ -217,25 +200,25 @@ def make_pos_sitting(
     pos[L3] = [ 0.,  y0+fy, ez]
     pos[R3] = [ 0., -y0-fy, ez]
 
-    # Payload
-    px = payload_length * 0.5
-    py = px * math.sqrt(3.) * math.sin(payload_angle)
-    pz = px * math.sqrt(3.) * math.cos(payload_angle)
-    pos[PL1] = [-px,  y0+py, pz]
-    pos[PL2] = [ px,  y0+py, pz]
-    pos[PR1] = [-px, -y0-py, pz]
-    pos[PR2] = [ px, -y0-py, pz]
-    pos[PL3] = [0.,  y0, 0.]
-    pos[PR3] = [0., -y0, 0.]
+    # Chassis
+    px = chassis_length * 0.5
+    py = px * math.sqrt(3.) * math.sin(chassis_angle)
+    pz = px * math.sqrt(3.) * math.cos(chassis_angle)
+    pos[P1] = [-px,  y0+py, pz]
+    pos[P2] = [ px,  y0+py, pz]
+    pos[Q1] = [-px, -y0-py, pz]
+    pos[Q2] = [ px, -y0-py, pz]
+    pos[P3] = [0.,  y0, 0.]
+    pos[Q3] = [0., -y0, 0.]
 
     return pos
 
 
 def setup_rover_builder(w_p):
     # height off the ground
-    # Perimter of triangle on payload
-    # angle of payload size
-    # width of payload
+    # Perimter of triangle on chassis
+    # angle of chassis size
+    # width of chassis
     # width of feet
 
     L_p = 1/2
@@ -247,13 +230,13 @@ def setup_rover_builder(w_p):
 
     pos = np.zeros((12, 3))
 
-    pos[PL3] = [0,w_p,0]
-    pos[PL2] = [L_p/2,w_p,h_b]
-    pos[PL1] = [-L_p/2,w_p,h_b]
+    pos[P3] = [0,w_p,0]
+    pos[P2] = [L_p/2,w_p,h_b]
+    pos[P1] = [-L_p/2,w_p,h_b]
 
-    pos[PR3] = [0,-w_p,0]
-    pos[PR2] = [L_p/2,-w_p,h_b]
-    pos[PR1] = [-L_p/2,-w_p,h_b]
+    pos[Q3] = [0,-w_p,0]
+    pos[Q2] = [L_p/2,-w_p,h_b]
+    pos[Q1] = [-L_p/2,-w_p,h_b]
 
     #
     pos[L1] = [L_t/2,w_p+H,0]
@@ -266,7 +249,7 @@ def setup_rover_builder(w_p):
 
     mass = np.zeros(len(pos))
     mass[FEET] = 1.
-    mass[PAYLOAD] = 6.
+    mass[CHASSIS] = 6.
 
     return pos
 
@@ -276,9 +259,8 @@ ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 0.875)
 
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> TrussRobot:
     pos = init_pos.copy()
-    truss = LEG_TRUSS.attach(PAYLOAD_TRUSS)
-    control = tt.LengthControl.from_forward(ROLL_TO_LENGTH)
-    return TrussRobot(pos, truss, control)
+    truss = LEG_TRUSS.attach(CHASSIS_TRUSS)
+    return TrussRobot(pos, truss, CONTROL)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -287,26 +269,26 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
     return grav.Stabilizer(source_pos, rel_mass=rel_mass)
 
 
-def draw_payload_bars(payload: tt.Truss, pos: Matrix) -> anim.DrawnLinks:
-    return anim.draw_links(payload.links.ravel(), pos, color='black', width=4)
+def draw_chassis_bars(chassis: tt.Truss, pos: Matrix) -> anim.DrawnLinks:
+    return anim.draw_links(chassis.links.ravel(), pos, color='black', width=4)
 
 
-def draw_payload_mesh(payload: tt.Truss, pos: Matrix) -> anim.BodyMesh:
-    payload_faces = [[0, 1, 2], [3, 4, 5],
+def draw_chassis_mesh(chassis: tt.Truss, pos: Matrix) -> anim.BodyMesh:
+    chassis_faces = [[0, 1, 2], [3, 4, 5],
                      [0, 3, 5], [0, 2, 5],
                      [1, 4, 5], [1, 2, 5],
                      [0, 1, 4], [0, 3, 4]]
 
     meshdata = gl.MeshData(
-        vertexes=pos[payload.nodes],
-        faces=payload_faces,
+        vertexes=pos[chassis.nodes],
+        faces=chassis_faces,
     )
     mesh = gl.GLMeshItem(
         meshdata=meshdata,
         color=pg.mkColor(anim.OKABE_ITO[-1]),
     )
     mesh.setGLOptions('opaque')
-    return anim.BodyMesh(payload.nodes, mesh)
+    return anim.BodyMesh(chassis.nodes, mesh)
 
 
 def draw_triangles(truss: tt.Truss, pos: Matrix) -> list[anim.DrawnLinks]:
@@ -340,22 +322,22 @@ def set_up_animation(
 ) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
-    payload_mesh = draw_payload_mesh(PAYLOAD_TRUSS, init_pos)
-    payload_bars = draw_payload_bars(PAYLOAD_TRUSS, init_pos)
+    chassis_mesh = draw_chassis_mesh(CHASSIS_TRUSS, init_pos)
+    chassis_bars = draw_chassis_bars(CHASSIS_TRUSS, init_pos)
     triangles = draw_triangles(LEG_TRUSS, init_pos)
     traces = anim.draw_traces(range(12), trace_len, init_pos)
     markers = draw_markers(
         [
-            [PL1, L2, L3, PL1],
-            [PL2, L3, L1, PL2],
-            [PL3, L1, L2, PL3],
-            [PR1, R2, R3, PR1],
-            [PR2, R3, R1, PR2],
-            [PR3, R1, R2, PR3],
+            [P1, L2, L3, P1],
+            [P2, L3, L1, P2],
+            [P3, L1, L2, P3],
+            [Q1, R2, R3, Q1],
+            [Q2, R3, R1, Q2],
+            [Q3, R1, R2, Q3],
         ],
         init_pos,
     )
-    items = [payload_mesh, payload_bars, *triangles, *traces, *markers]
+    items = [chassis_mesh, chassis_bars, *triangles, *traces, *markers]
     anim.add_all_to_view(items, view)
     return view, partial(anim.update_all_pos, items)
 
@@ -367,16 +349,16 @@ def crawl(
     *,
     resolution: int = 50,
 ) -> Generator[Vector]:
-    payload_mass = np.zeros(robot.n_nodes)
-    payload_mass[PAYLOAD] = 1.
-    payload_com = cstr.Point.com(payload_mass)
-    payload_up = payload_com - cstr.Point.avg(CPL3, CPR3)
-    no_wobble = cstr.Motion(payload_up, np.eye(3)[0:2], np.zeros(2))
+    chassis_mass = np.zeros(robot.n_nodes)
+    chassis_mass[CHASSIS] = 1.
+    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_up = chassis_com - cstr.Point.avg(CP3, CQ3)
+    no_wobble = cstr.Motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     dx, dy = step_length
     dx /= resolution
     dy /= resolution
     ds = math.hypot(dx, dy)
-    steadily_forward = cstr.Motion.make(payload_com, x=0.25 * dx)
+    steadily_forward = cstr.Motion.make(chassis_com, x=0.25 * dx)
     feet = (CL2, CL1, CR2, CR1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
@@ -400,8 +382,8 @@ def lean(
 ) -> Generator[Vector]:
     dx = dist / resolution
     constraint = cstr.CompoundConstraint((
-        cstr.Motion.make(CPL2, dx),
-        cstr.Motion.make(CPR2, dx),
+        cstr.Motion.make(CP2, dx),
+        cstr.Motion.make(CQ2, dx),
         cstr.Motion.lock(CL1),
         cstr.Motion.lock(CR1),
         cstr.Motion.lock(CL2),
@@ -419,8 +401,8 @@ def reach(
     constraint = cstr.CompoundConstraint((
         cstr.Motion.make(CL3, x=dist / resolution),
         cstr.Motion.make(CR3, x=dist / resolution),
-        cstr.Motion.lock(CPL3),
-        cstr.Motion.lock(CPR3),
+        cstr.Motion.lock(CP3),
+        cstr.Motion.lock(CQ3),
         cstr.Motion.lock(CL1),
         cstr.Motion.lock(CR1),
     ))
@@ -437,18 +419,18 @@ def roll(
     i: int = 0,
     resolution: int = 100,
 ) -> Generator[Vector]:
-    payload_midpoints = (
-        cstr.Point.avg(CPL1, CPR1),
-        cstr.Point.avg(CPL3, CPR3),
-        cstr.Point.avg(CPL2, CPR2),
+    chassis_midpoints = (
+        cstr.Point.avg(CP1, CQ1),
+        cstr.Point.avg(CP3, CQ3),
+        cstr.Point.avg(CP2, CQ2),
     )
     foot_pairs = (
         (CL1, CR1),
         (CL3, CR3),
         (CL2, CR2),
     )
-    base = payload_midpoints[i-2]
-    face = payload_midpoints[i-1]
+    base = chassis_midpoints[i-2]
+    face = chassis_midpoints[i-1]
     foot_l, foot_r = foot_pairs[i]
     arm_l, arm_r = foot_pairs[i-2]
     other_feet = [
@@ -457,9 +439,9 @@ def roll(
         for foot in pair
         if j != i
     ]
-    payload_mass = np.zeros(robot.n_nodes)
-    payload_mass[PAYLOAD] = 1.
-    payload_com = cstr.Point.com(payload_mass)
+    chassis_mass = np.zeros(robot.n_nodes)
+    chassis_mass[CHASSIS] = 1.
+    chassis_com = cstr.Point.com(chassis_mass)
     feet_midpoint = cstr.Point.avg(foot_l, foot_r)
     step_1 = cstr.CompoundConstraint((
         cstr.Motion.lock(base),
@@ -476,7 +458,7 @@ def roll(
     dx = ((face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875) / resolution
     foot_arc = partial(steps.parabolic, -dx)
     step_2 = cstr.CompoundConstraint((
-        cstr.Motion.lock(payload_com),
+        cstr.Motion.lock(chassis_com),
         cstr.Motion.make(face - base, z=0.),
         cstr.Motion.make(foot_l, x=dx, z=foot_arc),
         cstr.Motion.make(foot_r, x=dx, z=foot_arc),
@@ -485,7 +467,7 @@ def roll(
     step_3 = cstr.CompoundConstraint((
         cstr.Motion.lock(face),
         cstr.Orbit.about_y(robot.pos, base-face, np.pi/3, resolution),
-        cstr.Motion.make(payload_com - face, y=0.),
+        cstr.Motion.make(chassis_com - face, y=0.),
         cstr.Motion.make(base - face, y=0.),
         cstr.Motion.lock(foot_l),
         cstr.Motion.lock(foot_r),
@@ -501,7 +483,7 @@ def take_command(
     *,
     resolution: int,
 ) -> Generator[Vector]:
-    if command.x ==0 and command.y == 0 and command.z == 0:
+    if not command:
         return
     elif command.mode is steps.Mode.crawling:
         x = command.x * 0.125
@@ -513,9 +495,9 @@ def take_command(
         motion = cstr.CompoundConstraint([
             cstr.Motion.make(
                 cstr.Point.node(command.item, robot.n_nodes),
-                x=command.x * 0.0005,
-                y=command.y * 0.0005,
-                z=command.z * 0.0005,
+                x=command.x * 0.05 / resolution,
+                y=command.y * 0.05 / resolution,
+                z=command.z * 0.05 / resolution,
             ),
             *(
                 cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))

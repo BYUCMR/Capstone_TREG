@@ -46,10 +46,7 @@ class TrussRobot:
         t: float = 0.,
     ) -> Matrix:
         rigidity = self.truss.rigidity_at(self.pos)
-        constraint = cstr.CompoundConstraint((
-            cstr.CustomConstraint(self.control.unreachable @ rigidity),
-            *constraints
-        ))
+        constraint = cstr.CompoundConstraint(constraints)
         A, b = constraint.get(self.pos, t)
         d_length = self.control.forward @ d_roll
         d_pos, *_ = np.linalg.lstsq(

@@ -22,6 +22,9 @@ class Command:
     y: float
     z: float
 
+    def __bool__(self) -> bool:
+        return self.mode is not Mode.offline and bool(self.x or self.y or self.z)
+
 
 def parabolic(k: float, t: float) -> float:
     return 2. * k * (0.5-t)

@@ -1,3 +1,5 @@
+import time
+
 import serial
 from numpy import ndarray
 from PySide6.QtCore import QObject, QThread, Signal, Slot
@@ -11,9 +13,9 @@ class TransmitHandler(QObject):
     message = Signal(str)
     bot_live = False
 
-    def start_transmission(self) -> None:
+    def start_transmission(self, *, dt: float = 1.5) -> None:
         self.work_thread = QThread()
-        self.worker = TransmitWorker()
+        self.worker = TransmitWorker(dt=dt)
         self.worker.moveToThread(self.work_thread)
 
         self.worker.message.connect(self.message.emit)
@@ -45,7 +47,11 @@ class TransmitWorker(QObject):
         cmd = commands.VEL(map(int, ticks_per_sec))
         self.ser.writelines((commands.STOP, cmd))
         self.ser.flush()
-        self.ser.readline()
+        if responses := self.ser.read_all():
+            for response in responses.splitlines():
+                if not response.startswith(b'['):
+                    self.message.emit(response.decode())
+        time.sleep(self.dt)
 
     def start(self, port: str = '/dev/ttyUSB0') -> None:
         self.ser.port = port
