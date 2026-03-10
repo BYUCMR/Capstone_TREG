@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>600</width>
-    <height>800</height>
+    <height>600</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -313,6 +313,26 @@ color: rgb(0, 0, 0);</string>
              <string>Simulation Offine</string>
             </property>
            </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="L211">
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="serial_label">
+            <property name="text">
+             <string>Serial Port</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="serial_select"/>
           </item>
          </layout>
         </item>

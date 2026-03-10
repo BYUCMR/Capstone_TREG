@@ -24,7 +24,7 @@ class Ui_Control(object):
     def setupUi(self, Control):
         if not Control.objectName():
             Control.setObjectName(u"Control")
-        Control.resize(600, 800)
+        Control.resize(600, 600)
         self.centralwidget = QWidget(Control)
         self.centralwidget.setObjectName(u"centralwidget")
         self.ctr_layout = QVBoxLayout(self.centralwidget)

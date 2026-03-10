@@ -30,10 +30,13 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
 
+        self.setup_serial_ports()
+
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
         # self.ui.sim_label.clicked.connect(self.open_sim)
         self.ui.bot_toggle.clicked.connect(self.toggle_bot)
         self.ui.selector.valueChanged.connect(self.update_item)
+        self.ui.serial_select.currentIndexChanged(self.serial_port_change)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -99,6 +102,15 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
     @Slot()
     def update_item(self) -> None:
         self.cmd_state.item = self.ui.selector.value()
+
+    def setup_serial_ports(self) -> None:
+        print("Serial Ports, Serial Ports, yaaaa")
+        # for _ in list_of_serial_ports:
+            # self.ui.serial_select.addItem( Your Item Here )
+
+    def serial_port_change(self, index) -> None:
+        print("Serial Ports Changing, yaaaaa")
+        #Your fancy code to change serial ports here
 
     def mode_select(self, mode: Mode) -> None:
         self.ui.left.setEnabled(True)
