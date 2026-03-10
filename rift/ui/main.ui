@@ -198,7 +198,7 @@
           <item row="1" column="0">
            <widget class="QPushButton" name="sit_stand">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="text">
              <string>Sit/Stand</string>
