@@ -12,6 +12,7 @@ class Mode(Enum):
     offline = "offline"
     node_control = "node_control"
     calibration = "calibration"
+    stand = "stand"
 
 
 @dataclass
