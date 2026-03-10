@@ -123,7 +123,7 @@ class Ui_Control(object):
         self.L14.setObjectName(u"L14")
         self.sit_stand = QPushButton(self.verticalLayoutWidget_2)
         self.sit_stand.setObjectName(u"sit_stand")
-        self.sit_stand.setEnabled(False)
+        self.sit_stand.setEnabled(True)
 
         self.L14.addWidget(self.sit_stand, 1, 0, 1, 1)
 
