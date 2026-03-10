@@ -36,7 +36,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         # self.ui.sim_label.clicked.connect(self.open_sim)
         self.ui.bot_toggle.clicked.connect(self.toggle_bot)
         self.ui.selector.valueChanged.connect(self.update_item)
-        self.ui.serial_select.currentIndexChanged(self.serial_port_change)
+        self.ui.serial_select.currentIndexChanged.connect(self.serial_port_change)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -151,7 +151,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state.x += x
         self.cmd_state.y += y
         self.cmd_state.z += z
-        # print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
     def cleanup(self) -> None:
         print("Attempting Cleanup")

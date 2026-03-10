@@ -170,6 +170,9 @@
           </item>
           <item>
            <widget class="QSpinBox" name="selector">
+            <property name="focusPolicy">
+             <enum>Qt::FocusPolicy::NoFocus</enum>
+            </property>
             <property name="minimum">
              <number>0</number>
             </property>
