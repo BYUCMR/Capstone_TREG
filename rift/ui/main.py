@@ -38,6 +38,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.bot_toggle.clicked.connect(self.toggle_bot)
         self.ui.selector.valueChanged.connect(self.update_item)
         # self.ui.serial_select.currentIndexChanged.connect(self.serial_port_change)
+        self.ui.zero_pos.clicked.connect(self.zero_pos)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -107,6 +108,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
     @Slot()
     def update_item(self) -> None:
         self.cmd_state.item = self.ui.selector.value()
+
+    @Slot()
+    def zero_pos(self) -> None:
+        print('Zero to hero!')
+        #Your config zeroing code here :)
 
     def setup_serial_ports(self) -> None:
         for port in serial.tools.list_ports.comports():

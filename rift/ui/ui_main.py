@@ -122,39 +122,44 @@ class Ui_Control(object):
 
         self.L14 = QGridLayout()
         self.L14.setObjectName(u"L14")
+        self.node_control = QPushButton(self.verticalLayoutWidget_2)
+        self.node_control.setObjectName(u"node_control")
+
+        self.L14.addWidget(self.node_control, 1, 0, 1, 1)
+
         self.sit_stand = QPushButton(self.verticalLayoutWidget_2)
         self.sit_stand.setObjectName(u"sit_stand")
         self.sit_stand.setEnabled(True)
 
-        self.L14.addWidget(self.sit_stand, 1, 0, 1, 1)
+        self.L14.addWidget(self.sit_stand, 2, 0, 1, 1)
 
         self.crawling = QPushButton(self.verticalLayoutWidget_2)
         self.crawling.setObjectName(u"crawling")
         self.crawling.setStyleSheet(u"")
 
-        self.L14.addWidget(self.crawling, 0, 1, 1, 1)
+        self.L14.addWidget(self.crawling, 1, 1, 1, 1)
 
         self.rolling = QPushButton(self.verticalLayoutWidget_2)
         self.rolling.setObjectName(u"rolling")
         self.rolling.setEnabled(False)
 
-        self.L14.addWidget(self.rolling, 0, 2, 1, 1)
-
-        self.node_control = QPushButton(self.verticalLayoutWidget_2)
-        self.node_control.setObjectName(u"node_control")
-
-        self.L14.addWidget(self.node_control, 0, 0, 1, 1)
+        self.L14.addWidget(self.rolling, 1, 2, 1, 1)
 
         self.chimney = QPushButton(self.verticalLayoutWidget_2)
         self.chimney.setObjectName(u"chimney")
         self.chimney.setEnabled(False)
 
-        self.L14.addWidget(self.chimney, 1, 1, 1, 1)
+        self.L14.addWidget(self.chimney, 2, 1, 1, 1)
 
         self.calibration = QPushButton(self.verticalLayoutWidget_2)
         self.calibration.setObjectName(u"calibration")
 
-        self.L14.addWidget(self.calibration, 1, 2, 1, 1)
+        self.L14.addWidget(self.calibration, 2, 2, 1, 1)
+
+        self.zero_pos = QPushButton(self.verticalLayoutWidget_2)
+        self.zero_pos.setObjectName(u"zero_pos")
+
+        self.L14.addWidget(self.zero_pos, 0, 0, 1, 1)
 
 
         self.L1.addLayout(self.L14)
@@ -251,12 +256,13 @@ class Ui_Control(object):
         self.backward.setText(QCoreApplication.translate("Control", u"Backward", None))
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
         self.selector_label.setText(QCoreApplication.translate("Control", u"Node", None))
+        self.node_control.setText(QCoreApplication.translate("Control", u"Node Control", None))
         self.sit_stand.setText(QCoreApplication.translate("Control", u"Sit/Stand", None))
         self.crawling.setText(QCoreApplication.translate("Control", u"Crawling", None))
         self.rolling.setText(QCoreApplication.translate("Control", u"Rolling", None))
-        self.node_control.setText(QCoreApplication.translate("Control", u"Node Control", None))
         self.chimney.setText(QCoreApplication.translate("Control", u"Chimney", None))
         self.calibration.setText(QCoreApplication.translate("Control", u"Calibration", None))
+        self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))
         self.bot_toggle.setText(QCoreApplication.translate("Control", u"Connect Robot", None))
         self.bot_label.setText(QCoreApplication.translate("Control", u"Robot Offline", None))
         self.js_toggle.setText(QCoreApplication.translate("Control", u"Connect Joystick", None))
