@@ -13,14 +13,14 @@ class TransmitHandler(QObject):
     message = Signal(str)
     bot_live = False
 
-    def start_transmission(self, *, dt: float = 1.5) -> None:
+    def start_transmission(self, *, port: str, dt: float = 1.5) -> None:
         self.work_thread = QThread()
         self.worker = TransmitWorker(dt=dt)
         self.worker.moveToThread(self.work_thread)
 
         self.worker.message.connect(self.message.emit)
         self.work_thread.finished.connect(self.worker.deleteLater)
-        self.worker.start()
+        self.worker.start(port)
         self.work_thread.start()
 
         self.bot_live = True
@@ -53,7 +53,7 @@ class TransmitWorker(QObject):
                     self.message.emit(response.decode())
         time.sleep(self.dt)
 
-    def start(self, port: str = '/dev/ttyUSB0') -> None:
+    def start(self, port: str) -> None:
         self.ser.port = port
         try:
             self.ser.open()

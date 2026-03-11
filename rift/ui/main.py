@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import serial.tools.list_ports
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QCloseEvent, QKeyEvent
 from PySide6.QtWidgets import QMainWindow, QWidget
@@ -36,7 +37,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         # self.ui.sim_label.clicked.connect(self.open_sim)
         self.ui.bot_toggle.clicked.connect(self.toggle_bot)
         self.ui.selector.valueChanged.connect(self.update_item)
-        self.ui.serial_select.currentIndexChanged.connect(self.serial_port_change)
+        # self.ui.serial_select.currentIndexChanged.connect(self.serial_port_change)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -86,7 +87,10 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.bot_label.setText("Robot Online")
             self.ui.bot_toggle.setText("Disconnect Robot")
             self.term_log("Robot Connected")
-            self.bot_handler.start_transmission(dt=150/self.vis_handler.worker.resolution)
+            self.bot_handler.start_transmission(
+                port=self.ui.serial_select.currentText(),
+                dt=150/self.vis_handler.worker.resolution,
+            )
             if self.vis_handler.sim_live:
                 self.vis_handler.worker.results.connect(
                     self.bot_handler.worker.transmit,
@@ -104,13 +108,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state.item = self.ui.selector.value()
 
     def setup_serial_ports(self) -> None:
-        print("Serial Ports, Serial Ports, yaaaa")
-        # for _ in list_of_serial_ports:
-            # self.ui.serial_select.addItem( Your Item Here )
+        for port in serial.tools.list_ports.comports():
+            self.ui.serial_select.addItem(port.device)
 
-    def serial_port_change(self, index) -> None:
-        print("Serial Ports Changing, yaaaaa")
-        #Your fancy code to change serial ports here
+    # def serial_port_change(self, index) -> None:
+    #     print("Serial Ports Changing, yaaaaa")
 
     def mode_select(self, mode: Mode) -> None:
         self.ui.left.setEnabled(True)
