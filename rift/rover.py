@@ -479,3 +479,17 @@ def take_command(
         ])
         robot.apply_roll(dq, constraint)
         yield dq
+    elif command.mode is steps.Mode.stand:
+        chassis_mass = np.zeros(len(robot.pos))
+        chassis_mass[CHASSIS] = 1.
+        chassis_com = cstr.Point.com(chassis_mass)
+        dz = command.z * 0.05 / resolution
+        motion = cstr.CompoundConstraint((
+            cstr.Motion.make(chassis_com, x=0, y=0, z=dz),
+            cstr.Motion.make(CP3, x=0, y=0),
+            cstr.Motion.make(CL1, z=0),
+            cstr.Motion.make(CL2, z=0),
+            cstr.Motion.make(CR1, z=0),
+            cstr.Motion.make(CR2, z=0),
+        ))
+        yield from robot.take_step(motion, resolution=resolution)

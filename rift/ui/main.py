@@ -57,6 +57,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.crawling.clicked.connect(lambda: self.mode_select(Mode.crawling))
         self.ui.node_control.clicked.connect(lambda: self.mode_select(Mode.node_control))
         self.ui.calibration.clicked.connect(lambda: self.mode_select(Mode.calibration))
+        self.ui.sit_stand.clicked.connect(lambda: self.mode_select(Mode.stand))
 
         self.ui.sim_toggle.clicked.emit()
 
@@ -147,6 +148,16 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.del_left.setEnabled(False)
             self.ui.right.setEnabled(False)
             self.ui.del_right.setEnabled(False)
+        elif mode is Mode.stand:
+            self.plainify_modes()
+            self.greenify(self.ui.sit_stand)
+            self.cmd_state.mode = Mode.stand
+            self.ui.selector_label.setVisible(False)
+            self.ui.selector.setVisible(False)
+            self.ui.forward.setEnabled(False)
+            self.ui.backward.setEnabled(False)
+            self.ui.left.setEnabled(False)
+            self.ui.right.setEnabled(False)
         self.term_log(f"Control Mode switched to {mode.value.replace('_', ' ')}")
 
     def cmd_update(self, x: float, y: float, z: float) -> None:
@@ -226,6 +237,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.plainify(self.ui.node_control)
         self.plainify(self.ui.crawling)
         self.plainify(self.ui.calibration)
+        self.plainify(self.ui.sit_stand)
 
     #Method for quickly logging to the faux terminal
     @Slot(str)
