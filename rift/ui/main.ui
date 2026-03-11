@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>600</width>
-    <height>800</height>
+    <height>600</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -170,6 +170,9 @@
           </item>
           <item>
            <widget class="QSpinBox" name="selector">
+            <property name="focusPolicy">
+             <enum>Qt::FocusPolicy::NoFocus</enum>
+            </property>
             <property name="minimum">
              <number>0</number>
             </property>
@@ -198,13 +201,24 @@
           <item row="2" column="1">
            <widget class="QPushButton" name="chimney">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="text">
              <string>Chimney</string>
             </property>
            </widget>
           </item>
+          <item row="1" column="1">
+           <widget class="QPushButton" name="crawling">
+            <property name="styleSheet">
+             <string notr="true"/>
+            </property>
+            <property name="text">
+             <string>Crawling</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="2">
           <item row="1" column="2">
            <widget class="QPushButton" name="rolling">
             <property name="enabled">
@@ -320,6 +334,26 @@ color: rgb(0, 0, 0);</string>
              <string>Simulation Offine</string>
             </property>
            </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="L211">
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="serial_label">
+            <property name="text">
+             <string>Serial Port</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="serial_select"/>
           </item>
          </layout>
         </item>

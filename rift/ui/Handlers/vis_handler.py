@@ -21,7 +21,10 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
         super().__init__(parent)
         self.cmd_state = cmd_state
         self.sim_live = False
-        view, self.animate = rover.set_up_animation(trace_len=10)
+        view, self.animate = rover.set_up_animation(
+            rover.ROLLING_POS,
+            trace_len=10,
+        )
         ui.ctr_layout.insertWidget(0, view)
         view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
@@ -60,7 +63,7 @@ class VizWorker(QObject):
 
     def __init__(
         self,
-        init_pos: Matrix = rover.CRAWLING_POS,
+        init_pos: Matrix = rover.ROLLING_POS,
         *,
         resolution: int = 100,
         period: int = 1,

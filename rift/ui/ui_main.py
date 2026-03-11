@@ -15,16 +15,16 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QGridLayout, QHBoxLayout, QLabel,
-    QMainWindow, QPlainTextEdit, QPushButton, QSizePolicy,
-    QSpacerItem, QSpinBox, QSplitter, QVBoxLayout,
-    QWidget)
+from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QHBoxLayout,
+    QLabel, QMainWindow, QPlainTextEdit, QPushButton,
+    QSizePolicy, QSpacerItem, QSpinBox, QSplitter,
+    QVBoxLayout, QWidget)
 
 class Ui_Control(object):
     def setupUi(self, Control):
         if not Control.objectName():
             Control.setObjectName(u"Control")
-        Control.resize(600, 800)
+        Control.resize(600, 600)
         self.centralwidget = QWidget(Control)
         self.centralwidget.setObjectName(u"centralwidget")
         self.ctr_layout = QVBoxLayout(self.centralwidget)
@@ -107,6 +107,7 @@ class Ui_Control(object):
 
         self.selector = QSpinBox(self.verticalLayoutWidget_2)
         self.selector.setObjectName(u"selector")
+        self.selector.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.selector.setMinimum(0)
         self.selector.setMaximum(11)
 
@@ -211,6 +212,23 @@ class Ui_Control(object):
 
         self.L2.addLayout(self.L21)
 
+        self.L211 = QHBoxLayout()
+        self.L211.setObjectName(u"L211")
+        self.L211.setContentsMargins(-1, 0, -1, -1)
+        self.serial_label = QLabel(self.verticalLayoutWidget)
+        self.serial_label.setObjectName(u"serial_label")
+        self.serial_label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.L211.addWidget(self.serial_label)
+
+        self.serial_select = QComboBox(self.verticalLayoutWidget)
+        self.serial_select.setObjectName(u"serial_select")
+
+        self.L211.addWidget(self.serial_select)
+
+
+        self.L2.addLayout(self.L211)
+
         self.term = QPlainTextEdit(self.verticalLayoutWidget)
         self.term.setObjectName(u"term")
         self.term.setEnabled(True)
@@ -251,5 +269,6 @@ class Ui_Control(object):
         self.js_label.setText(QCoreApplication.translate("Control", u"Joystick Offline", None))
         self.sim_toggle.setText(QCoreApplication.translate("Control", u"Begin Simulation", None))
         self.sim_label.setText(QCoreApplication.translate("Control", u"Simulation Offine", None))
+        self.serial_label.setText(QCoreApplication.translate("Control", u"Serial Port", None))
     # retranslateUi
 

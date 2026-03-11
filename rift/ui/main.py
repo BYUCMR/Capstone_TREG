@@ -1,5 +1,6 @@
 from datetime import datetime
 
+import serial.tools.list_ports
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QCloseEvent, QKeyEvent
 from PySide6.QtWidgets import QMainWindow, QWidget
@@ -30,6 +31,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
 
+        self.setup_serial_ports()
+
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
         # self.ui.sim_label.clicked.connect(self.open_sim)
         self.ui.bot_toggle.clicked.connect(self.toggle_bot)
@@ -54,6 +57,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.crawling.clicked.connect(lambda: self.mode_select(Mode.crawling))
         self.ui.node_control.clicked.connect(lambda: self.mode_select(Mode.node_control))
         self.ui.calibration.clicked.connect(lambda: self.mode_select(Mode.calibration))
+        self.ui.sit_stand.clicked.connect(lambda: self.mode_select(Mode.stand))
 
         self.ui.sim_toggle.clicked.emit()
 
@@ -84,7 +88,10 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.bot_label.setText("Robot Online")
             self.ui.bot_toggle.setText("Disconnect Robot")
             self.term_log("Robot Connected")
-            self.bot_handler.start_transmission(dt=150/self.vis_handler.worker.resolution)
+            self.bot_handler.start_transmission(
+                port=self.ui.serial_select.currentText(),
+                dt=150/self.vis_handler.worker.resolution,
+            )
             if self.vis_handler.sim_live:
                 self.vis_handler.worker.results.connect(
                     self.bot_handler.worker.transmit,
@@ -104,7 +111,14 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
     @Slot()
     def zero_pos(self) -> None:
         print('Zero to hero!')
-        # Your config zeroing code here :)
+        #Your config zeroing code here :)
+
+    def setup_serial_ports(self) -> None:
+        for port in serial.tools.list_ports.comports():
+            self.ui.serial_select.addItem(port.device)
+
+    # def serial_port_change(self, index) -> None:
+    #     print("Serial Ports Changing, yaaaaa")
 
     def mode_select(self, mode: Mode) -> None:
         self.ui.left.setEnabled(True)
@@ -139,13 +153,23 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.del_left.setEnabled(False)
             self.ui.right.setEnabled(False)
             self.ui.del_right.setEnabled(False)
+        elif mode is Mode.stand:
+            self.plainify_modes()
+            self.greenify(self.ui.sit_stand)
+            self.cmd_state.mode = Mode.stand
+            self.ui.selector_label.setVisible(False)
+            self.ui.selector.setVisible(False)
+            self.ui.forward.setEnabled(False)
+            self.ui.backward.setEnabled(False)
+            self.ui.left.setEnabled(False)
+            self.ui.right.setEnabled(False)
         self.term_log(f"Control Mode switched to {mode.value.replace('_', ' ')}")
 
     def cmd_update(self, x: float, y: float, z: float) -> None:
         self.cmd_state.x += x
         self.cmd_state.y += y
         self.cmd_state.z += z
-        # print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
     def cleanup(self) -> None:
         print("Attempting Cleanup")
@@ -218,6 +242,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.plainify(self.ui.node_control)
         self.plainify(self.ui.crawling)
         self.plainify(self.ui.calibration)
+        self.plainify(self.ui.sit_stand)
 
     #Method for quickly logging to the faux terminal
     @Slot(str)

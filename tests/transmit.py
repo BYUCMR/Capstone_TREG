@@ -30,7 +30,7 @@ async def main(
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
             ticks_per_sec = rover.TICKS_PER_SIDE * dr / t
-            cmd = commands.VEL(map(int, ticks_per_sec), t)
+            cmd = commands.VEL(ticks_per_sec, t)
             if ser is not None:
                 ser.writelines((commands.STOP, cmd))
                 ser.flush()
