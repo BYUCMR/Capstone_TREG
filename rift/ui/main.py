@@ -40,6 +40,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.selector.valueChanged.connect(self.update_item)
         # self.ui.serial_select.currentIndexChanged.connect(self.serial_port_change)
         self.ui.zero_pos.clicked.connect(self.zero_pos)
+        self.ui.reset_button.clicked.connect(self.reset_pos)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -115,6 +116,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         print('Zero to hero!')
         #Your config zeroing code here :)
 
+    @Slot()
+    def reset_pos(self) -> None:
+        print("BE YE RESET!")
+        #Code to ~reset~ the rover (and not to zero it)
+
     def setup_sliders(self) -> None:
         self.ui.mb_1.clicked.connect(lambda: self.correct_motor_error(1))
         self.ui.mb_2.clicked.connect(lambda: self.correct_motor_error(2))
@@ -130,10 +136,38 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.mb_12.clicked.connect(lambda: self.correct_motor_error(12))
         self.ui.eq_all.clicked.connect(lambda: self.correct_motor_error(0))
 
-
+    @Slot()
     def correct_motor_error(self, motor) -> None:
         print("Correcting Motor Number: ",motor)
         #Code to correct a motor's position, or all of the motors if EQ all (motor=0) is clicked
+
+    @Slot()
+    def update_motor_sliders(self, value, motor) -> None:
+        if motor == 1:
+            self.ui.ms_1.setValue(value)
+        elif motor == 2:
+            self.ui.ms_2.setValue(value)
+        elif motor == 3:
+            self.ui.ms_3.setValue(value)
+        elif motor == 4:
+            self.ui.ms_4.setValue(value)
+        elif motor == 5:
+            self.ui.ms_5.setValue(value)
+        elif motor == 6:
+            self.ui.ms_6.setValue(value)
+        elif motor == 7:
+            self.ui.ms_7.setValue(value)
+        elif motor == 8:
+            self.ui.ms_8.setValue(value)
+        elif motor == 9:
+            self.ui.ms_9.setValue(value)
+        elif motor == 10:
+            self.ui.ms_10.setValue(value)
+        elif motor == 11:
+            self.ui.ms_11.setValue(value)
+        elif motor == 12:
+            self.ui.ms_10.setValue(value)
+
 
     def setup_serial_ports(self) -> None:
         for port in serial.tools.list_ports.comports():

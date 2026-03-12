@@ -96,6 +96,11 @@ class Ui_Control(object):
         self.L12 = QHBoxLayout()
         self.L12.setObjectName(u"L12")
         self.L12.setContentsMargins(-1, 0, -1, -1)
+        self.reset_button = QPushButton(self.verticalLayoutWidget_2)
+        self.reset_button.setObjectName(u"reset_button")
+
+        self.L12.addWidget(self.reset_button)
+
         self.L121 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.L12.addItem(self.L121)
@@ -488,6 +493,7 @@ class Ui_Control(object):
         self.del_left.setText(QCoreApplication.translate("Control", u"Left Delta", None))
         self.backward.setText(QCoreApplication.translate("Control", u"Backward", None))
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
+        self.reset_button.setText(QCoreApplication.translate("Control", u"Reset", None))
         self.selector_label.setText(QCoreApplication.translate("Control", u"Node", None))
         self.node_control.setText(QCoreApplication.translate("Control", u"Node Control", None))
         self.crawling.setText(QCoreApplication.translate("Control", u"Crawling", None))
