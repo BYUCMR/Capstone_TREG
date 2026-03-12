@@ -9,9 +9,9 @@ RESET: Final = b"RESET\n"
 def VEL(v: Iterable[float], t: float | None = None) -> bytes:
     if t is None:
         # "VEL" implicitly sets t to 1.5
-        return f"VEL:{','.join(map(str, v))}\n".encode()
+        return f"VEL:{','.join(str(int(vi)) for vi in v)}\n".encode()
     else:
-        return f"VEL_DUR:{','.join(map(str, v))}:{t}\n".encode()
+        return f"VEL_DUR:{','.join(str(int(vi)) for vi in v)}:{t}\n".encode()
 
 
 def POS(q: Iterable[int]) -> bytes:

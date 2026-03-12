@@ -6,6 +6,7 @@ from PySide6.QtGui import QCloseEvent, QKeyEvent
 from PySide6.QtWidgets import QMainWindow, QWidget
 
 from rift.steps import Command, Mode
+from rift.transmit import commands
 from .ui_main import Ui_Control
 from .Handlers.joystick_handler import JoystickHandler
 from .Handlers.transmit import TransmitHandler
@@ -32,12 +33,14 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.selector.setVisible(False)
 
         self.setup_serial_ports()
+        self.setup_sliders()
 
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
         # self.ui.sim_label.clicked.connect(self.open_sim)
         self.ui.bot_toggle.clicked.connect(self.toggle_bot)
         self.ui.selector.valueChanged.connect(self.update_item)
         self.ui.zero_pos.clicked.connect(self.zero_pos)
+        self.ui.reset_button.clicked.connect(self.reset_pos)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -110,8 +113,59 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     @Slot()
     def zero_pos(self) -> None:
-        print('Zero to hero!')
-        #Your config zeroing code here :)
+        self.bot_handler.direct.emit(commands.RESET)
+
+    @Slot()
+    def reset_pos(self) -> None:
+        self.bot_handler.direct.emit(b"POS:\n")
+
+    def setup_sliders(self) -> None:
+        self.ui.mb_1.clicked.connect(lambda: self.correct_motor_error(1))
+        self.ui.mb_2.clicked.connect(lambda: self.correct_motor_error(2))
+        self.ui.mb_3.clicked.connect(lambda: self.correct_motor_error(3))
+        self.ui.mb_4.clicked.connect(lambda: self.correct_motor_error(4))
+        self.ui.mb_5.clicked.connect(lambda: self.correct_motor_error(5))
+        self.ui.mb_6.clicked.connect(lambda: self.correct_motor_error(6))
+        self.ui.mb_7.clicked.connect(lambda: self.correct_motor_error(7))
+        self.ui.mb_8.clicked.connect(lambda: self.correct_motor_error(8))
+        self.ui.mb_9.clicked.connect(lambda: self.correct_motor_error(9))
+        self.ui.mb_10.clicked.connect(lambda: self.correct_motor_error(10))
+        self.ui.mb_11.clicked.connect(lambda: self.correct_motor_error(11))
+        self.ui.mb_12.clicked.connect(lambda: self.correct_motor_error(12))
+        self.ui.eq_all.clicked.connect(lambda: self.correct_motor_error(0))
+
+    @Slot()
+    def correct_motor_error(self, motor) -> None:
+        print("Correcting Motor Number: ",motor)
+        #Code to correct a motor's position, or all of the motors if EQ all (motor=0) is clicked
+
+    @Slot()
+    def update_motor_sliders(self, value, motor) -> None:
+        if motor == 1:
+            self.ui.ms_1.setValue(value)
+        elif motor == 2:
+            self.ui.ms_2.setValue(value)
+        elif motor == 3:
+            self.ui.ms_3.setValue(value)
+        elif motor == 4:
+            self.ui.ms_4.setValue(value)
+        elif motor == 5:
+            self.ui.ms_5.setValue(value)
+        elif motor == 6:
+            self.ui.ms_6.setValue(value)
+        elif motor == 7:
+            self.ui.ms_7.setValue(value)
+        elif motor == 8:
+            self.ui.ms_8.setValue(value)
+        elif motor == 9:
+            self.ui.ms_9.setValue(value)
+        elif motor == 10:
+            self.ui.ms_10.setValue(value)
+        elif motor == 11:
+            self.ui.ms_11.setValue(value)
+        elif motor == 12:
+            self.ui.ms_10.setValue(value)
+
 
     def setup_serial_ports(self) -> None:
         for port in serial.tools.list_ports.comports():
@@ -169,7 +223,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state.x += x
         self.cmd_state.y += y
         self.cmd_state.z += z
-        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+        # print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
     def cleanup(self) -> None:
         print("Attempting Cleanup")

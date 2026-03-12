@@ -10,6 +10,7 @@ from rift.transmit import commands
 
 
 class TransmitHandler(QObject):
+    direct = Signal(bytes)
     message = Signal(str)
     bot_live = False
 
@@ -19,6 +20,7 @@ class TransmitHandler(QObject):
         self.worker.moveToThread(self.work_thread)
 
         self.worker.message.connect(self.message.emit)
+        self.direct.connect(self.worker.transmit_direct)
         self.work_thread.finished.connect(self.worker.deleteLater)
         self.worker.start(port)
         self.work_thread.start()
@@ -38,6 +40,13 @@ class TransmitWorker(QObject):
         super().__init__(parent)
         self.dt = dt
         self.ser = serial.Serial(baudrate=115200, timeout=dt+1)
+
+    @Slot(bytes)
+    def transmit_direct(self, cmd: bytes) -> None:
+        if not self.ser.is_open:
+            return
+        self.ser.write(cmd)
+        self.ser.flush()
 
     @Slot(ndarray, ndarray)
     def transmit(self, x: Matrix, dq: Vector) -> None:

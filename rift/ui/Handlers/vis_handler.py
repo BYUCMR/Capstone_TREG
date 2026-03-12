@@ -25,7 +25,8 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
             rover.ROLLING_POS,
             trace_len=10,
         )
-        ui.ctr_layout.insertWidget(0, view)
+        # ui.ctr_layout.insertWidget(1, view)
+        ui.Full_Splitter.addWidget(view)
         view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
     @Slot(ndarray, ndarray)
