@@ -6,6 +6,7 @@ from PySide6.QtGui import QCloseEvent, QKeyEvent
 from PySide6.QtWidgets import QMainWindow, QWidget
 
 from rift.steps import Command, Mode
+from rift.transmit import commands
 from .ui_main import Ui_Control
 from .Handlers.joystick_handler import JoystickHandler
 from .Handlers.transmit import TransmitHandler
@@ -113,13 +114,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     @Slot()
     def zero_pos(self) -> None:
-        print('Zero to hero!')
-        #Your config zeroing code here :)
+        self.bot_handler.direct.emit(commands.RESET)
 
     @Slot()
     def reset_pos(self) -> None:
-        print("BE YE RESET!")
-        #Code to ~reset~ the rover (and not to zero it)
+        self.bot_handler.direct.emit(b"POS:\n")
 
     def setup_sliders(self) -> None:
         self.ui.mb_1.clicked.connect(lambda: self.correct_motor_error(1))
