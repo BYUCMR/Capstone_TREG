@@ -32,6 +32,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.selector.setVisible(False)
 
         self.setup_serial_ports()
+        self.setup_sliders()
 
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
         # self.ui.sim_label.clicked.connect(self.open_sim)
@@ -114,6 +115,26 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         print('Zero to hero!')
         #Your config zeroing code here :)
 
+    def setup_sliders(self) -> None:
+        self.ui.mb_1.clicked.connect(lambda: self.correct_motor_error(1))
+        self.ui.mb_2.clicked.connect(lambda: self.correct_motor_error(2))
+        self.ui.mb_3.clicked.connect(lambda: self.correct_motor_error(3))
+        self.ui.mb_4.clicked.connect(lambda: self.correct_motor_error(4))
+        self.ui.mb_5.clicked.connect(lambda: self.correct_motor_error(5))
+        self.ui.mb_6.clicked.connect(lambda: self.correct_motor_error(6))
+        self.ui.mb_7.clicked.connect(lambda: self.correct_motor_error(7))
+        self.ui.mb_8.clicked.connect(lambda: self.correct_motor_error(8))
+        self.ui.mb_9.clicked.connect(lambda: self.correct_motor_error(9))
+        self.ui.mb_10.clicked.connect(lambda: self.correct_motor_error(10))
+        self.ui.mb_11.clicked.connect(lambda: self.correct_motor_error(11))
+        self.ui.mb_12.clicked.connect(lambda: self.correct_motor_error(12))
+        self.ui.eq_all.clicked.connect(lambda: self.correct_motor_error(0))
+
+
+    def correct_motor_error(self, motor) -> None:
+        print("Correcting Motor Number: ",motor)
+        #Code to correct a motor's position, or all of the motors if EQ all (motor=0) is clicked
+
     def setup_serial_ports(self) -> None:
         for port in serial.tools.list_ports.comports():
             self.ui.serial_select.addItem(port.device)
@@ -170,7 +191,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state.x += x
         self.cmd_state.y += y
         self.cmd_state.z += z
-        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+        # print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
     def cleanup(self) -> None:
         print("Attempting Cleanup")
