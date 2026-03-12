@@ -1,10 +1,12 @@
 from datetime import datetime
 
+import numpy as np
 import serial.tools.list_ports
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QCloseEvent, QKeyEvent
 from PySide6.QtWidgets import QMainWindow, QWidget
 
+from rift.arraytypes import Vector
 from rift.steps import Command, Mode
 from rift.transmit import commands
 from .ui_main import Ui_Control
@@ -140,33 +142,24 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         print("Correcting Motor Number: ",motor)
         #Code to correct a motor's position, or all of the motors if EQ all (motor=0) is clicked
 
-    @Slot()
-    def update_motor_sliders(self, value, motor) -> None:
-        if motor == 1:
-            self.ui.ms_1.setValue(value)
-        elif motor == 2:
-            self.ui.ms_2.setValue(value)
-        elif motor == 3:
-            self.ui.ms_3.setValue(value)
-        elif motor == 4:
-            self.ui.ms_4.setValue(value)
-        elif motor == 5:
-            self.ui.ms_5.setValue(value)
-        elif motor == 6:
-            self.ui.ms_6.setValue(value)
-        elif motor == 7:
-            self.ui.ms_7.setValue(value)
-        elif motor == 8:
-            self.ui.ms_8.setValue(value)
-        elif motor == 9:
-            self.ui.ms_9.setValue(value)
-        elif motor == 10:
-            self.ui.ms_10.setValue(value)
-        elif motor == 11:
-            self.ui.ms_11.setValue(value)
-        elif motor == 12:
-            self.ui.ms_10.setValue(value)
-
+    @Slot(np.ndarray)
+    def update_motor_sliders(self, values: Vector[np.intp]) -> None:
+        sliders = [
+            self.ui.ms_1,
+            self.ui.ms_2,
+            self.ui.ms_3,
+            self.ui.ms_4,
+            self.ui.ms_5,
+            self.ui.ms_6,
+            self.ui.ms_7,
+            self.ui.ms_8,
+            self.ui.ms_9,
+            self.ui.ms_10,
+            self.ui.ms_11,
+            self.ui.ms_12,
+        ]
+        for slider, value in zip(sliders, values, strict=True):
+            slider.setValue(int(value))
 
     def setup_serial_ports(self) -> None:
         for port in serial.tools.list_ports.comports():
