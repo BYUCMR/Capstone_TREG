@@ -121,17 +121,7 @@ class Ui_Control(object):
         self.node_control = QPushButton(self.verticalLayoutWidget_2)
         self.node_control.setObjectName(u"node_control")
 
-<<<<<<< Updated upstream
-        self.L14.addWidget(self.node_control, 1, 0, 1, 1)
-
-        self.sit_stand = QPushButton(self.verticalLayoutWidget_2)
-        self.sit_stand.setObjectName(u"sit_stand")
-        self.sit_stand.setEnabled(True)
-
-        self.L14.addWidget(self.sit_stand, 2, 0, 1, 1)
-=======
         self.L14.addWidget(self.node_control, 0, 0, 1, 1)
->>>>>>> Stashed changes
 
         self.crawling = QPushButton(self.verticalLayoutWidget_2)
         self.crawling.setObjectName(u"crawling")
