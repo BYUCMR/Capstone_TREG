@@ -96,10 +96,12 @@ class Ui_Control(object):
         self.L12 = QHBoxLayout()
         self.L12.setObjectName(u"L12")
         self.L12.setContentsMargins(-1, 0, -1, -1)
-        self.reset_button = QPushButton(self.verticalLayoutWidget_2)
-        self.reset_button.setObjectName(u"reset_button")
+        self.zero_pos = QPushButton(self.verticalLayoutWidget_2)
+        self.zero_pos.setObjectName(u"zero_pos")
+        self.zero_pos.setStyleSheet(u"background-color: qlineargradient(spread:repeat, x1:0, y1:0, x2:1, y2:0, stop:0.249 rgba(255, 255, 0, 255), stop:0.25 rgba(0, 0, 0, 255), stop:0.499 rgba(0, 0, 0, 255), stop:0.5 rgba(255, 255, 0, 255), stop:0.75 rgba(255, 255, 0, 255), stop:0.751 rgba(0, 0, 0, 255), stop:1 rgba(0, 0, 0, 255));\n"
+"color: rgb(255, 0, 0);")
 
-        self.L12.addWidget(self.reset_button)
+        self.L12.addWidget(self.zero_pos)
 
         self.L121 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
@@ -134,11 +136,11 @@ class Ui_Control(object):
 
         self.L14.addWidget(self.crawling, 0, 1, 1, 1)
 
-        self.zero_pos = QPushButton(self.verticalLayoutWidget_2)
-        self.zero_pos.setObjectName(u"zero_pos")
-        self.zero_pos.setEnabled(True)
+        self.reset_button = QPushButton(self.verticalLayoutWidget_2)
+        self.reset_button.setObjectName(u"reset_button")
+        self.reset_button.setEnabled(True)
 
-        self.L14.addWidget(self.zero_pos, 1, 1, 1, 1)
+        self.L14.addWidget(self.reset_button, 1, 1, 1, 1)
 
         self.calibration = QPushButton(self.verticalLayoutWidget_2)
         self.calibration.setObjectName(u"calibration")
@@ -493,11 +495,11 @@ class Ui_Control(object):
         self.del_left.setText(QCoreApplication.translate("Control", u"Left Delta", None))
         self.backward.setText(QCoreApplication.translate("Control", u"Backward", None))
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
-        self.reset_button.setText(QCoreApplication.translate("Control", u"Reset", None))
+        self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))
         self.selector_label.setText(QCoreApplication.translate("Control", u"Node", None))
         self.node_control.setText(QCoreApplication.translate("Control", u"Node Control", None))
         self.crawling.setText(QCoreApplication.translate("Control", u"Crawling", None))
-        self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))
+        self.reset_button.setText(QCoreApplication.translate("Control", u"Reset", None))
         self.calibration.setText(QCoreApplication.translate("Control", u"Calibration", None))
         self.rolling.setText(QCoreApplication.translate("Control", u"Rolling", None))
         self.sit_stand.setText(QCoreApplication.translate("Control", u"Sit/Stand", None))

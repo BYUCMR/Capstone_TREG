@@ -149,9 +149,13 @@
            <number>0</number>
           </property>
           <item>
-           <widget class="QPushButton" name="reset_button">
+           <widget class="QPushButton" name="zero_pos">
+            <property name="styleSheet">
+             <string notr="true">background-color: qlineargradient(spread:repeat, x1:0, y1:0, x2:1, y2:0, stop:0.249 rgba(255, 255, 0, 255), stop:0.25 rgba(0, 0, 0, 255), stop:0.499 rgba(0, 0, 0, 255), stop:0.5 rgba(255, 255, 0, 255), stop:0.75 rgba(255, 255, 0, 255), stop:0.751 rgba(0, 0, 0, 255), stop:1 rgba(0, 0, 0, 255));
+color: rgb(255, 0, 0);</string>
+            </property>
             <property name="text">
-             <string>Reset</string>
+             <string>Zero</string>
             </property>
            </widget>
           </item>
@@ -210,12 +214,12 @@
            </widget>
           </item>
           <item row="1" column="1">
-           <widget class="QPushButton" name="zero_pos">
+           <widget class="QPushButton" name="reset_button">
             <property name="enabled">
              <bool>true</bool>
             </property>
             <property name="text">
-             <string>Zero</string>
+             <string>Reset</string>
             </property>
            </widget>
           </item>
