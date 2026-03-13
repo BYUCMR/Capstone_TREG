@@ -99,7 +99,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.term_log("Robot Connected")
             self.bot_handler.start_transmission(
                 port=self.ui.serial_select.currentText(),
-                dt=150/self.vis_handler.worker.resolution,
             )
             if self.vis_handler.sim_live:
                 self.vis_handler.worker.results.connect(
