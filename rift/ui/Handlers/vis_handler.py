@@ -11,6 +11,7 @@ from rift.steps import Command
 class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     send_cmd = Signal(Command)
     message = Signal(str)
+    reset = Signal(ndarray)
 
     def __init__(
         self,
@@ -46,6 +47,7 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
         self.worker.done.connect(self.send_new)
         self.worker.results.connect(self.update_anim, Qt.ConnectionType.BlockingQueuedConnection)
         self.worker.message.connect(self.message.emit)
+        self.reset.connect(self.worker.reset)
         self.work_thread.finished.connect(self.worker.deleteLater)
         self.send_new()
         self.work_thread.start()
@@ -73,6 +75,10 @@ class VizWorker(QObject):
         self.period = period
         self.resolution = resolution
         self.robot = rover.make_robot(init_pos)
+
+    @Slot(ndarray)
+    def reset(self, pos: Matrix) -> None:
+        self.robot.pos[:] = pos
 
     @Slot(Command)
     def run_cmd(self, cmd: Command) -> None:

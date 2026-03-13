@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QCloseEvent, QKeyEvent
 from PySide6.QtWidgets import QMainWindow, QWidget
 
+from rift import rover
 from rift.arraytypes import Vector
 from rift.steps import Command, Mode
 from rift.transmit import commands
@@ -121,6 +122,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
     @Slot()
     def reset_pos(self) -> None:
         self.bot_handler.direct.emit(b"POS:\n")
+        self.vis_handler.reset.emit(rover.ROLLING_POS)
 
     def setup_sliders(self) -> None:
         self.ui.mb_1.clicked.connect(lambda: self.correct_motor_error(1))
