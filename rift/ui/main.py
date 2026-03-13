@@ -29,6 +29,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.joystick_handler = JoystickHandler(self.ui)
         self.vis_handler = SimWindow(self.cmd_state, self.ui)
         self.bot_handler = TransmitHandler()
+        self.joystick_handler.message.connect(self.term_log)
+        self.joystick_handler.command.connect(self.cmd_set)
         self.vis_handler.message.connect(self.term_log)
         self.bot_handler.message.connect(self.term_log)
 
@@ -221,12 +223,18 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state.z += z
         # print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
+    def cmd_set(self, x: float, y: float, z: float) -> None:
+        self.cmd_state.x = x
+        self.cmd_state.y = y
+        self.cmd_state.z = z
+        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+
     def cleanup(self) -> None:
         print("Attempting Cleanup")
         try:
-            self.joystick_handler.js_thread.requestInterruption()
             self.joystick_handler.js_thread.quit()
             self.joystick_handler.js_worker.deleteLater()
+            print("Joystick hath been murked")
         except:
             print("No Joystick to kill")
         try:
