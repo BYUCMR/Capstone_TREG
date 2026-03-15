@@ -10,7 +10,6 @@ import pyqtgraph.opengl as gl
 from . import anim
 from . import constrain as cstr
 from . import grav
-from . import steps
 from . import tubetruss as tt
 from .arraytypes import Matrix, Vector
 
@@ -286,6 +285,10 @@ def set_up_animation(
     return view, partial(anim.update_all_pos, items)
 
 
+def parabolic(k: float, t: float) -> float:
+    return 2. * k * (0.5-t)
+
+
 def adjust_roller(
     robot: tt.TrussRobot,
     roller: int,
@@ -363,7 +366,7 @@ def crawl(
     feet = (CL2, CL1, CR2, CR1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
-            cstr.Motion.make(foot, x=dx, y=dy, z=partial(steps.parabolic, ds)),
+            cstr.Motion.make(foot, x=dx, y=dy, z=partial(parabolic, ds)),
             *(
                 cstr.Motion.lock(other_foot)
                 for other_foot in feet
@@ -457,7 +460,7 @@ def roll(
     ))
     yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
     dx = ((face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875) / resolution
-    foot_arc = partial(steps.parabolic, -dx)
+    foot_arc = partial(parabolic, -dx)
     step_2 = cstr.CompoundConstraint((
         cstr.Motion.lock(chassis_com),
         cstr.Motion.make(face - base, z=0.),

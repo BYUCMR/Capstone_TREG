@@ -5,8 +5,7 @@ from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
 from rift import rover
 from rift.arraytypes import Matrix, Vector
 from rift.tubetruss.robots import InverseKinematicsError
-from rift.steps import Command
-from .controls import Bundler, take_command
+from .controls import Bundler, Command, take_command
 
 
 class SimWindow(QObject): #referenced as sim_widget by mainwindow class

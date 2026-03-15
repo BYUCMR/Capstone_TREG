@@ -8,9 +8,9 @@ from PySide6.QtWidgets import QMainWindow, QWidget
 
 from rift import rover
 from rift.arraytypes import Vector
-from rift.steps import Command, Mode
 from rift.transmit import commands
 from .ui_main import Ui_Control
+from .Handlers.controls import Command, Mode
 from .Handlers.joystick_handler import JoystickHandler
 from .Handlers.transmit import TransmitHandler
 from .Handlers.vis_handler import SimWindow

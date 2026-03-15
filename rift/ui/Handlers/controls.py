@@ -1,23 +1,43 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
+from enum import Enum
 
 from rift import rover
-from rift import steps
 from rift import tubetruss as tt
 from rift.arraytypes import Vector
 
 
+class Mode(Enum):
+    crawling = "crawling"
+    offline = "offline"
+    node_control = "node_control"
+    calibration = "calibration"
+    stand = "stand"
+
+
+@dataclass
+class Command:
+    mode: Mode
+    item: int
+    x: float
+    y: float
+    z: float
+
+    def __bool__(self) -> bool:
+        return self.mode is not Mode.offline and bool(self.x or self.y or self.z)
+
+
 def take_command(
     robot: tt.TrussRobot,
-    command: steps.Command,
+    command: Command,
 ) -> Generator[Vector]:
     if not command:
         return
-    elif command.mode is steps.Mode.crawling:
+    elif command.mode is Mode.crawling:
         x = command.x * 0.125
         y = -command.y * 0.125
         yield from rover.crawl(robot, 1, (x, y), resolution=100)
-    elif command.mode is steps.Mode.node_control:
+    elif command.mode is Mode.node_control:
         yield rover.nudge_node(
             robot,
             command.item,
@@ -25,9 +45,9 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-    elif command.mode is steps.Mode.calibration:
+    elif command.mode is Mode.calibration:
         yield rover.adjust_roller(robot, command.item, command.x * 0.0005)
-    elif command.mode is steps.Mode.stand:
+    elif command.mode is Mode.stand:
         yield rover.nudge_chassis(
             robot,
             command.x * 0.0005,
