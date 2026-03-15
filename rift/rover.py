@@ -333,11 +333,12 @@ def nudge_chassis(
     chassis_com = cstr.Point.com(chassis_mass)
     motion = cstr.CompoundConstraint((
         cstr.Motion.make(chassis_com, x, y, z),
-        cstr.Motion.make(CP3, x=0, y=0),
+        cstr.Motion.make(CP3-CQ3, x=0, z=0),
         cstr.Motion.make(CL1, z=0),
         cstr.Motion.make(CL2, z=0),
         cstr.Motion.make(CR1, z=0),
         cstr.Motion.make(CR2, z=0),
+        cstr.Motion.make(cstr.Point.avg(CL1, CL2, CR1, CR2), x=0, y=0),
     ))
     return robot.take_substep(motion)
 

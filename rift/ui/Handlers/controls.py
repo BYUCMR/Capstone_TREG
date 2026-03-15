@@ -30,8 +30,8 @@ def take_command(
     elif command.mode is steps.Mode.stand:
         yield rover.nudge_chassis(
             robot,
-            0,
-            0,
+            command.x * 0.0005,
+            command.y * 0.0005,
             command.z * 0.0005,
         )
 
