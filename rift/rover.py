@@ -1,5 +1,5 @@
 import math
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator
 from functools import partial
 from typing import Final
 
@@ -12,7 +12,7 @@ from . import constrain as cstr
 from . import grav
 from . import steps
 from . import tubetruss as tt
-from .arraytypes import IndexVector, Matrix, Vector
+from .arraytypes import Matrix, Vector
 
 
 # Left feet / end-effectors
@@ -231,75 +231,57 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
     return grav.Stabilizer(source_pos, rel_mass=rel_mass)
 
 
-def draw_chassis_bars(chassis: tt.Truss, pos: Matrix) -> anim.DrawnLinks:
-    return anim.draw_links(chassis.links.ravel(), pos, color='black', width=4)
-
-
-def draw_chassis_mesh(chassis: tt.Truss, pos: Matrix) -> anim.BodyMesh:
-    chassis_faces = [[0, 1, 2], [3, 4, 5],
-                     [0, 3, 5], [0, 2, 5],
-                     [1, 4, 5], [1, 2, 5],
-                     [0, 1, 4], [0, 3, 4]]
-
-    meshdata = gl.MeshData(
-        vertexes=pos[chassis.nodes],
-        faces=chassis_faces,
-    )
-    mesh = gl.GLMeshItem(
-        meshdata=meshdata,
-        color=pg.mkColor(anim.OKABE_ITO[-1]),
-    )
-    mesh.setGLOptions('opaque')
-    return anim.BodyMesh(chassis.nodes, mesh)
-
-
-def draw_triangles(truss: tt.Truss, pos: Matrix) -> list[anim.DrawnLinks]:
-    drawn_tubes: list[anim.DrawnLinks] = []
-    for i, j in enumerate(range(0, truss.n_links, 3)):
-        nodes = truss.links[j:j+3].ravel()
-        color = anim.OKABE_ITO[i % (len(anim.OKABE_ITO) - 1) + 1]
-        drawn_tube = anim.draw_links(nodes, pos, color=color)
-        drawn_tubes.append(drawn_tube)
-    return drawn_tubes
-
-
-def draw_markers(trails: Iterable[IndexVector], pos: Matrix) -> list[anim.Markers]:
-    all_markers: list[anim.Markers] = []
-    for trail in trails:
-        marks = gl.GLScatterPlotItem(
-            pos=pos[trail],
-            size=8,
-            color=pg.mkColor(anim.OKABE_ITO[0]),
-        )
-        marks.setGLOptions('opaque')
-        markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
-        all_markers.append(markers)
-    return all_markers
-
-
 def set_up_animation(
     init_pos: Matrix = CRAWLING_POS,
     *,
     trace_len: int = 100,
 ) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
+    items: list[anim.AnimationItem] = []
+    chassis_mesh = gl.GLMeshItem(
+        meshdata=gl.MeshData(
+            vertexes=init_pos[CHASSIS_TRUSS.nodes],
+            faces=[
+                [0, 1, 2], [3, 4, 5],
+                [0, 3, 5], [0, 2, 5],
+                [1, 4, 5], [1, 2, 5],
+                [0, 1, 4], [0, 3, 4],
+            ],
+        ),
+        color=pg.mkColor(anim.OKABE_ITO[-1]),
+    )
+    chassis_mesh.setGLOptions('opaque')
+    items.append(anim.BodyMesh(CHASSIS_TRUSS.nodes, chassis_mesh))
+    items.append(anim.draw_links(
+        CHASSIS_TRUSS.links.ravel(),
+        init_pos,
+        color='black',
+        width=4,
+    ))
+    triangles = [
+        [P1, L2, L3, P1],
+        [P2, L3, L1, P2],
+        [P3, L1, L2, P3],
+        [Q1, R2, R3, Q1],
+        [Q2, R3, R1, Q2],
+        [Q3, R1, R2, Q3],
+    ]
+    items += (
+        anim.draw_links(trail, init_pos, color=color)
+        for trail, color in zip(triangles, anim.OKABE_ITO[1:])
+    )
+    for trail in triangles:
+        marks = gl.GLScatterPlotItem(
+            pos=init_pos[trail],
+            size=8,
+            color=pg.mkColor(anim.OKABE_ITO[0]),
+        )
+        marks.setGLOptions('opaque')
+        markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
+        items.append(markers)
+    items += anim.draw_traces(range(12), trace_len, init_pos)
+
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
-    chassis_mesh = draw_chassis_mesh(CHASSIS_TRUSS, init_pos)
-    chassis_bars = draw_chassis_bars(CHASSIS_TRUSS, init_pos)
-    triangles = draw_triangles(LEG_TRUSS, init_pos)
-    traces = anim.draw_traces(range(12), trace_len, init_pos)
-    markers = draw_markers(
-        [
-            [P1, L2, L3, P1],
-            [P2, L3, L1, P2],
-            [P3, L1, L2, P3],
-            [Q1, R2, R3, Q1],
-            [Q2, R3, R1, Q2],
-            [Q3, R1, R2, Q3],
-        ],
-        init_pos,
-    )
-    items = [chassis_mesh, chassis_bars, *triangles, *traces, *markers]
     anim.add_all_to_view(items, view)
     return view, partial(anim.update_all_pos, items)
 

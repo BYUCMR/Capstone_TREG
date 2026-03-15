@@ -116,7 +116,6 @@ def draw_links(nodes: IndexVector, pos: Matrix, *, color: str = 'gray', width: i
         pos=pos[nodes],
         width=width,
         color=pg.mkColor(color),
-        mode='lines',
     )
     drawing.setGLOptions('opaque')
     return DrawnLinks(nodes, drawing)
