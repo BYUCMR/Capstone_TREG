@@ -6,6 +6,7 @@ from rift import rover
 from rift.arraytypes import Matrix, Vector
 from rift.tubetruss.robots import InverseKinematicsError
 from rift.steps import Command
+from .controls import Bundler, take_command
 
 
 class SimWindow(QObject): #referenced as sim_widget by mainwindow class
@@ -68,13 +69,11 @@ class VizWorker(QObject):
         self,
         init_pos: Matrix = rover.ROLLING_POS,
         *,
-        resolution: int = 100,
         period: int = 1,
     ) -> None:
         super().__init__()
-        self.period = period
-        self.resolution = resolution
         self.robot = rover.make_robot(init_pos)
+        self.bundler = Bundler(period)
 
     @Slot(ndarray)
     def reset(self, pos: Matrix) -> None:
@@ -86,16 +85,9 @@ class VizWorker(QObject):
         if cur_thread.isInterruptionRequested():
             cur_thread.exit()
             return
-        gen = rover.take_command(self.robot, cmd, resolution=self.resolution)
-        delta_q = np.zeros(self.robot.n_rollers)
+        gen = take_command(self.robot, cmd)
         try:
-            i = None
-            for i, dq in enumerate(gen):
-                delta_q += dq
-                if not i % self.period:
-                    self.results.emit(self.robot.pos.copy(), delta_q.copy())
-                    delta_q[:] = 0.
-            if i is not None and i % self.period:
+            for delta_q in self.bundler.expend(gen):
                 self.results.emit(self.robot.pos.copy(), delta_q)
         except InverseKinematicsError as e:
             self.message.emit(e.args[0])

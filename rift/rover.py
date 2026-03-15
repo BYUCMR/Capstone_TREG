@@ -286,6 +286,62 @@ def set_up_animation(
     return view, partial(anim.update_all_pos, items)
 
 
+def adjust_roller(
+    robot: tt.TrussRobot,
+    roller: int,
+    amount: float,
+) -> Vector:
+    dq = np.zeros(robot.n_rollers)
+    dq[roller] = amount
+    # We might be able to make better constraints than this.
+    constraint = cstr.CompoundConstraint([
+        cstr.Motion.make(CL1, x=0, y=0, z=0),
+        cstr.Motion.make(CL2, y=0, z=0),
+        cstr.Motion.make(CR1, z=0),
+    ])
+    robot.apply_roll(dq, constraint)
+    return dq
+
+
+def nudge_node(
+    robot: tt.TrussRobot,
+    node: int,
+    x: float,
+    y: float,
+    z: float,
+) -> Vector:
+    feet = {L1, L2, R1, R2}
+    feet.discard(node)
+    motion = cstr.CompoundConstraint([
+        cstr.Motion.make(cstr.Point.node(node, robot.n_nodes), x, y, z),
+        *(
+            cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
+            for foot in feet
+        ),
+    ])
+    return robot.take_substep(motion, respect_floor=True)
+
+
+def nudge_chassis(
+    robot: tt.TrussRobot,
+    x: float,
+    y: float,
+    z: float,
+) -> Vector:
+    chassis_mass = np.zeros(len(robot.pos))
+    chassis_mass[CHASSIS] = 1.
+    chassis_com = cstr.Point.com(chassis_mass)
+    motion = cstr.CompoundConstraint((
+        cstr.Motion.make(chassis_com, x, y, z),
+        cstr.Motion.make(CP3, x=0, y=0),
+        cstr.Motion.make(CL1, z=0),
+        cstr.Motion.make(CL2, z=0),
+        cstr.Motion.make(CR1, z=0),
+        cstr.Motion.make(CR2, z=0),
+    ))
+    return robot.take_substep(motion)
+
+
 def crawl(
     robot: tt.TrussRobot,
     cycles: int = 1,
@@ -419,58 +475,3 @@ def roll(
         cstr.Orbit.about_y(robot.pos, arm_r-foot_r, np.pi, resolution),
     ))
     yield from robot.take_step(step_3, resolution=resolution)
-
-
-def take_command(
-    robot: tt.TrussRobot,
-    command: steps.Command,
-    *,
-    resolution: int,
-) -> Generator[Vector]:
-    if not command:
-        return
-    elif command.mode is steps.Mode.crawling:
-        x = command.x * 0.125
-        y = -command.y * 0.125
-        yield from crawl(robot, 1, (x, y), resolution=resolution)
-    elif command.mode is steps.Mode.node_control:
-        feet = {L1, L2, R1, R2}
-        feet.discard(command.item)
-        motion = cstr.CompoundConstraint([
-            cstr.Motion.make(
-                cstr.Point.node(command.item, robot.n_nodes),
-                x=command.x * 0.05 / resolution,
-                y=command.y * 0.05 / resolution,
-                z=command.z * 0.05 / resolution,
-            ),
-            *(
-                cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
-                for foot in feet
-            ),
-        ])
-        yield from robot.take_step(motion, resolution=resolution, respect_floor=True)
-    elif command.mode is steps.Mode.calibration:
-        dq = np.zeros(robot.n_rollers)
-        dq[command.item] = command.x * 0.005
-        # We might be able to make better constraints than this.
-        constraint = cstr.CompoundConstraint([
-            cstr.Motion.make(CL1, x=0, y=0, z=0),
-            cstr.Motion.make(CL2, y=0, z=0),
-            cstr.Motion.make(CR1, z=0),
-        ])
-        robot.apply_roll(dq, constraint)
-        yield dq
-    elif command.mode is steps.Mode.stand:
-        chassis_mass = np.zeros(len(robot.pos))
-        chassis_mass[CHASSIS] = 1.
-        chassis_com = cstr.Point.com(chassis_mass)
-        dz = command.z * 0.05 / resolution
-        motion = cstr.CompoundConstraint((
-            cstr.Motion.make(chassis_com, x=0, y=0, z=dz),
-            cstr.Motion.make(CP3, x=0, y=0),
-            cstr.Motion.make(CL1, z=0),
-            cstr.Motion.make(CL2, z=0),
-            cstr.Motion.make(CR1, z=0),
-            cstr.Motion.make(CR2, z=0),
-        ))
-        yield from robot.take_step(motion, resolution=resolution)
