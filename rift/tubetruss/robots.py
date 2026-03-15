@@ -3,10 +3,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from . import constrain as cstr
-from . import steps
-from .arraytypes import Matrix, Vector
-from .tubetruss import Truss, LengthControl
+from rift import constrain as cstr
+from rift import steps
+from rift.arraytypes import Matrix, Vector
+from .control import LengthControl
+from .trusses import Truss
 
 
 class InverseKinematicsError(Exception): ...

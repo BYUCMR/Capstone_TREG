@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
 
 from rift import rover
 from rift.arraytypes import Matrix, Vector
-from rift.robot import InverseKinematicsError
+from rift.tubetruss.robots import InverseKinematicsError
 from rift.steps import Command
 
 

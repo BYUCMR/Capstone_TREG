@@ -13,7 +13,6 @@ from . import grav
 from . import steps
 from . import tubetruss as tt
 from .arraytypes import IndexVector, Matrix, Vector
-from .robot import TrussRobot
 
 
 # Left feet / end-effectors
@@ -220,10 +219,10 @@ CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 0.875)
 
 
-def make_robot(init_pos: Matrix = CRAWLING_POS) -> TrussRobot:
+def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussRobot:
     pos = init_pos.copy()
     truss = LEG_TRUSS.attach(CHASSIS_TRUSS)
-    return TrussRobot(pos, truss, CONTROL)
+    return tt.TrussRobot(pos, truss, CONTROL)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -306,7 +305,7 @@ def set_up_animation(
 
 
 def crawl(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     cycles: int = 1,
     step_length: tuple[float, float] = (0.125, 0.),
     *,
@@ -338,7 +337,7 @@ def crawl(
 
 
 def lean(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     dist: float = 0.6,
     *,
     resolution: int = 100,
@@ -356,7 +355,7 @@ def lean(
 
 
 def reach(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     dist: float = 1.,
     *,
     resolution: int = 100,
@@ -377,7 +376,7 @@ def reach(
 
 
 def roll(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     *,
     i: int = 0,
     resolution: int = 100,
@@ -441,7 +440,7 @@ def roll(
 
 
 def take_command(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     command: steps.Command,
     *,
     resolution: int,

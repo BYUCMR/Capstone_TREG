@@ -8,7 +8,7 @@ from PySide6 import QtAsyncio
 
 from rift import rover
 from rift.arraytypes import Matrix
-from rift.robot import InverseKinematicsError
+from rift.tubetruss.robots import InverseKinematicsError
 
 
 async def main(

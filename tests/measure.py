@@ -10,7 +10,7 @@ from rift import constrain as cstr
 from rift import rover
 from rift import steps
 from rift.arraytypes import Matrix, MatrixStack
-from rift.robot import InverseKinematicsError
+from rift.tubetruss.robots import InverseKinematicsError
 
 
 def record_motion(
