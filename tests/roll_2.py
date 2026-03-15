@@ -6,10 +6,9 @@ from rift.arraytypes import Matrix, Vector
 import pyqtgraph
 from PySide6 import QtAsyncio
 from functools import partial
-from rift import steps
 from rift import rover
 from rift.arraytypes import Matrix
-from rift.robot import InverseKinematicsError,TrussRobot
+from rift.tubetruss.robots import InverseKinematicsError,TrussRobot
 import rift.constrain as cstr
 import numpy as np
 from rift.transmit.conversion import *
@@ -81,7 +80,7 @@ def roll(
     ))
     yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
     dx = ((face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875) / resolution
-    foot_arc = partial(steps.parabolic, -dx)
+    foot_arc = partial(rover.parabolic, -dx)
     step_2 = cstr.CompoundConstraint((
         cstr.Motion.lock(chassis_com),
         cstr.Motion.make(face - base, z=0.),
