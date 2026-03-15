@@ -1,6 +1,10 @@
 from collections.abc import Iterable
 from typing import Final
 
+import numpy as np
+
+from rift.arraytypes import Vector
+
 
 STOP: Final = b"STOP\n"
 RESET: Final = b"RESET\n"
@@ -16,3 +20,7 @@ def VEL(v: Iterable[float], t: float | None = None) -> bytes:
 
 def POS(q: Iterable[int]) -> bytes:
     return f"POS:{','.join(map(str, q))}\n".encode()
+
+
+def get_smallest_dt(dq: Vector[np.number], max_speed: float = 1800) -> float:
+    return np.max(np.abs(dq)) / max_speed

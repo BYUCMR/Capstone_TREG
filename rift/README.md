@@ -17,11 +17,6 @@ motion commands for our robot.
 This file contains a `Stabilizer` class that we use to simulate the effect of
 gravity on the robot.
 
-## robot.py
-Here we have a class called `TrussRobot` that simulates a generic truss robot.
-It has methods for updating its position based on commands and constraints
-with either forward or inverse kinematics.
-
 ## rover.py
 This is where we define the specific configuration of our physical robot. We
 also define various kinds of motion that this robot can perform.
@@ -32,3 +27,6 @@ We use this file to help generate commands to control robots.
 ## tubetruss
 This module contains classes and functions used to describe, simulate, and
 control general variable-shape truss robots.
+
+The `TrussRobot` class within has methods for updating its position based on
+commands and constraints with either forward or inverse kinematics.

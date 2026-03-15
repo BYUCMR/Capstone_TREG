@@ -1,13 +1,16 @@
 from datetime import datetime
 
+import numpy as np
 import serial.tools.list_ports
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QCloseEvent, QKeyEvent
 from PySide6.QtWidgets import QMainWindow, QWidget
 
-from rift.steps import Command, Mode
+from rift import rover
+from rift.arraytypes import Vector
 from rift.transmit import commands
 from .ui_main import Ui_Control
+from .Handlers.controls import Command, Mode
 from .Handlers.joystick_handler import JoystickHandler
 from .Handlers.transmit import TransmitHandler
 from .Handlers.vis_handler import SimWindow
@@ -26,6 +29,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.joystick_handler = JoystickHandler(self.ui)
         self.vis_handler = SimWindow(self.cmd_state, self.ui)
         self.bot_handler = TransmitHandler()
+        self.joystick_handler.message.connect(self.term_log)
+        self.joystick_handler.command.connect(self.cmd_set)
         self.vis_handler.message.connect(self.term_log)
         self.bot_handler.message.connect(self.term_log)
 
@@ -93,7 +98,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.term_log("Robot Connected")
             self.bot_handler.start_transmission(
                 port=self.ui.serial_select.currentText(),
-                dt=150/self.vis_handler.worker.resolution,
             )
             if self.vis_handler.sim_live:
                 self.vis_handler.worker.results.connect(
@@ -118,6 +122,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
     @Slot()
     def reset_pos(self) -> None:
         self.bot_handler.direct.emit(b"POS:\n")
+        self.vis_handler.reset.emit(rover.ROLLING_POS)
 
     def setup_sliders(self) -> None:
         self.ui.mb_1.clicked.connect(lambda: self.correct_motor_error(1))
@@ -139,33 +144,24 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         print("Correcting Motor Number: ",motor)
         #Code to correct a motor's position, or all of the motors if EQ all (motor=0) is clicked
 
-    @Slot()
-    def update_motor_sliders(self, value, motor) -> None:
-        if motor == 1:
-            self.ui.ms_1.setValue(value)
-        elif motor == 2:
-            self.ui.ms_2.setValue(value)
-        elif motor == 3:
-            self.ui.ms_3.setValue(value)
-        elif motor == 4:
-            self.ui.ms_4.setValue(value)
-        elif motor == 5:
-            self.ui.ms_5.setValue(value)
-        elif motor == 6:
-            self.ui.ms_6.setValue(value)
-        elif motor == 7:
-            self.ui.ms_7.setValue(value)
-        elif motor == 8:
-            self.ui.ms_8.setValue(value)
-        elif motor == 9:
-            self.ui.ms_9.setValue(value)
-        elif motor == 10:
-            self.ui.ms_10.setValue(value)
-        elif motor == 11:
-            self.ui.ms_11.setValue(value)
-        elif motor == 12:
-            self.ui.ms_10.setValue(value)
-
+    @Slot(np.ndarray)
+    def update_motor_sliders(self, values: Vector[np.intp]) -> None:
+        sliders = [
+            self.ui.ms_1,
+            self.ui.ms_2,
+            self.ui.ms_3,
+            self.ui.ms_4,
+            self.ui.ms_5,
+            self.ui.ms_6,
+            self.ui.ms_7,
+            self.ui.ms_8,
+            self.ui.ms_9,
+            self.ui.ms_10,
+            self.ui.ms_11,
+            self.ui.ms_12,
+        ]
+        for slider, value in zip(sliders, values, strict=True):
+            slider.setValue(int(value))
 
     def setup_serial_ports(self) -> None:
         for port in serial.tools.list_ports.comports():
@@ -225,12 +221,18 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state.z += z
         # print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
+    def cmd_set(self, x: float, y: float, z: float) -> None:
+        self.cmd_state.x = x
+        self.cmd_state.y = y
+        self.cmd_state.z = z
+        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+
     def cleanup(self) -> None:
         print("Attempting Cleanup")
         try:
-            self.joystick_handler.js_thread.requestInterruption()
             self.joystick_handler.js_thread.quit()
             self.joystick_handler.js_worker.deleteLater()
+            print("Joystick hath been murked")
         except:
             print("No Joystick to kill")
         try:

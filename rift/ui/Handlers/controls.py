@@ -1,0 +1,74 @@
+from collections.abc import Generator, Iterable
+from dataclasses import dataclass
+from enum import Enum
+
+from rift import rover
+from rift import tubetruss as tt
+from rift.arraytypes import Vector
+
+
+class Mode(Enum):
+    crawling = "crawling"
+    offline = "offline"
+    node_control = "node_control"
+    calibration = "calibration"
+    stand = "stand"
+
+
+@dataclass
+class Command:
+    mode: Mode
+    item: int
+    x: float
+    y: float
+    z: float
+
+    def __bool__(self) -> bool:
+        return self.mode is not Mode.offline and bool(self.x or self.y or self.z)
+
+
+def take_command(
+    robot: tt.TrussRobot,
+    command: Command,
+) -> Generator[Vector]:
+    if not command:
+        return
+    elif command.mode is Mode.crawling:
+        x = command.x * 0.125
+        y = -command.y * 0.125
+        yield from rover.crawl(robot, 1, (x, y), resolution=100)
+    elif command.mode is Mode.node_control:
+        yield rover.nudge_node(
+            robot,
+            command.item,
+            command.x * 0.0005,
+            command.y * 0.0005,
+            command.z * 0.0005,
+        )
+    elif command.mode is Mode.calibration:
+        yield rover.adjust_roller(robot, command.item, command.x * 0.0005)
+    elif command.mode is Mode.stand:
+        yield rover.nudge_chassis(
+            robot,
+            command.x * 0.0005,
+            command.y * 0.0005,
+            command.z * 0.0005,
+        )
+
+
+@dataclass(slots=True)
+class Bundler:
+    period: int
+    _i: int = 0
+
+    def expend(self, gen: Iterable[Vector]) -> Generator[Vector]:
+        delta_q = None
+        for dq in gen:
+            self._i += 1
+            if delta_q is None:
+                delta_q = dq
+            else:
+                delta_q += dq
+            if not self._i % self.period:
+                yield delta_q
+                delta_q = None

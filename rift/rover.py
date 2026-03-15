@@ -1,5 +1,5 @@
 import math
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator
 from functools import partial
 from typing import Final
 
@@ -10,10 +10,8 @@ import pyqtgraph.opengl as gl
 from . import anim
 from . import constrain as cstr
 from . import grav
-from . import steps
 from . import tubetruss as tt
-from .arraytypes import IndexVector, Matrix, Vector
-from .robot import TrussRobot
+from .arraytypes import Matrix, Vector
 
 
 # Left feet / end-effectors
@@ -259,10 +257,10 @@ CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 0.875)
 
 
-def make_robot(init_pos: Matrix = CRAWLING_POS) -> TrussRobot:
+def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussRobot:
     pos = init_pos.copy()
     truss = LEG_TRUSS.attach(CHASSIS_TRUSS)
-    return TrussRobot(pos, truss, CONTROL)
+    return tt.TrussRobot(pos, truss, CONTROL)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -271,81 +269,124 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
     return grav.Stabilizer(source_pos, rel_mass=rel_mass)
 
 
-def draw_chassis_bars(chassis: tt.Truss, pos: Matrix) -> anim.DrawnLinks:
-    return anim.draw_links(chassis.links.ravel(), pos, color='black', width=4)
-
-
-def draw_chassis_mesh(chassis: tt.Truss, pos: Matrix) -> anim.BodyMesh:
-    chassis_faces = [[0, 1, 2], [3, 4, 5],
-                     [0, 3, 5], [0, 2, 5],
-                     [1, 4, 5], [1, 2, 5],
-                     [0, 1, 4], [0, 3, 4]]
-
-    meshdata = gl.MeshData(
-        vertexes=pos[chassis.nodes],
-        faces=chassis_faces,
-    )
-    mesh = gl.GLMeshItem(
-        meshdata=meshdata,
-        color=pg.mkColor(anim.OKABE_ITO[-1]),
-    )
-    mesh.setGLOptions('opaque')
-    return anim.BodyMesh(chassis.nodes, mesh)
-
-
-def draw_triangles(truss: tt.Truss, pos: Matrix) -> list[anim.DrawnLinks]:
-    drawn_tubes: list[anim.DrawnLinks] = []
-    for i, j in enumerate(range(0, truss.n_links, 3)):
-        nodes = truss.links[j:j+3].ravel()
-        color = anim.OKABE_ITO[i % (len(anim.OKABE_ITO) - 1) + 1]
-        drawn_tube = anim.draw_links(nodes, pos, color=color)
-        drawn_tubes.append(drawn_tube)
-    return drawn_tubes
-
-
-def draw_markers(trails: Iterable[IndexVector], pos: Matrix) -> list[anim.Markers]:
-    all_markers: list[anim.Markers] = []
-    for trail in trails:
-        marks = gl.GLScatterPlotItem(
-            pos=pos[trail],
-            size=8,
-            color=pg.mkColor(anim.OKABE_ITO[0]),
-        )
-        marks.setGLOptions('opaque')
-        markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
-        all_markers.append(markers)
-    return all_markers
-
-
 def set_up_animation(
     init_pos: Matrix = CRAWLING_POS,
     *,
     trace_len: int = 100,
 ) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
+    items: list[anim.AnimationItem] = []
+    chassis_mesh = gl.GLMeshItem(
+        meshdata=gl.MeshData(
+            vertexes=init_pos[CHASSIS_TRUSS.nodes],
+            faces=[
+                [0, 1, 2], [3, 4, 5],
+                [0, 3, 5], [0, 2, 5],
+                [1, 4, 5], [1, 2, 5],
+                [0, 1, 4], [0, 3, 4],
+            ],
+        ),
+        color=pg.mkColor(anim.OKABE_ITO[-1]),
+    )
+    chassis_mesh.setGLOptions('opaque')
+    items.append(anim.BodyMesh(CHASSIS_TRUSS.nodes, chassis_mesh))
+    items.append(anim.draw_links(
+        CHASSIS_TRUSS.links.ravel(),
+        init_pos,
+        color='black',
+        width=4,
+    ))
+    triangles = [
+        [P1, L2, L3, P1],
+        [P2, L3, L1, P2],
+        [P3, L1, L2, P3],
+        [Q1, R2, R3, Q1],
+        [Q2, R3, R1, Q2],
+        [Q3, R1, R2, Q3],
+    ]
+    items += (
+        anim.draw_links(trail, init_pos, color=color)
+        for trail, color in zip(triangles, anim.OKABE_ITO[1:])
+    )
+    for trail in triangles:
+        marks = gl.GLScatterPlotItem(
+            pos=init_pos[trail],
+            size=8,
+            color=pg.mkColor(anim.OKABE_ITO[0]),
+        )
+        marks.setGLOptions('opaque')
+        markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
+        items.append(markers)
+    items += anim.draw_traces(range(12), trace_len, init_pos)
+
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
-    chassis_mesh = draw_chassis_mesh(CHASSIS_TRUSS, init_pos)
-    chassis_bars = draw_chassis_bars(CHASSIS_TRUSS, init_pos)
-    triangles = draw_triangles(LEG_TRUSS, init_pos)
-    traces = anim.draw_traces(range(12), trace_len, init_pos)
-    markers = draw_markers(
-        [
-            [P1, L2, L3, P1],
-            [P2, L3, L1, P2],
-            [P3, L1, L2, P3],
-            [Q1, R2, R3, Q1],
-            [Q2, R3, R1, Q2],
-            [Q3, R1, R2, Q3],
-        ],
-        init_pos,
-    )
-    items = [chassis_mesh, chassis_bars, *triangles, *traces, *markers]
     anim.add_all_to_view(items, view)
     return view, partial(anim.update_all_pos, items)
 
 
+def parabolic(k: float, t: float) -> float:
+    return 2. * k * (0.5-t)
+
+
+def adjust_roller(
+    robot: tt.TrussRobot,
+    roller: int,
+    amount: float,
+) -> Vector:
+    dq = np.zeros(robot.n_rollers)
+    dq[roller] = amount
+    # We might be able to make better constraints than this.
+    constraint = cstr.CompoundConstraint([
+        cstr.Motion.make(CL1, x=0, y=0, z=0),
+        cstr.Motion.make(CL2, y=0, z=0),
+        cstr.Motion.make(CR1, z=0),
+    ])
+    robot.apply_roll(dq, constraint)
+    return dq
+
+
+def nudge_node(
+    robot: tt.TrussRobot,
+    node: int,
+    x: float,
+    y: float,
+    z: float,
+) -> Vector:
+    feet = {L1, L2, R1, R2}
+    feet.discard(node)
+    motion = cstr.CompoundConstraint([
+        cstr.Motion.make(cstr.Point.node(node, robot.n_nodes), x, y, z),
+        *(
+            cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
+            for foot in feet
+        ),
+    ])
+    return robot.take_substep(motion, respect_floor=True)
+
+
+def nudge_chassis(
+    robot: tt.TrussRobot,
+    x: float,
+    y: float,
+    z: float,
+) -> Vector:
+    chassis_mass = np.zeros(len(robot.pos))
+    chassis_mass[CHASSIS] = 1.
+    chassis_com = cstr.Point.com(chassis_mass)
+    motion = cstr.CompoundConstraint((
+        cstr.Motion.make(chassis_com, x, y, z),
+        cstr.Motion.make(CP3-CQ3, x=0, z=0),
+        cstr.Motion.make(CL1, z=0),
+        cstr.Motion.make(CL2, z=0),
+        cstr.Motion.make(CR1, z=0),
+        cstr.Motion.make(CR2, z=0),
+        cstr.Motion.make(cstr.Point.avg(CL1, CL2, CR1, CR2), x=0, y=0),
+    ))
+    return robot.take_substep(motion)
+
+
 def crawl(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     cycles: int = 1,
     step_length: tuple[float, float] = (0.125, 0.),
     *,
@@ -364,7 +405,7 @@ def crawl(
     feet = (CL2, CL1, CR2, CR1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
-            cstr.Motion.make(foot, x=dx, y=dy, z=partial(steps.parabolic, ds)),
+            cstr.Motion.make(foot, x=dx, y=dy, z=partial(parabolic, ds)),
             *(
                 cstr.Motion.lock(other_foot)
                 for other_foot in feet
@@ -377,7 +418,7 @@ def crawl(
 
 
 def lean(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     dist: float = 0.6,
     *,
     resolution: int = 100,
@@ -395,7 +436,7 @@ def lean(
 
 
 def reach(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     dist: float = 1.,
     *,
     resolution: int = 100,
@@ -416,7 +457,7 @@ def reach(
 
 
 def roll(
-    robot: TrussRobot,
+    robot: tt.TrussRobot,
     *,
     i: int = 0,
     resolution: int = 100,
@@ -458,7 +499,7 @@ def roll(
     ))
     yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
     dx = ((face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875) / resolution
-    foot_arc = partial(steps.parabolic, -dx)
+    foot_arc = partial(parabolic, -dx)
     step_2 = cstr.CompoundConstraint((
         cstr.Motion.lock(chassis_com),
         cstr.Motion.make(face - base, z=0.),
@@ -477,58 +518,3 @@ def roll(
         cstr.Orbit.about_y(robot.pos, arm_r-foot_r, np.pi, resolution),
     ))
     yield from robot.take_step(step_3, resolution=resolution)
-
-
-def take_command(
-    robot: TrussRobot,
-    command: steps.Command,
-    *,
-    resolution: int,
-) -> Generator[Vector]:
-    if not command:
-        return
-    elif command.mode is steps.Mode.crawling:
-        x = command.x * 0.125
-        y = -command.y * 0.125
-        yield from crawl(robot, 1, (x, y), resolution=resolution)
-    elif command.mode is steps.Mode.node_control:
-        feet = {L1, L2, R1, R2}
-        feet.discard(command.item)
-        motion = cstr.CompoundConstraint([
-            cstr.Motion.make(
-                cstr.Point.node(command.item, robot.n_nodes),
-                x=command.x * 0.05 / resolution,
-                y=command.y * 0.05 / resolution,
-                z=command.z * 0.05 / resolution,
-            ),
-            *(
-                cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
-                for foot in feet
-            ),
-        ])
-        yield from robot.take_step(motion, resolution=resolution, respect_floor=True)
-    elif command.mode is steps.Mode.calibration:
-        dq = np.zeros(robot.n_rollers)
-        dq[command.item] = command.x * 0.005
-        # We might be able to make better constraints than this.
-        constraint = cstr.CompoundConstraint([
-            cstr.Motion.make(CL1, x=0, y=0, z=0),
-            cstr.Motion.make(CL2, y=0, z=0),
-            cstr.Motion.make(CR1, z=0),
-        ])
-        robot.apply_roll(dq, constraint)
-        yield dq
-    elif command.mode is steps.Mode.stand:
-        chassis_mass = np.zeros(len(robot.pos))
-        chassis_mass[CHASSIS] = 1.
-        chassis_com = cstr.Point.com(chassis_mass)
-        dz = command.z * 0.05 / resolution
-        motion = cstr.CompoundConstraint((
-            cstr.Motion.make(chassis_com, x=0, y=0, z=dz),
-            cstr.Motion.make(CP3, x=0, y=0),
-            cstr.Motion.make(CL1, z=0),
-            cstr.Motion.make(CL2, z=0),
-            cstr.Motion.make(CR1, z=0),
-            cstr.Motion.make(CR2, z=0),
-        ))
-        yield from robot.take_step(motion, resolution=resolution)

@@ -14,9 +14,9 @@ class TransmitHandler(QObject):
     message = Signal(str)
     bot_live = False
 
-    def start_transmission(self, *, port: str, dt: float = 1.5) -> None:
+    def start_transmission(self, *, port: str) -> None:
         self.work_thread = QThread()
-        self.worker = TransmitWorker(dt=dt)
+        self.worker = TransmitWorker()
         self.worker.moveToThread(self.work_thread)
 
         self.worker.message.connect(self.message.emit)
@@ -36,10 +36,9 @@ class TransmitHandler(QObject):
 class TransmitWorker(QObject):
     message = Signal(str)
 
-    def __init__(self, *, dt: float = 1.5, parent: QObject | None = None) -> None:
+    def __init__(self, *, timeout: float = 2.5, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self.dt = dt
-        self.ser = serial.Serial(baudrate=115200, timeout=dt+1)
+        self.ser = serial.Serial(baudrate=115200, timeout=timeout)
 
     @Slot(bytes)
     def transmit_direct(self, cmd: bytes) -> None:
@@ -52,15 +51,16 @@ class TransmitWorker(QObject):
     def transmit(self, x: Matrix, dq: Vector) -> None:
         if not self.ser.is_open:
             return
-        ticks_per_sec = rover.TICKS_PER_SIDE * dq / self.dt
-        cmd = commands.VEL(ticks_per_sec, self.dt)
+        ticks = rover.TICKS_PER_SIDE * dq
+        dt = commands.get_smallest_dt(ticks, max_speed=1000)
+        cmd = commands.VEL(ticks/dt, dt)
         self.ser.writelines((commands.STOP, cmd))
         self.ser.flush()
         if responses := self.ser.read_all():
             for response in responses.splitlines():
                 if not response.startswith(b'['):
                     self.message.emit(response.decode())
-        time.sleep(self.dt)
+        time.sleep(dt)
 
     def start(self, port: str) -> None:
         self.ser.port = port
