@@ -111,8 +111,8 @@ class Motion:
 
     def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
         A = self.point.expand(self.direction)
-        b = np.atleast_1d(self.v(t) if callable(self.v) else self.v)
-        return A, b
+        b = self.v(t) if callable(self.v) else self.v
+        return np.atleast_2d(A), np.atleast_1d(b)
 
 
 @dataclass(slots=True)
