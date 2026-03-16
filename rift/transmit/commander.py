@@ -1,9 +1,9 @@
-import io
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
+import serial
 
 from rift.arraytypes import Vector
 from . import commands, reception
@@ -11,7 +11,7 @@ from . import commands, reception
 
 @dataclass(slots=True, kw_only=True)
 class Commander:
-    ser: io.IOBase
+    ser: serial.Serial
     q_des: Vector[np.intp]
     log: Callable[[str], object] | None = None
 
@@ -43,10 +43,15 @@ class Commander:
         time.sleep(dt)
 
     def get_error(self) -> Vector[np.intp] | None:
+        self.ser.reset_output_buffer()
         self.stop()
         time.sleep(0.03)
-        lines = self.ser.readlines()
-        q_cur = reception.read_q(lines, self.log)
+        buffer = self.ser.read_all()
+        if buffer is None:
+            q_cur = None
+        else:
+            lines = buffer.splitlines(keepends=True)
+            q_cur = reception.read_q(lines, self.log)
         if q_cur is None:
             return None
         else:
