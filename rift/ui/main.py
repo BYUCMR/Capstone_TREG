@@ -8,7 +8,6 @@ from PySide6.QtWidgets import QMainWindow, QWidget
 
 from rift import rover
 from rift.arraytypes import Vector
-from rift.transmit import commands
 from .ui_main import Ui_Control
 from .Handlers.controls import Command, Mode
 from .Handlers.joystick_handler import JoystickHandler
@@ -33,6 +32,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.joystick_handler.command.connect(self.cmd_set)
         self.vis_handler.message.connect(self.term_log)
         self.bot_handler.message.connect(self.term_log)
+        self.bot_handler.update_sliders.connect(self.update_motor_sliders)
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
@@ -46,6 +46,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.selector.valueChanged.connect(self.update_item)
         self.ui.zero_pos.clicked.connect(self.zero_pos)
         self.ui.reset_button.clicked.connect(self.reset_pos)
+        self.ui.eq_all.clicked.connect(self.bot_handler.catch_up)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -117,11 +118,12 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     @Slot()
     def zero_pos(self) -> None:
-        self.bot_handler.direct.emit(commands.RESET)
+        self.bot_handler.set_zero.emit()
+        self.vis_handler.reset.emit(rover.ROLLING_POS)
 
     @Slot()
     def reset_pos(self) -> None:
-        self.bot_handler.direct.emit(b"POS:\n")
+        self.bot_handler.to_zero.emit()
         self.vis_handler.reset.emit(rover.ROLLING_POS)
 
     def setup_sliders(self) -> None:

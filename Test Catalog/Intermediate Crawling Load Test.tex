@@ -1,0 +1,146 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\usepackage{gensymb}
+
+
+
+\title{Intermediate Crawling Load Test}
+\author{Rift / Team 09}
+\date{\today}
+
+\begin{document}
+
+
+\maketitle
+
+\section*{Test ID}
+\textbf{T-01ICa Intermediate Crawling Test}
+
+\section*{Test Objective}
+Quantify the maximum weight the payload can handle while performing the test criteria of the Basic Crawling Test (T-01BC). 
+
+\section*{Robot Configuration}
+\begin{itemize}[noitemsep]
+    \item Robot configurations: Standing
+    \item Tube pressures: 15 psi
+    \item Control mode: Open-loop
+    \item Electronics status: Batteries are fully charged (Greater than 4V per cell, greater than 12 Volts per battery)
+\end{itemize}
+
+\section*{Materials}
+\begin{itemize}[noitemsep]
+    \item Plywood payload container (mass = ...)
+    \item Weights (incrementing by 1 kg, 5 kg, 10 kg)
+    \item Stopwatch timer
+    \item Measuring tape (at least 5 m in length)
+    
+\end{itemize}
+
+\section*{Environment and Setup}
+\begin{itemize}[noitemsep]
+    \item Surface type: Smooth Finished Concrete
+    \item Surface angle: $\psi = 0 {\degree} $
+    \item External load: Variable
+    \item Measurement method: time the rover moving directly and laterally through 2 full step cycles under different loads. A video of the test will also be recorded for future analysis.
+\end{itemize}
+
+\section*{Initial Conditions}
+\begin{itemize}[noitemsep]
+    \item Initial position: $x_0 = 0$
+    \item Initial orientation: 
+    \begin{itemize}
+        \item Direct crawling: $\theta_z = 0 {\degree}$
+        \item Lateral crawling:  $\theta_z = 90 {\degree}$
+    \end{itemize}
+    \item Initial shape state: Standing
+    \item Stabilization time before command: 10?~s
+\end{itemize}
+
+\section*{Command Sequence}
+\begin{itemize}[noitemsep]
+    \item Command type: \underline{\hspace{5cm}}
+    \item Command values: \underline{\hspace{5cm}}
+    \item Update rate: 3~Hz
+    \item Command Steps: 8~s
+\end{itemize}
+
+\section*{Measured Quantities}
+\begin{itemize}[noitemsep]
+    \item Mass contained in the payload before rover cannot move on flat ground
+    \item Average node height during direct and lateral traversal under load
+    \item Speed of the rover under different loading conditions
+\end{itemize}
+
+\section*{Success Criteria (Per Trial)}
+\begin{itemize}[noitemsep]
+    \item Forward traversal speed: .1 km/h  $\leq$ .14 km/h $\leq$ No upper limit
+    \item Side to Side traversal speed: ?? km/h  $\leq$ ?? km/h $\leq$ No upper limit
+    \item  Step height: 10 cm  $\leq$ 25 cm $\leq$ No upper limit
+\end{itemize}
+
+\section*{Test Procedure}
+\begin{enumerate}[noitemsep]
+    \item Place robot in standing position on an ungraded surface
+    \item Complete pretest checklist
+    \item Place maximum mass found from the Basic Static Test (T-01BS) into the payload
+    \item Send command sequence to drive rover 8 steps (2 full step cycles) in the positive x-direction
+    \item Stop timer upon completion of sequence
+    \item Measure distance between front left and front right nodes before and after step sequence.
+    \item Record average of the two above measured distances divided by traversal time
+    \item Reposition rover to the start of path
+    \item Repeat steps 1-7, driving the rover laterally instead of directly
+    \item If the rover fails to move while handling the current test load, increment the mass back in increments of 10 kg, 5 kg, and then 1 kg. Repeat steps 1-9 with adjusted loads. With the maximum load found that the rover can handle while crawling, move onto steps 11+.
+    \item Reset robot to standing position with maximum permitted crawling load
+    \item Send command sequence to drive rover halfway through step
+    \item Measure height of stepping node
+    \item Repeat steps 9 and 10 through 8 sets of steps
+    \item Record average of step heights
+    \item Repeat steps 10-14 with lateral travel under the maximum lateral travel load
+
+\end{enumerate}
+
+\section*{Number of Trials}
+\begin{itemize}[noitemsep]
+    \item Total trials: 1
+    \item Time between trials: N/A
+\end{itemize}
+
+\section*{Results}
+Summarize the observed performance metrics.
+
+\begin{center}
+\begin{tabular}{llc}
+ & Direct Crawling ($\dot x$)&Lateral Crawling ($\dot y$)\\
+\midrule
+Traversal Speed (km/h)&   &\\
+ Maximum Load (kg)& &\\
+ Average Step Height (cm)& &\\
+\end{tabular}
+\end{center}
+
+\section*{Observed Failure Modes}
+Describe any observed failure behaviors.
+
+\begin{itemize}[noitemsep]
+    \item Inflated beams of the truss buckle during stepping
+    \item Motors stall of fail to provide sufficient torque to move the truss
+    \item Truss fails to lift nodes from the ground
+    \item Truss tips prematurely while lifting node from the ground
+\end{itemize}
+
+\section*{Conclusions}
+Provide a concise interpretation of the results.
+
+\textit{Example:} The robot achieved consistent forward motion on flat ground with an average speed of \underline{\hspace{1cm}}~cm/s while under a load of \underline{\hspace{1cm}}~cm. This cooresponds to a \underline{\hspace{1cm}} \% reduction from the speed with no load. 
+
+\section*{Notes and Limitations}
+Document sources of variability or limitations.
+
+\end{document}
