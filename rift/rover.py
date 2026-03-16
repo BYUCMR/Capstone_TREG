@@ -174,50 +174,8 @@ def make_pos(
     return pos
 
 
-def make_pos_sitting(
-    chassis_length: float,
-    chassis_angle: float,
-    chassis_width: float,
-    foot_distance: float,
-    *,
-    tube_length: float = 3.
-) -> Matrix:
-    # Perimter of triangle on chassis
-    # angle of chassis size
-    # width of chassis
-    # width of feet
-
-    chassis_angle = math.radians(chassis_angle)
-    y0 = chassis_width * 0.5
-    pos = np.zeros((12, 3))
-
-    # Feet
-    fx = foot_distance * 0.5
-    fy = math.sqrt(0.25*tube_length**2 - tube_length*fx)
-    ez = fx * math.sqrt(0.75*tube_length**2 + tube_length*fx) / (0.5*tube_length + fx)
-    pos[L1] = [ fx,  y0+fy, 0.]
-    pos[L2] = [-fx,  y0+fy, 0.]
-    pos[R1] = [ fx, -y0-fy, 0.]
-    pos[R2] = [-fx, -y0-fy, 0.]
-    pos[L3] = [ 0.,  y0+fy, ez]
-    pos[R3] = [ 0., -y0-fy, ez]
-
-    # Chassis
-    px = chassis_length * 0.5
-    py = px * math.sqrt(3.) * math.sin(chassis_angle)
-    pz = px * math.sqrt(3.) * math.cos(chassis_angle)
-    pos[P1] = [-px,  y0+py, pz]
-    pos[P2] = [ px,  y0+py, pz]
-    pos[Q1] = [-px, -y0-py, pz]
-    pos[Q2] = [ px, -y0-py, pz]
-    pos[P3] = [0.,  y0, 0.]
-    pos[Q3] = [0., -y0, 0.]
-
-    return pos
-
-
 CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
-ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 0.875)
+ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 1.0)
 
 
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussRobot:
