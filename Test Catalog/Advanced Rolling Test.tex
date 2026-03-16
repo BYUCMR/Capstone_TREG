@@ -1,0 +1,119 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\usepackage{gensymb}
+
+
+\title{Advanced Rolling Test}
+\author{Rift / Team 09}
+\date{\today}
+
+\begin{document}
+
+
+\maketitle
+
+\section*{Test ID}
+\textbf{T-01AR Advanced Rolling Test} 
+
+\section*{Test Objective}
+Determine the limits of possible rolling techniques, including lateral rotation (cartwheeling), or successfully performing a series of different rolling sequences (somersaulting, or typical direct rolling, into other forms of rolling).
+
+\section*{Robot Configuration}
+\begin{itemize}[noitemsep]
+    \item Robot configurations: Standing
+    \item Tube pressures: 15 psi
+    \item Control mode: Open-loop
+    \item Electronics status: Batteries are fully charged
+\end{itemize}
+
+\section*{Materials}
+\begin{itemize}[noitemsep]
+    \item None
+    
+\end{itemize}
+
+\section*{Environment and Setup}
+\begin{itemize}[noitemsep]
+    \item Surface type: Finished Smooth Concrete
+    \item Surface angle: $\psi = 0 {\degree}$ 
+    \item External load: None 
+    \item Measurement method: Noting differentiation between the expected sequence of rolling motion in simulation compared to what the rover does.
+\end{itemize}
+
+\section*{Initial Conditions}
+\begin{itemize}[noitemsep]
+    \item Initial position: $x_0 = 0$
+    \item Initial orientation: $\theta_z = 0 {\degree}$
+    \item Initial shape state: Standing
+\end{itemize}
+
+\section*{Command Sequence}
+\begin{itemize}[noitemsep]
+    \item Command type: \underline{\hspace{5 cm}}
+    \item Command values: \underline{\hspace{5 cm}}
+    \item Update rate: 3~Hz
+    \item Command Steps: 8~s
+\end{itemize}
+
+\section*{Measured Quantities}
+\begin{itemize}[noitemsep]
+    \item None
+\end{itemize}
+
+\section*{Success Criteria (Per Trial)}
+\begin{itemize}[noitemsep]
+    \item Rover passes or fails on the sequences that are sent to cause it to roll.
+\end{itemize}
+
+\section*{Test Procedure}
+\begin{enumerate}[noitemsep]
+    \item Place robot in standing position
+    \item Complete pretest checklist
+    \item Send command to rover to perform sequence to roll in different combinations.
+
+\end{enumerate}
+
+\section*{Number of Trials}
+\begin{itemize}[noitemsep]
+    \item Total trials: 1
+    \item Time between trials: N/A
+\end{itemize}
+
+\section*{Results}
+Summarize the observed performance metrics.
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Roll Sequence& Pass/Fail\\
+ &\\
+\midrule
+&  \\
+\end{tabular}
+\end{center}
+
+\section*{Observed Failure Modes}
+Describe any observed failure behaviors.
+
+\begin{itemize}[noitemsep]
+    \item Truss buckles during motion
+    \item Rover is not capable of rolling
+    \item Rover positioning is notably distinct from the expected position in simulation.
+\end{itemize}
+
+\section*{Conclusions}
+Provide a concise interpretation of the results.
+
+\textit{Example:} The robot achieved consistent forward motion on flat ground with an average speed of \underline{\hspace{1 cm}}~cm/s. Performance degraded beyond a slope of \underline{\hspace{1 cm}}~\si{\degree}, where sustained forward progress was not achieved.
+
+\section*{Notes and Limitations}
+Document sources of variability or limitations.
+
+\end{document}
