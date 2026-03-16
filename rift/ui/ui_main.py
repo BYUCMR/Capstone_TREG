@@ -24,7 +24,7 @@ class Ui_Control(object):
     def setupUi(self, Control):
         if not Control.objectName():
             Control.setObjectName(u"Control")
-        Control.resize(800, 602)
+        Control.resize(1000, 602)
         self.centralwidget = QWidget(Control)
         self.centralwidget.setObjectName(u"centralwidget")
         self.ctr_layout = QHBoxLayout(self.centralwidget)
@@ -149,7 +149,7 @@ class Ui_Control(object):
 
         self.rolling = QPushButton(self.verticalLayoutWidget_2)
         self.rolling.setObjectName(u"rolling")
-        self.rolling.setEnabled(False)
+        self.rolling.setEnabled(True)
 
         self.L14.addWidget(self.rolling, 0, 2, 1, 1)
 
