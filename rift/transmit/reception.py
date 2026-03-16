@@ -12,7 +12,11 @@ def read_q(
 ) -> Vector[np.intp] | None:
     q_match = None
     for line in lines:
-        string = line.decode()
+        try:
+            string = line.decode()
+        except UnicodeEncodeError:
+            # Sometimes our data might be corrupted.
+            continue
         q_match = re.fullmatch(r'\[(.*)\]\r\n', string)
         if q_match is None and log is not None:
             log(string)
