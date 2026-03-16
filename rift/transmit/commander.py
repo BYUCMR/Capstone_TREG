@@ -18,21 +18,24 @@ class Commander:
     def update(self, dq: Vector[np.intp]) -> None:
         self.q_des += dq
 
-    def set_zero(self) -> None:
-        self.send(commands.STOP)
-        self.send(commands.RESET)
-        self.q_des[:] = 0
-
-    def to_zero(self) -> None:
-        self.q_des[:] = 0
-        self.send(commands.STOP)
-        self.send(commands.POS(()))
-
     def send(self, cmd: bytes) -> None:
         self.ser.write(cmd)
         self.ser.flush()
         if self.log is not None:
             self.log("Sent: " + cmd.decode().strip())
+
+    def stop(self) -> None:
+        self.send(commands.STOP)
+
+    def set_zero(self) -> None:
+        self.stop()
+        self.send(commands.RESET)
+        self.q_des[:] = 0
+
+    def to_zero(self) -> None:
+        self.q_des[:] = 0
+        self.stop()
+        self.send(commands.POS(()))
 
     def send_dq(self, dq: Vector[np.intp], dt: float) -> None:
         cmd = commands.VEL(dq, dt)
@@ -40,7 +43,7 @@ class Commander:
         time.sleep(dt)
 
     def get_error(self) -> Vector[np.intp] | None:
-        self.send(commands.STOP)
+        self.stop()
         time.sleep(0.03)
         lines = self.ser.readlines()
         q_cur = reception.read_q(lines, self.log)
@@ -50,5 +53,5 @@ class Commander:
             return self.q_des - q_cur
 
     def catch_up(self) -> None:
-        self.send(commands.STOP)
+        self.stop()
         self.send(commands.POS(self.q_des))
