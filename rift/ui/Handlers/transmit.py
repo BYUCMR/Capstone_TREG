@@ -46,7 +46,13 @@ class TransmitWorker(QObject):
     message = Signal(str)
     update_sliders = Signal(np.ndarray)
 
-    def __init__(self, *, timeout: float = 0.01, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        timeout: float = 0.01,
+        parent: QObject | None = None,
+        feedback: bool = False,
+    ) -> None:
         super().__init__(parent)
         self.ser = serial.Serial(baudrate=115200, timeout=timeout)
         self.commander = commander.Commander(
@@ -54,6 +60,7 @@ class TransmitWorker(QObject):
             q_des=np.zeros(12, dtype=np.intp),
             log=self.message.emit,
         )
+        self.feedback = feedback
 
     @Slot()
     def stop(self) -> None:
@@ -94,7 +101,7 @@ class TransmitWorker(QObject):
             self.update_sliders.emit(error)
         ticks = (rover.TICKS_PER_SIDE * dq).astype(np.intp)
         self.commander.update(ticks)
-        if error is not None:
+        if self.feedback and error is not None:
             ticks += error
         dt = commands.get_smallest_dt(ticks, max_speed=1000)
         self.commander.send_dq(ticks, dt)
