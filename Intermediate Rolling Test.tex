@@ -1,0 +1,130 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{siunitx}
+\usepackage{hyperref}
+\usepackage{gensymb}
+
+
+
+\title{Intermediate Rolling Test}
+\author{Rift / Team 09}
+\date{\today}
+
+\begin{document}
+
+
+\maketitle
+
+\section*{Test ID}
+\textbf{T-01BR Basic Rolling Test} 
+
+\section*{Test Objective}
+Determine if the rover is capable of directional rolling (rolling while rotating about Y-axis, the long axis of the rover) and the maximum angle of that yaw rotation over one cycle. Determine if the rover is capable of rolling under load, and at what load the rover fails to complete a rolling sequence.
+
+\section*{Robot Configuration}
+\begin{itemize}[noitemsep]
+    \item Robot configurations: Standing
+    \item Tube pressures: 15 psi
+    \item Control mode: Open-loop
+    \item Electronics status: Batteries are fully charged
+\end{itemize}
+
+\section*{Materials}
+\begin{itemize}[noitemsep]
+    \item Plywood payload container (mass = ...)
+    \item Weights (incrementing by 1 kg, 5 kg, 10 kg)
+    \item Tape Measure (at least 5 m in length)
+    
+\end{itemize}
+
+\section*{Environment and Setup}
+\begin{itemize}[noitemsep]
+    \item Surface type: Finished Smooth Concrete
+    \item Surface angle: $\psi = 0 {\degree}$ 
+    \item External load: None 
+    \item Measurement method: Measuring angle of rover rotation after rolling motion; measuring maximum load under which rover can perform rolling motion.
+\end{itemize}
+
+\section*{Initial Conditions}
+\begin{itemize}[noitemsep]
+    \item Initial position: $x_0 = 0$
+    \item Initial orientation: $\theta_z = 0 {\degree}$
+    \item Initial shape state: Standing
+\end{itemize}
+
+\section*{Command Sequence}
+\begin{itemize}[noitemsep]
+    \item Command type: \underline{\hspace{5 cm}}
+    \item Command values: \underline{\hspace{5 cm}}
+    \item Update rate: 3~Hz
+    \item Command Steps: 8~s
+\end{itemize}
+
+\section*{Measured Quantities}
+\begin{itemize}[noitemsep]
+    \item Yes/No of rover's capability to perform 3 consecutive rolling motions
+    \item Yes/No of rover's capability to return to initial position after rolling motion
+\end{itemize}
+
+\section*{Success Criteria (Per Trial)}
+\begin{itemize}[noitemsep]
+    \item The rover is capable of performing 3 consecutive rolling motions
+    \item The rover is capable of returning to its initial position
+\end{itemize}
+
+\section*{Test Procedure}
+\begin{enumerate}[noitemsep]
+    \item Place robot in standing position
+    \item Complete pretest checklist
+    \item Send command to rover to perform 1 rolling motion
+    \item Repeat Step 3 two more times 
+    \item Record if the rover successfully completed all 3 motions
+    \item Command rover to return to initial position
+    \item Record if rover successfully returned to initial position
+
+\end{enumerate}
+
+\section*{Number of Trials}
+\begin{itemize}[noitemsep]
+    \item Total trials: 1
+    \item Time between trials: N/A
+\end{itemize}
+
+\section*{Results}
+Summarize the observed performance metrics.
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Metric & Pass/Fail\\
+\midrule
+Ability to perform 3 rolling motions&  \\
+ Ability to return to initial position &\\
+\end{tabular}
+\end{center}
+
+\section*{Observed Failure Modes}
+Describe any observed failure behaviors.
+
+\begin{itemize}[noitemsep]
+    \item Truss buckles during motion
+    \item Rover is not capable of completing rolling motion
+    \item Rover is not capable of returning to initial position
+    \item Rover is damaged during rolling motion
+    \item Rover reaches singularity during rolling motion
+\end{itemize}
+
+\section*{Conclusions}
+Provide a concise interpretation of the results.
+
+\textit{Example:} The robot achieved consistent forward motion on flat ground with an average speed of \underline{\hspace{1cm}}~cm/s. Performance degraded beyond a slope of \underline{\hspace{1cm}}~\si{\degree}, where sustained forward progress was not achieved.
+
+\section*{Notes and Limitations}
+Document sources of variability or limitations.
+
+\end{document}
