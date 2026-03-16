@@ -31,6 +31,8 @@ class Commander:
     def send(self, cmd: bytes) -> None:
         self.ser.write(cmd)
         self.ser.flush()
+        if self.log is not None:
+            self.log("Sent: " + cmd.decode().strip())
 
     def send_dq(self, dq: Vector[np.intp], dt: float) -> None:
         cmd = commands.VEL(dq, dt)
