@@ -13,6 +13,7 @@ class Mode(Enum):
     node_control = "node_control"
     calibration = "calibration"
     stand = "stand"
+    rolling = "rolling"
 
 
 @dataclass

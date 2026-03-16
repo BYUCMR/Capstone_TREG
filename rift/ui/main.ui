@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
+    <width>1000</width>
     <height>602</height>
    </rect>
   </property>
@@ -233,7 +233,7 @@ color: rgb(255, 0, 0);</string>
           <item row="0" column="2">
            <widget class="QPushButton" name="rolling">
             <property name="enabled">
-             <bool>false</bool>
+             <bool>true</bool>
             </property>
             <property name="text">
              <string>Rolling</string>
