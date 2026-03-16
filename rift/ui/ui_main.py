@@ -103,6 +103,13 @@ class Ui_Control(object):
 
         self.L12.addWidget(self.zero_pos)
 
+        self.stop = QPushButton(self.verticalLayoutWidget_2)
+        self.stop.setObjectName(u"stop")
+        self.stop.setStyleSheet(u"background-color: rgb(255, 0, 0);\n"
+"color: rgb(0, 0, 0);")
+
+        self.L12.addWidget(self.stop)
+
         self.L121 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.L12.addItem(self.L121)
@@ -520,6 +527,7 @@ class Ui_Control(object):
         self.backward.setText(QCoreApplication.translate("Control", u"Backward", None))
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
         self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))
+        self.stop.setText(QCoreApplication.translate("Control", u"STOP", None))
         self.selector_label.setText(QCoreApplication.translate("Control", u"Node", None))
         self.node_control.setText(QCoreApplication.translate("Control", u"Node Control", None))
         self.crawling.setText(QCoreApplication.translate("Control", u"Crawling", None))
