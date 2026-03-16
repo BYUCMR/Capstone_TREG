@@ -13,6 +13,7 @@ from rift.transmit import commander, commands
 class TransmitHandler(QObject):
     message = Signal(str)
     update_sliders = Signal(np.ndarray)
+    stop = Signal()
     set_zero = Signal()
     to_zero = Signal()
     catch_up = Signal()
@@ -25,6 +26,7 @@ class TransmitHandler(QObject):
 
         self.worker.message.connect(self.message.emit)
         self.worker.update_sliders.connect(self.update_sliders.emit)
+        self.stop.connect(self.worker.stop)
         self.set_zero.connect(self.worker.set_zero)
         self.to_zero.connect(self.worker.to_zero)
         self.catch_up.connect(self.worker.catch_up)
@@ -35,7 +37,7 @@ class TransmitHandler(QObject):
         self.bot_live = True
 
     def kill_transmission(self) -> None:
-        self.worker.stop()
+        self.worker.close()
         self.work_thread.exit()
         self.bot_live = False
 
@@ -52,6 +54,12 @@ class TransmitWorker(QObject):
             q_des=np.zeros(12, dtype=np.intp),
             log=self.message.emit,
         )
+
+    @Slot()
+    def stop(self) -> None:
+        if not self.ser.is_open:
+            return
+        self.commander.stop()
 
     @Slot()
     def set_zero(self) -> None:
@@ -98,5 +106,5 @@ class TransmitWorker(QObject):
         except serial.SerialException as e:
             self.message.emit(e.args[0])
 
-    def stop(self) -> None:
+    def close(self) -> None:
         self.ser.close()

@@ -170,7 +170,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     @Slot()
     def stop_rollers(self) -> None:
-        print("STAHHP")
+        self.bot_handler.stop.emit()
 
     def setup_serial_ports(self) -> None:
         for port in serial.tools.list_ports.comports():
