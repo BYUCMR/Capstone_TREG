@@ -47,6 +47,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.zero_pos.clicked.connect(self.zero_pos)
         self.ui.reset_button.clicked.connect(self.reset_pos)
         self.ui.eq_all.clicked.connect(self.bot_handler.catch_up)
+        self.ui.stop.clicked.connect(self.stop_rollers)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -165,6 +166,10 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         ]
         for slider, value in zip(sliders, values, strict=True):
             slider.setValue(int(value))
+
+    @Slot()
+    def stop_rollers(self) -> None:
+        self.bot_handler.stop.emit()
 
     def setup_serial_ports(self) -> None:
         for port in serial.tools.list_ports.comports():

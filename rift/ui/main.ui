@@ -160,6 +160,17 @@ color: rgb(255, 0, 0);</string>
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="stop">
+            <property name="styleSheet">
+             <string notr="true">background-color: rgb(255, 0, 0);
+color: rgb(0, 0, 0);</string>
+            </property>
+            <property name="text">
+             <string>STOP</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <spacer name="L121">
             <property name="orientation">
              <enum>Qt::Orientation::Horizontal</enum>
