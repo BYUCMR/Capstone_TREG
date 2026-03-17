@@ -1,9 +1,7 @@
-import time
-
 import numpy as np
 import serial
 from numpy import ndarray
-from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
 
 from rift import rover
 from rift.arraytypes import Matrix, Vector
@@ -61,36 +59,42 @@ class TransmitWorker(QObject):
             log=self.message.emit,
         )
         self.feedback = feedback
+        self.update_error_timer = QTimer(self, interval=3000, singleShot=True)
+        self.update_error_timer.timeout.connect(self.update_error)
 
     @Slot()
     def stop(self) -> None:
         if not self.ser.is_open:
             return
         self.commander.stop()
+        self.update_error_timer.start()
+
+    @Slot()
+    def update_error(self) -> None:
+        error = self.commander.get_error()
+        if error is not None:
+            self.update_sliders.emit(error)
 
     @Slot()
     def set_zero(self) -> None:
         if not self.ser.is_open:
             return
         self.commander.set_zero()
+        self.update_error_timer.start()
 
     @Slot()
     def to_zero(self) -> None:
         if not self.ser.is_open:
             return
         self.commander.to_zero()
-        time.sleep(3.0)
-        error = self.commander.get_error()
-        if error is not None:
-            self.update_sliders.emit(error)
+        self.update_error_timer.start()
 
     @Slot()
     def catch_up(self) -> None:
+        if not self.ser.is_open:
+            return
         self.commander.catch_up()
-        time.sleep(3.0)
-        error = self.commander.get_error()
-        if error is not None:
-            self.update_sliders.emit(error)
+        self.update_error_timer.start()
 
     @Slot(ndarray, ndarray)
     def transmit(self, x: Matrix, dq: Vector) -> None:
