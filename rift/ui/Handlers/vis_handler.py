@@ -74,10 +74,29 @@ class VizWorker(QObject):
         super().__init__()
         self.robot = rover.make_robot(init_pos)
         self.bundler = Bundler(period)
+        self.gen = None
 
     @Slot(ndarray)
     def reset(self, pos: Matrix) -> None:
         self.robot.pos[:] = pos
+
+    @Slot()
+    def run_next(self) -> None:
+        cur_thread = QThread.currentThread()
+        if cur_thread.isInterruptionRequested():
+            cur_thread.exit()
+            return
+        if self.gen is None:
+            return
+        try:
+            delta_q = next(self.gen)
+        except StopIteration:
+            self.gen = None
+            self.done.emit()
+        except InverseKinematicsError as e:
+            self.message.emit(e.args[0])
+        else:
+            self.results.emit(self.robot.pos.copy(), delta_q)
 
     @Slot(Command)
     def run_cmd(self, cmd: Command) -> None:
@@ -86,12 +105,8 @@ class VizWorker(QObject):
             cur_thread.exit()
             return
         gen = take_command(self.robot, cmd)
-        try:
-            for delta_q in self.bundler.expend(gen):
-                self.results.emit(self.robot.pos.copy(), delta_q)
-        except InverseKinematicsError as e:
-            self.message.emit(e.args[0])
-        self.done.emit()
+        self.gen = self.bundler.expend(gen)
+        self.run_next()
 
     @Slot()
     def pull_to_main(self) -> None:

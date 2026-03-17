@@ -33,10 +33,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.vis_handler.message.connect(self.term_log)
         self.bot_handler.message.connect(self.term_log)
         self.bot_handler.update_sliders.connect(self.update_motor_sliders)
-        self.vis_handler.worker.results.connect(
-            self.bot_handler.worker.transmit,
-            Qt.ConnectionType.BlockingQueuedConnection,
-        )
+        self.vis_handler.worker.results.connect(self.bot_handler.worker.transmit)
+        self.bot_handler.worker.ready.connect(self.vis_handler.worker.run_next)
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)

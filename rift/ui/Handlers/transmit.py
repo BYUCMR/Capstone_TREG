@@ -45,6 +45,7 @@ class TransmitHandler(QObject):
 class TransmitWorker(QObject):
     message = Signal(str)
     update_sliders = Signal(np.ndarray)
+    ready = Signal()
 
     def __init__(
         self,
@@ -61,6 +62,7 @@ class TransmitWorker(QObject):
             log=self.message.emit,
         )
         self.feedback = feedback
+        self.done_timer = QTimer(self)
         self.update_error_timer = QTimer(self, interval=3000, singleShot=True)
         self.update_error_timer.timeout.connect(self.update_error)
 
@@ -101,6 +103,7 @@ class TransmitWorker(QObject):
     @Slot(ndarray, ndarray)
     def transmit(self, x: Matrix, dq: Vector) -> None:
         if not self.ser.is_open:
+            self.ready.emit()
             return
         error = self.commander.get_error()
         if error is not None:
@@ -111,6 +114,7 @@ class TransmitWorker(QObject):
             ticks += error
         dt = commands.get_smallest_dt(ticks, max_speed=1000)
         self.commander.send_dq(ticks, dt)
+        self.done_timer.singleShot(int(dt * 1000), self.ready.emit)
 
     def start(self, port: str) -> None:
         self.ser.port = port

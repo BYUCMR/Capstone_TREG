@@ -40,7 +40,6 @@ class Commander:
     def send_dq(self, dq: Vector[np.intp], dt: float) -> None:
         cmd = commands.VEL(dq, dt)
         self.send(cmd)
-        time.sleep(dt)
 
     def get_error(self) -> Vector[np.intp] | None:
         self.ser.reset_output_buffer()
