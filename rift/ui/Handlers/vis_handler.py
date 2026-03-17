@@ -78,6 +78,7 @@ class VizWorker(QObject):
 
     @Slot(ndarray)
     def reset(self, pos: Matrix) -> None:
+        self.bundler.delta_q = None
         self.robot.pos[:] = pos
 
     @Slot()
