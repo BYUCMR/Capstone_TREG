@@ -33,6 +33,10 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.vis_handler.message.connect(self.term_log)
         self.bot_handler.message.connect(self.term_log)
         self.bot_handler.update_sliders.connect(self.update_motor_sliders)
+        self.vis_handler.worker.results.connect(
+            self.bot_handler.worker.transmit,
+            Qt.ConnectionType.BlockingQueuedConnection,
+        )
 
         self.ui.selector_label.setVisible(False)
         self.ui.selector.setVisible(False)
@@ -81,11 +85,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.sim_toggle.setText("Kill Simulation")
             self.term_log("Simulation Initialized")
             self.vis_handler.start_sim()
-            if self.bot_handler.bot_live:
-                self.vis_handler.worker.results.connect(
-                    self.bot_handler.worker.transmit,
-                    Qt.ConnectionType.BlockingQueuedConnection,
-                )
         else:
             self.redify(self.ui.sim_label)
             self.ui.sim_label.setText("Simulation Offline")
@@ -103,11 +102,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.bot_handler.start_transmission(
                 port=self.ui.serial_select.currentText(),
             )
-            if self.vis_handler.sim_live:
-                self.vis_handler.worker.results.connect(
-                    self.bot_handler.worker.transmit,
-                    Qt.ConnectionType.BlockingQueuedConnection,
-                )
         else:
             self.redify(self.ui.bot_label)
             self.ui.bot_label.setText("Robot Offline")
