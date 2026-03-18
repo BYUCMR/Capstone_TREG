@@ -37,9 +37,11 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
         self.worker.results.connect(self.update_anim)
         self.worker.message.connect(self.message.emit)
         self.reset.connect(self.worker.reset)
+        self.reset.connect(self.update_anim)
 
+    @Slot(ndarray)
     @Slot(ndarray, ndarray)
-    def update_anim(self, x: Matrix, dq: Vector) -> None:
+    def update_anim(self, x: Matrix, dq: Vector | None = None) -> None:
         self.animate(x)
 
     @Slot()
