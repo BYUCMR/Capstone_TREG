@@ -95,6 +95,8 @@ class VizWorker(QObject):
             self.gen = None
             self.done.emit()
         except InverseKinematicsError as e:
+            self.gen = None
+            self.done.emit()
             self.message.emit(e.args[0])
         else:
             self.results.emit(self.robot.pos.copy(), delta_q)
