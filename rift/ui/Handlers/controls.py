@@ -64,7 +64,6 @@ class Bundler:
     delta_q: Vector | None = None
 
     def expend(self, gen: Iterable[Vector]) -> Generator[Vector]:
-        self.delta_q = None
         for dq in gen:
             self._i += 1
             if self.delta_q is None:
