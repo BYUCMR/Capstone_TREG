@@ -418,7 +418,7 @@ def roll(
             for foot in other_feet
         ),
     ))
-    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+    yield from robot.take_step(step_1, resolution=resolution)
     dx = ((face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875) / resolution
     foot_arc = partial(parabolic, -dx)
     step_2 = cstr.CompoundConstraint((
