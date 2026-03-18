@@ -34,7 +34,7 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
         self.worker = VizWorker(period=10)
         self.send_cmd.connect(self.worker.run_cmd)
         self.worker.done.connect(self.send_new)
-        self.worker.results.connect(self.update_anim, Qt.ConnectionType.BlockingQueuedConnection)
+        self.worker.results.connect(self.update_anim)
         self.worker.message.connect(self.message.emit)
         self.reset.connect(self.worker.reset)
 
