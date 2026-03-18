@@ -236,6 +236,7 @@ def set_up_animation(
         )
         marks.setGLOptions('opaque')
         markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
+        markers.update_pos(init_pos)
         items.append(markers)
     items += anim.draw_traces(range(12), trace_len, init_pos)
 
