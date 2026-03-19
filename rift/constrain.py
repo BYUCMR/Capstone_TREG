@@ -4,7 +4,7 @@ from typing import Protocol, Self
 
 import numpy as np
 
-from .arraytypes import Matrix, Vector
+from .arraytypes import Matrix, SingleIndex, Vector
 
 
 type CanCall[T] = Callable[[float], T] | T
@@ -21,7 +21,7 @@ class Point:
     _weights: Vector
 
     @classmethod
-    def node(cls, i: int, n: int) -> Self:
+    def node(cls, i: SingleIndex, n: SingleIndex) -> Self:
         """Represent point `i` out of `n`."""
         weights = np.zeros(n)
         weights[i] = 1

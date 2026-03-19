@@ -6,7 +6,7 @@ import numpy as np
 
 from rift import rover
 from rift import tubetruss as tt
-from rift.arraytypes import Vector
+from rift.arraytypes import SingleIndex, Vector
 
 
 class Mode(Enum):
@@ -21,7 +21,7 @@ class Mode(Enum):
 @dataclass
 class Command:
     mode: Mode
-    item: int
+    item: SingleIndex
     x: float
     y: float
     z: float

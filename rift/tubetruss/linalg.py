@@ -10,7 +10,7 @@ from rift.arraytypes import Matrix, SingleIndex, Vector
 
 def incidence_from_trails(
     *trails: Iterable[SingleIndex],
-    empty_cols: int = 0,
+    empty_cols: SingleIndex = 0,
 ) -> Matrix[np.int8]:
     n_cols = 1 + max(chain.from_iterable(trails)) + empty_cols
     rows: list[Vector[np.int8]] = []

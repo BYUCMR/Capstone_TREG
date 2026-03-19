@@ -11,7 +11,7 @@ from . import anim
 from . import constrain as cstr
 from . import grav
 from . import tubetruss as tt
-from .arraytypes import Matrix, Vector
+from .arraytypes import Matrix, SingleIndex, Vector
 
 
 # Left feet / end-effectors
@@ -191,7 +191,7 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
 def set_up_animation(
     init_pos: Matrix = CRAWLING_POS,
     *,
-    trace_len: int = 100,
+    trace_len: SingleIndex = 100,
 ) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
     items: list[anim.AnimationItem] = []
     chassis_mesh = gl.GLMeshItem(
@@ -250,7 +250,7 @@ def parabolic(k: float, t: float) -> float:
 
 def adjust_roller(
     robot: tt.TrussRobot,
-    roller: int,
+    roller: SingleIndex,
     amount: float,
 ) -> Vector:
     dq = np.zeros(robot.n_rollers)
@@ -267,7 +267,7 @@ def adjust_roller(
 
 def nudge_node(
     robot: tt.TrussRobot,
-    node: int,
+    node: SingleIndex,
     x: float,
     y: float,
     z: float,
