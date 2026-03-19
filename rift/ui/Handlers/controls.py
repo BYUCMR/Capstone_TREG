@@ -2,6 +2,8 @@ from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from enum import Enum
 
+import numpy as np
+
 from rift import rover
 from rift import tubetruss as tt
 from rift.arraytypes import Vector
@@ -55,21 +57,23 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
+    elif command.mode is Mode.rolling:
+        yield rover.tilt_chassis(robot, np.pi * command.x / 1000)
 
 
 @dataclass(slots=True)
 class Bundler:
     period: int
     _i: int = 0
+    delta_q: Vector | None = None
 
     def expend(self, gen: Iterable[Vector]) -> Generator[Vector]:
-        delta_q = None
         for dq in gen:
             self._i += 1
-            if delta_q is None:
-                delta_q = dq
+            if self.delta_q is None:
+                self.delta_q = dq
             else:
-                delta_q += dq
+                self.delta_q += dq
             if not self._i % self.period:
-                yield delta_q
-                delta_q = None
+                yield self.delta_q
+                self.delta_q = None

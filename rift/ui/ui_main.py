@@ -15,9 +15,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QHBoxLayout,
-    QLabel, QMainWindow, QPlainTextEdit, QPushButton,
-    QSizePolicy, QSlider, QSpacerItem, QSpinBox,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QGridLayout,
+    QHBoxLayout, QLabel, QMainWindow, QPlainTextEdit,
+    QPushButton, QSizePolicy, QSlider, QSpacerItem,
     QSplitter, QTabWidget, QVBoxLayout, QWidget)
 
 class Ui_Control(object):
@@ -98,8 +98,8 @@ class Ui_Control(object):
         self.L12.setContentsMargins(-1, 0, -1, -1)
         self.zero_pos = QPushButton(self.verticalLayoutWidget_2)
         self.zero_pos.setObjectName(u"zero_pos")
-        self.zero_pos.setStyleSheet(u"background-color: qlineargradient(spread:repeat, x1:0, y1:0, x2:1, y2:0, stop:0.249 rgba(255, 255, 0, 255), stop:0.25 rgba(0, 0, 0, 255), stop:0.499 rgba(0, 0, 0, 255), stop:0.5 rgba(255, 255, 0, 255), stop:0.75 rgba(255, 255, 0, 255), stop:0.751 rgba(0, 0, 0, 255), stop:1 rgba(0, 0, 0, 255));\n"
-"color: rgb(255, 0, 0);")
+        self.zero_pos.setStyleSheet(u"background-color: rgb(255, 255, 0);\n"
+"color: rgb(0, 0, 0);")
 
         self.L12.addWidget(self.zero_pos)
 
@@ -114,18 +114,62 @@ class Ui_Control(object):
 
         self.L12.addItem(self.L121)
 
-        self.selector_label = QLabel(self.verticalLayoutWidget_2)
-        self.selector_label.setObjectName(u"selector_label")
+        self.symm_toggle_label = QLabel(self.verticalLayoutWidget_2)
+        self.symm_toggle_label.setObjectName(u"symm_toggle_label")
 
-        self.L12.addWidget(self.selector_label)
+        self.L12.addWidget(self.symm_toggle_label)
 
-        self.selector = QSpinBox(self.verticalLayoutWidget_2)
-        self.selector.setObjectName(u"selector")
-        self.selector.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.selector.setMinimum(0)
-        self.selector.setMaximum(11)
+        self.symm_toggle = QCheckBox(self.verticalLayoutWidget_2)
+        self.symm_toggle.setObjectName(u"symm_toggle")
+        self.symm_toggle.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
 
-        self.L12.addWidget(self.selector)
+        self.L12.addWidget(self.symm_toggle)
+
+        self.roll_select_label = QLabel(self.verticalLayoutWidget_2)
+        self.roll_select_label.setObjectName(u"roll_select_label")
+
+        self.L12.addWidget(self.roll_select_label)
+
+        self.roll_select = QComboBox(self.verticalLayoutWidget_2)
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.addItem("")
+        self.roll_select.setObjectName(u"roll_select")
+        self.roll_select.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        self.L12.addWidget(self.roll_select)
+
+        self.node_select_label = QLabel(self.verticalLayoutWidget_2)
+        self.node_select_label.setObjectName(u"node_select_label")
+
+        self.L12.addWidget(self.node_select_label)
+
+        self.node_select = QComboBox(self.verticalLayoutWidget_2)
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.addItem("")
+        self.node_select.setObjectName(u"node_select")
+        self.node_select.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        self.L12.addWidget(self.node_select)
 
 
         self.L1.addLayout(self.L12)
@@ -528,8 +572,36 @@ class Ui_Control(object):
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
         self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))
         self.stop.setText(QCoreApplication.translate("Control", u"STOP", None))
-        self.selector_label.setText(QCoreApplication.translate("Control", u"Node", None))
-        self.rolling.setText(QCoreApplication.translate("Control", u"Rolling", None))
+        self.symm_toggle_label.setText(QCoreApplication.translate("Control", u"Force Symmetry", None))
+        self.symm_toggle.setText("")
+        self.roll_select_label.setText(QCoreApplication.translate("Control", u"Roller", None))
+        self.roll_select.setItemText(0, QCoreApplication.translate("Control", u"01", None))
+        self.roll_select.setItemText(1, QCoreApplication.translate("Control", u"02", None))
+        self.roll_select.setItemText(2, QCoreApplication.translate("Control", u"03", None))
+        self.roll_select.setItemText(3, QCoreApplication.translate("Control", u"04", None))
+        self.roll_select.setItemText(4, QCoreApplication.translate("Control", u"05", None))
+        self.roll_select.setItemText(5, QCoreApplication.translate("Control", u"06", None))
+        self.roll_select.setItemText(6, QCoreApplication.translate("Control", u"07", None))
+        self.roll_select.setItemText(7, QCoreApplication.translate("Control", u"08", None))
+        self.roll_select.setItemText(8, QCoreApplication.translate("Control", u"09", None))
+        self.roll_select.setItemText(9, QCoreApplication.translate("Control", u"10", None))
+        self.roll_select.setItemText(10, QCoreApplication.translate("Control", u"11", None))
+        self.roll_select.setItemText(11, QCoreApplication.translate("Control", u"12", None))
+
+        self.node_select_label.setText(QCoreApplication.translate("Control", u"Node", None))
+        self.node_select.setItemText(0, QCoreApplication.translate("Control", u"L1", None))
+        self.node_select.setItemText(1, QCoreApplication.translate("Control", u"L2", None))
+        self.node_select.setItemText(2, QCoreApplication.translate("Control", u"L3", None))
+        self.node_select.setItemText(3, QCoreApplication.translate("Control", u"R1", None))
+        self.node_select.setItemText(4, QCoreApplication.translate("Control", u"R2", None))
+        self.node_select.setItemText(5, QCoreApplication.translate("Control", u"R3", None))
+        self.node_select.setItemText(6, QCoreApplication.translate("Control", u"P1", None))
+        self.node_select.setItemText(7, QCoreApplication.translate("Control", u"P2", None))
+        self.node_select.setItemText(8, QCoreApplication.translate("Control", u"P3", None))
+        self.node_select.setItemText(9, QCoreApplication.translate("Control", u"Q1", None))
+        self.node_select.setItemText(10, QCoreApplication.translate("Control", u"Q2", None))
+        self.node_select.setItemText(11, QCoreApplication.translate("Control", u"Q3", None))
+
         self.node_control.setText(QCoreApplication.translate("Control", u"Node Control", None))
         self.crawling.setText(QCoreApplication.translate("Control", u"Crawling", None))
         self.reset_button.setText(QCoreApplication.translate("Control", u"Reset", None))

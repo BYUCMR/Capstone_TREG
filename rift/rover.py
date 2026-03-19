@@ -118,9 +118,7 @@ CCOM: Final = cstr.Point.com(MASS)
 # Physical size
 # In actuality, we have 1125 * 12 * 4 ticks per side, but we
 # increase this to account for not simulating node offsets.
-# This factor is a lot more than we would expect. We haven't figured out why.
-SLOP_FACTOR = 30
-TICKS_PER_SIDE: Final = 1125 * 12 * 4 * SLOP_FACTOR
+TICKS_PER_SIDE: Final = 1125 * 12 * 4 * 1.5
 
 
 def make_pos(
@@ -275,6 +273,7 @@ def set_up_animation(
         )
         marks.setGLOptions('opaque')
         markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
+        markers.update_pos(init_pos)
         items.append(markers)
     items += anim.draw_traces(range(12), trace_len, init_pos)
 
@@ -312,16 +311,16 @@ def nudge_node(
     y: float,
     z: float,
 ) -> Vector:
-    feet = {L1, L2, R1, R2}
-    feet.discard(node)
+    locked = robot.pos[:, 2] < grav.DEFAULT_TOL
+    locked[node] = False
     motion = cstr.CompoundConstraint([
         cstr.Motion.make(cstr.Point.node(node, robot.n_nodes), x, y, z),
         *(
-            cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
-            for foot in feet
+            cstr.Motion.lock(cstr.Point.node(n, robot.n_nodes))
+            for n in np.flatnonzero(locked)
         ),
     ])
-    return robot.take_substep(motion, respect_floor=True)
+    return robot.take_substep(motion, respect_floor=True, allow_redundant=True)
 
 
 def nudge_chassis(
@@ -343,6 +342,26 @@ def nudge_chassis(
         cstr.Motion.make(cstr.Point.avg(CL1, CL2, CR1, CR2), x=0, y=0),
     ))
     return robot.take_substep(motion)
+
+
+def tilt_chassis(
+    robot: tt.TrussRobot,
+    angle: float,
+) -> Vector:
+    base = cstr.Point.avg(CP3, CQ3)
+    face = cstr.Point.avg(CP2, CQ2)
+    motion = cstr.CompoundConstraint((
+        cstr.Motion.lock(base),
+        cstr.Orbit(face-base, np.array([0, 1, 0]), angle),
+        cstr.Motion.make(face - base, y=0.),
+        cstr.Motion.lock(CL1),
+        cstr.Motion.lock(CR1),
+        cstr.Motion.make(CL2, y=0.),
+        cstr.Motion.make(CR2, y=0.),
+        cstr.Motion.make(CL3, y=0.),
+        cstr.Motion.make(CR3, y=0.),
+    ))
+    return robot.take_substep(motion, respect_floor=False)
 
 
 def crawl(
@@ -457,7 +476,7 @@ def roll(
             for foot in other_feet
         ),
     ))
-    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+    yield from robot.take_step(step_1, resolution=resolution)
     dx = ((face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875) / resolution
     foot_arc = partial(parabolic, -dx)
     step_2 = cstr.CompoundConstraint((
