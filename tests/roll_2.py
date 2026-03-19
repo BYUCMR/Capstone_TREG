@@ -12,7 +12,7 @@ from rift.tubetruss.robots import InverseKinematicsError,TrussRobot
 import rift.constrain as cstr
 import numpy as np
 from rift.transmit.conversion import *
-
+from rift.transmit import commands
 
 def shrink_in(robot: TrussRobot,
     *,
@@ -105,12 +105,13 @@ def stand(
     *,
     i: int = 0,
     resolution: int = 100,
+    z=.5
 ) -> Generator[Vector]:
     chassis_mass = np.zeros(len(robot.pos))
     chassis_mass[rover.CHASSIS] = 1.
     chassis_com = cstr.Point.com(chassis_mass)
 
-    dz = 0.5 / resolution
+    dz = z / resolution
     step_0 = cstr.CompoundConstraint((
         cstr.Motion.make(chassis_com,z=dz,x=0,y=0),
         cstr.Motion.make(rover.CP3,x=0,y=0),
@@ -135,6 +136,8 @@ def roll_p1(
         cstr.Motion.lock(base),
         cstr.Orbit.about_y(robot.pos, face-base, np.pi, resolution),
         cstr.Motion.make(face - base, y=0.),
+        cstr.Motion.make(rover.CL2, z=0),
+        cstr.Motion.make(rover.CR2, z=0),
         cstr.Motion.lock(rover.CL1),
         cstr.Motion.lock(rover.CR1),
         *(
@@ -143,6 +146,103 @@ def roll_p1(
         ),
     ))
     yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+
+def roll_p2(
+    robot: TrussRobot,
+    *,
+    resolution: int = 100,
+) -> Generator[Vector]:
+    dz = .2/resolution
+    step_1 = cstr.CompoundConstraint((
+        cstr.Motion.make(rover.CL2, z=dz),
+        cstr.Motion.make(rover.CR2, z=dz),
+        cstr.Motion.make(rover.CL1, z=dz),
+        cstr.Motion.make(rover.CR1, z=dz),
+        cstr.Motion.lock(rover.CP1),
+        cstr.Motion.lock(rover.CQ1),
+        cstr.Motion.lock(rover.CP3),
+        cstr.Motion.lock(rover.CQ3),
+    ))
+    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+
+def roll_p3(
+    robot: TrussRobot,
+    *,
+    resolution: int = 100,
+) -> Generator[Vector]:
+    dx = -.5/resolution
+    step_1 = cstr.CompoundConstraint((
+
+        cstr.Motion.make(rover.CL1, x=dx,z=0),
+        cstr.Motion.make(rover.CR1,x=dx,z=0),
+        cstr.Motion.make(rover.CL2, x=0),
+        cstr.Motion.make(rover.CR2,x=0),
+        cstr.Motion.lock(rover.CP1),
+        cstr.Motion.lock(rover.CQ1),
+        cstr.Motion.lock(rover.CP3),
+        cstr.Motion.lock(rover.CQ3),
+    ))
+    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+
+def roll_p4(
+    robot: TrussRobot,
+    *,
+    resolution: int = 100,
+) -> Generator[Vector]:
+    dz = -.2/resolution
+    step_1 = cstr.CompoundConstraint((
+        cstr.Motion.make(rover.CL1, z=dz),
+        cstr.Motion.make(rover.CR1, z=dz),
+        cstr.Motion.lock(rover.CP1),
+        cstr.Motion.lock(rover.CQ1),
+        cstr.Motion.lock(rover.CP3),
+        cstr.Motion.lock(rover.CQ3),
+    ))
+    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+
+def scoot(
+    robot: TrussRobot,
+    *,
+    resolution: int = 100,
+)-> Generator[Vector]:
+    chassis_mass = np.zeros(len(robot.pos))
+    chassis_mass[rover.CHASSIS] = 1.
+    chassis_com = cstr.Point.com(chassis_mass)
+
+    dx = -0.2 / resolution
+    step = cstr.CompoundConstraint((
+        cstr.Motion.make(chassis_com,z=0,x=dx,y=0),
+        cstr.Motion.make(rover.CL1,z=0),
+        cstr.Motion.make(rover.CL2,z=0,x=0),
+        cstr.Motion.make(rover.CR1,z=0),
+        cstr.Motion.lock(rover.CR2),
+    ))
+    yield from robot.take_step(step, resolution=resolution, allow_redundant=True) 
+
+def roll_p5(
+    robot: TrussRobot,
+    *,
+    resolution: int = 100,
+) -> Generator[Vector]:
+    chassis_mass = np.zeros(len(robot.pos))
+    chassis_mass[rover.CHASSIS] = 1.
+    chassis_com = cstr.Point.com(chassis_mass)
+    base = cstr.Point.avg(rover.CP3, rover.CQ3)
+    face = cstr.Point.avg(rover.CP2, rover.CQ2)
+    other_feet = [rover.CL2, rover.CR2, rover.CL3, rover.CR3]
+    chassis_mass = np.zeros(len(robot.pos))
+    chassis_mass[rover.CHASSIS] = 1.
+    step = cstr.CompoundConstraint((
+        cstr.Motion.lock(face),
+        cstr.Orbit.about_y(robot.pos, base-face, np.pi/3, resolution),
+        cstr.Motion.make(chassis_com - face, y=0.),
+        cstr.Motion.make(base - face, y=0.),
+        cstr.Motion.lock(rover.CR2),
+        cstr.Motion.lock(rover.CL2),
+        cstr.Orbit.about_y(robot.pos, rover.CL1-rover.CL2, np.pi, resolution),
+        cstr.Orbit.about_y(robot.pos, rover.CL1-rover.CL2, np.pi, resolution),
+    ))
+    yield from robot.take_step(step, resolution=resolution, allow_redundant=True)
 
 async def main(
     init_pos: Matrix = rover.ROLLING_POS,
@@ -154,15 +254,56 @@ async def main(
     stabilizer = rover.make_stabilizer(init_pos)
     view.show()
 
-    for dq in roll(robot, resolution=resolution):
+    for dq in scoot(robot, resolution=100):
         stabilizer.update_pos(robot.pos)
-        message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
+        cmd =rover.TICKS_PER_SIDE * dq / 1.5
+        print(cmd.astype(int))
+        message = commands.bVEL(cmd.astype(int),1.5)
+        # message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
         print(message)
         animate(stabilizer.pos)
         await asyncio.sleep(0)
 
+    # for dq in roll_p1(robot, resolution=100):
+    #     stabilizer.update_pos(robot.pos)
+    #     message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
+    #     print(message)
+    #     animate(stabilizer.pos)
+    #     await asyncio.sleep(0)
+
+    # for dq in roll_p2(robot, resolution=100):
+    #     stabilizer.update_pos(robot.pos)
+    #     message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
+    #     print(message)
+    #     animate(stabilizer.pos)
+    #     await asyncio.sleep(0)
+
+    # for dq in roll_p3(robot, resolution=100):
+    #     stabilizer.update_pos(robot.pos)
+    #     message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
+    #     print(message)
+    #     animate(stabilizer.pos)
+    #     await asyncio.sleep(0)
+
+    # for dq in roll_p4(robot, resolution=100):
+    #     stabilizer.update_pos(robot.pos)
+    #     message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
+    #     print(message)
+    #     animate(stabilizer.pos)
+    #     await asyncio.sleep(0)
+    
+    # for dq in roll_p5(robot, resolution=100):
+    #     stabilizer.update_pos(robot.pos)
+    #     message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
+    #     print(message)
+    #     animate(stabilizer.pos)
+        # await asyncio.sleep(0)
+    
+    
+
 
     print("Done with animation")
+
 
 
 if __name__ == '__main__':

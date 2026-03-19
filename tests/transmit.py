@@ -3,7 +3,7 @@ sys.path.append(str(pathlib.Path.cwd()))
 
 import asyncio
 import io
-
+import time
 import pyqtgraph
 import serial
 from PySide6 import QtAsyncio
@@ -12,6 +12,7 @@ from rift import rover
 from rift.arraytypes import Matrix
 from rift.tubetruss.robots import InverseKinematicsError
 from rift.transmit import commands
+from roll_2 import *
 
 
 async def main(
@@ -24,18 +25,40 @@ async def main(
     robot = rover.make_robot(init_pos)
     stabilizer = rover.make_stabilizer(init_pos)
     view.show()
+    print("resolution: ", resolution)
     t = 37.5 / resolution
+    
     try:
-        for dr in rover.roll(robot, resolution=resolution):
+        for dr in roll_p1(robot, resolution=resolution):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
             ticks_per_sec = rover.TICKS_PER_SIDE * dr / t
-            cmd = commands.VEL(ticks_per_sec, t)
+            cmd = commands.bVEL(map(int, ticks_per_sec), t)
             if ser is not None:
-                ser.writelines((commands.STOP, cmd))
+                # print( repr(commands.STOP.decode()), end="")
+                # print( repr(cmd.decode()), end="")
+                # ser.writelines((commands.STOP, cmd))
+                bytes_sent = ser.write(commands.STOP)
+                print(f"Sent {bytes_sent} bytes: {commands.STOP}")
                 ser.flush()
+                bytes_sent = ser.write(cmd)
+                print(f"Sent {bytes_sent} bytes: {cmd}")
+                ser.flush()
+                
                 print("[SENT]", cmd.decode(), end="")
-            await asyncio.sleep(t)
+            # await asyncio.sleep(t)
+            time.sleep(2.5)
+        # for dr in roll_p1(robot, resolution=25):
+        #     stabilizer.update_pos(robot.pos)
+        #     animate(stabilizer.pos)
+        #     ticks_per_sec = rover.TICKS_PER_SIDE * dr / t
+        #     cmd = commands.VEL(map(int, ticks_per_sec), t)
+        #     if ser is not None:
+        #         ser.writelines((commands.STOP, cmd))
+        #         ser.flush()
+        #         print("[SENT]", cmd.decode(), end="")
+        #     # await asyncio.sleep(t)
+        #     time.sleep(2.5)
     except InverseKinematicsError as e:
         print(e.args[0])
 
@@ -52,7 +75,7 @@ if __name__ == "__main__":
         print(f"Serial port {SERIAL_PORT} opened successfully at {BAUD_RATE} baud.")
     pyqtgraph.mkQApp()
     try:
-        QtAsyncio.run(main(ser, init_pos, resolution=25))
+        QtAsyncio.run(main(ser, init_pos,resolution=50))
     finally:
         if ser is not None:
             ser.write(commands.STOP)
