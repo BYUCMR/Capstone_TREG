@@ -8,10 +8,10 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
 from . import anim
-from . import constrain as cstr
 from . import grav
 from . import tubetruss as tt
 from .arraytypes import Matrix, SingleIndex, Vector
+from .tubetruss import constrain as cstr
 
 
 # Left feet / end-effectors

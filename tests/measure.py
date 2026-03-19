@@ -6,9 +6,9 @@ from functools import partial
 
 import numpy as np
 
-from rift import constrain as cstr
 from rift import rover
 from rift.arraytypes import Matrix, MatrixStack
+from rift.tubetruss import constrain as cstr
 from rift.tubetruss.robots import InverseKinematicsError
 
 

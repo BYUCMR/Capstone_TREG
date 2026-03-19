@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import numpy as np
 import qpsolvers
 
-from rift import constrain as cstr
 from rift.arraytypes import Matrix, Vector
+from . import constrain as cstr
 from .control import LengthControl
 from .trusses import Truss
 

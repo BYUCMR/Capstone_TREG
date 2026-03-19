@@ -4,7 +4,7 @@ from typing import Protocol, Self
 
 import numpy as np
 
-from .arraytypes import Matrix, SingleIndex, Vector
+from rift.arraytypes import Matrix, SingleIndex, Vector
 
 
 type CanCall[T] = Callable[[float], T] | T
