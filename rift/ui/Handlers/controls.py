@@ -2,6 +2,8 @@ from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from enum import Enum
 
+import numpy as np
+
 from rift import rover
 from rift import tubetruss as tt
 from rift.arraytypes import Vector
@@ -55,6 +57,8 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
+    elif command.mode is Mode.rolling:
+        yield rover.tilt_chassis(robot, np.pi * command.x / 1000)
 
 
 @dataclass(slots=True)

@@ -305,6 +305,26 @@ def nudge_chassis(
     return robot.take_substep(motion)
 
 
+def tilt_chassis(
+    robot: tt.TrussRobot,
+    angle: float,
+) -> Vector:
+    base = cstr.Point.avg(CP3, CQ3)
+    face = cstr.Point.avg(CP2, CQ2)
+    motion = cstr.CompoundConstraint((
+        cstr.Motion.lock(base),
+        cstr.Orbit(face-base, np.array([0, 1, 0]), angle),
+        cstr.Motion.make(face - base, y=0.),
+        cstr.Motion.lock(CL1),
+        cstr.Motion.lock(CR1),
+        cstr.Motion.make(CL2, y=0.),
+        cstr.Motion.make(CR2, y=0.),
+        cstr.Motion.make(CL3, y=0.),
+        cstr.Motion.make(CR3, y=0.),
+    ))
+    return robot.take_substep(motion, respect_floor=False)
+
+
 def crawl(
     robot: tt.TrussRobot,
     cycles: int = 1,
