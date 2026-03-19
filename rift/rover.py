@@ -272,16 +272,16 @@ def nudge_node(
     y: float,
     z: float,
 ) -> Vector:
-    feet = {L1, L2, R1, R2}
-    feet.discard(node)
+    locked = robot.pos[:, 2] < grav.DEFAULT_TOL
+    locked[node] = False
     motion = cstr.CompoundConstraint([
         cstr.Motion.make(cstr.Point.node(node, robot.n_nodes), x, y, z),
         *(
-            cstr.Motion.lock(cstr.Point.node(foot, robot.n_nodes))
-            for foot in feet
+            cstr.Motion.lock(cstr.Point.node(n, robot.n_nodes))
+            for n in np.flatnonzero(locked)
         ),
     ])
-    return robot.take_substep(motion, respect_floor=True)
+    return robot.take_substep(motion, respect_floor=True, allow_redundant=True)
 
 
 def nudge_chassis(
