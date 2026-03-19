@@ -118,7 +118,7 @@ CCOM: Final = cstr.Point.com(MASS)
 # Physical size
 # In actuality, we have 1125 * 12 * 4 ticks per side, but we
 # increase this to account for not simulating node offsets.
-TICKS_PER_SIDE: Final = 1125 * 12 * 4 * 3
+TICKS_PER_SIDE: Final = 1125 * 12 * 4 * 1.5
 
 
 def make_pos(
