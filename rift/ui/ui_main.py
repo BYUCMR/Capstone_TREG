@@ -15,10 +15,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QHBoxLayout,
-    QLabel, QMainWindow, QPlainTextEdit, QPushButton,
-    QSizePolicy, QSlider, QSpacerItem, QSplitter,
-    QTabWidget, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QGridLayout,
+    QHBoxLayout, QLabel, QMainWindow, QPlainTextEdit,
+    QPushButton, QSizePolicy, QSlider, QSpacerItem,
+    QSplitter, QTabWidget, QVBoxLayout, QWidget)
 
 class Ui_Control(object):
     def setupUi(self, Control):
@@ -113,6 +113,17 @@ class Ui_Control(object):
         self.L121 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.L12.addItem(self.L121)
+
+        self.symm_toggle_label = QLabel(self.verticalLayoutWidget_2)
+        self.symm_toggle_label.setObjectName(u"symm_toggle_label")
+
+        self.L12.addWidget(self.symm_toggle_label)
+
+        self.symm_toggle = QCheckBox(self.verticalLayoutWidget_2)
+        self.symm_toggle.setObjectName(u"symm_toggle")
+        self.symm_toggle.setLayoutDirection(Qt.LayoutDirection.LeftToRight)
+
+        self.L12.addWidget(self.symm_toggle)
 
         self.roll_select_label = QLabel(self.verticalLayoutWidget_2)
         self.roll_select_label.setObjectName(u"roll_select_label")
@@ -561,6 +572,8 @@ class Ui_Control(object):
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
         self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))
         self.stop.setText(QCoreApplication.translate("Control", u"STOP", None))
+        self.symm_toggle_label.setText(QCoreApplication.translate("Control", u"Force Symmetry", None))
+        self.symm_toggle.setText("")
         self.roll_select_label.setText(QCoreApplication.translate("Control", u"Roller", None))
         self.roll_select.setItemText(0, QCoreApplication.translate("Control", u"01", None))
         self.roll_select.setItemText(1, QCoreApplication.translate("Control", u"02", None))

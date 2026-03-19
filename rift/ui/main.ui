@@ -184,6 +184,23 @@ color: rgb(0, 0, 0);</string>
            </spacer>
           </item>
           <item>
+           <widget class="QLabel" name="symm_toggle_label">
+            <property name="text">
+             <string>Force Symmetry</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="symm_toggle">
+            <property name="layoutDirection">
+             <enum>Qt::LayoutDirection::LeftToRight</enum>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QLabel" name="roll_select_label">
             <property name="text">
              <string>Roller</string>

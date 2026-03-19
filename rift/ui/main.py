@@ -40,6 +40,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.node_select.setVisible(False)
         self.ui.roll_select_label.setVisible(False)
         self.ui.roll_select.setVisible(False)
+        self.ui.symm_toggle_label.setVisible(False)
+        self.ui.symm_toggle.setVisible(False)
 
         self.setup_serial_ports()
         self.setup_sliders()
@@ -54,6 +56,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.reset_button.clicked.connect(self.reset_pos)
         self.ui.eq_all.clicked.connect(self.bot_handler.catch_up)
         self.ui.stop.clicked.connect(self.stop_rollers)
+        self.ui.symm_toggle.stateChanged.connect(self.symmetry_toggle)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
@@ -128,6 +131,13 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.bot_handler.to_zero.emit()
         self.vis_handler.reset.emit(rover.ROLLING_POS)
 
+    @Slot()
+    def symmetry_toggle(self, state) -> None:
+        if state == 2:
+            print("Symmetry toggleth!")
+        else:
+            print("I say nay to your hedonistic symmetry!")
+
     def setup_sliders(self) -> None:
         self.ui.mb_1.clicked.connect(lambda: self.correct_motor_error(1))
         self.ui.mb_2.clicked.connect(lambda: self.correct_motor_error(2))
@@ -190,6 +200,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.node_select.setVisible(False)
         self.ui.roll_select_label.setVisible(False)
         self.ui.roll_select.setVisible(False)
+        self.ui.symm_toggle_label.setVisible(False)
+        self.ui.symm_toggle.setVisible(False)
 
         if mode is Mode.crawling:
             self.plainify_modes()
@@ -203,6 +215,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.cmd_state.item = self.ui.node_select.currentIndex()
             self.ui.node_select_label.setVisible(True)
             self.ui.node_select.setVisible(True)
+            self.ui.symm_toggle_label.setVisible(True)
+            self.ui.symm_toggle.setVisible(True)
         elif mode is Mode.calibration:
             self.plainify_modes()
             self.greenify(self.ui.calibration)
