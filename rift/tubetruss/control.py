@@ -10,9 +10,9 @@ from .linalg import cokernel, incidence_from_trails
 
 @dataclass(frozen=True)
 class LengthControl:
-    unreachable: Matrix[np.integer]
-    forward: Matrix[np.integer]
-    inverse: Matrix
+    forward: Matrix[np.integer | np.floating]
+    inverse: Matrix[np.integer | np.floating]
+    unreachable: Matrix[np.integer | np.floating]
 
     def __post_init__(self) -> None:
         if self.forward.shape != self.inverse.T.shape:
@@ -38,13 +38,13 @@ class LengthControl:
     def from_unreachable(cls, unreachable: Matrix[np.integer]) -> Self:
         forward = cokernel(unreachable.T).T
         inverse = np.linalg.pinv(forward)
-        return cls(unreachable, forward, inverse)
+        return cls(forward, inverse, unreachable)
 
     @classmethod
     def from_forward(cls, forward: Matrix[np.integer]) -> Self:
         inverse = np.linalg.pinv(forward)
         unreachable = cokernel(forward)
-        return cls(unreachable, forward, inverse)
+        return cls(forward, inverse, unreachable)
 
     @classmethod
     def from_trails(
