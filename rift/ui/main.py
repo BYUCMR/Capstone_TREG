@@ -36,8 +36,10 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.vis_handler.worker.results.connect(self.bot_handler.worker.transmit)
         self.bot_handler.worker.ready.connect(self.vis_handler.worker.run_next)
 
-        self.ui.selector_label.setVisible(False)
-        self.ui.selector.setVisible(False)
+        self.ui.node_select_label.setVisible(False)
+        self.ui.node_select.setVisible(False)
+        self.ui.roll_select_label.setVisible(False)
+        self.ui.roll_select.setVisible(False)
 
         self.setup_serial_ports()
         self.setup_sliders()
@@ -45,7 +47,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
         # self.ui.sim_label.clicked.connect(self.open_sim)
         self.ui.bot_toggle.clicked.connect(self.toggle_bot)
-        self.ui.selector.valueChanged.connect(self.update_item)
+        self.ui.node_select.currentIndexChanged.connect(self.node_update_item)
+        self.ui.roll_select.currentIndexChanged.connect(self.roll_update_item)
         # self.ui.serial_select.currentIndexChanged.connect(self.serial_port_change)
         self.ui.zero_pos.clicked.connect(self.zero_pos)
         self.ui.reset_button.clicked.connect(self.reset_pos)
@@ -108,8 +111,12 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.bot_handler.kill_transmission()
 
     @Slot()
-    def update_item(self) -> None:
-        self.cmd_state.item = self.ui.selector.value()
+    def node_update_item(self) -> None:
+        self.cmd_state.item = self.ui.node_select.currentIndex()
+
+    @Slot()
+    def roll_update_item(self) -> None:
+        self.cmd_state.item = self.ui.roll_select.currentIndex()
 
     @Slot()
     def zero_pos(self) -> None:
@@ -176,30 +183,33 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.del_left.setEnabled(True)
         self.ui.right.setEnabled(True)
         self.ui.del_right.setEnabled(True)
+        self.ui.forward.setEnabled(True)
+        self.ui.backward.setEnabled(True)
+
+        self.ui.node_select_label.setVisible(False)
+        self.ui.node_select.setVisible(False)
+        self.ui.roll_select_label.setVisible(False)
+        self.ui.roll_select.setVisible(False)
 
         if mode is Mode.crawling:
             self.plainify_modes()
             self.greenify(self.ui.crawling)
             self.cmd_state.mode = Mode.crawling
             self.cmd_state.item = 0
-            self.ui.selector_label.setVisible(False)
-            self.ui.selector.setVisible(False)
         elif mode is Mode.node_control:
             self.plainify_modes()
             self.greenify(self.ui.node_control)
             self.cmd_state.mode = Mode.node_control
-            self.cmd_state.item = self.ui.selector.value()
-            self.ui.selector_label.setVisible(True)
-            self.ui.selector_label.setText("Node")
-            self.ui.selector.setVisible(True)
+            self.cmd_state.item = self.ui.node_select.currentIndex()
+            self.ui.node_select_label.setVisible(True)
+            self.ui.node_select.setVisible(True)
         elif mode is Mode.calibration:
             self.plainify_modes()
             self.greenify(self.ui.calibration)
             self.cmd_state.mode = Mode.calibration
-            self.cmd_state.item = self.ui.selector.value()
-            self.ui.selector_label.setVisible(True)
-            self.ui.selector_label.setText("Roller")
-            self.ui.selector.setVisible(True)
+            self.cmd_state.item = self.ui.roll_select.currentIndex()
+            self.ui.roll_select_label.setVisible(True)
+            self.ui.roll_select.setVisible(True)
             self.ui.left.setEnabled(False)
             self.ui.del_left.setEnabled(False)
             self.ui.right.setEnabled(False)
@@ -208,8 +218,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.plainify_modes()
             self.greenify(self.ui.sit_stand)
             self.cmd_state.mode = Mode.stand
-            self.ui.selector_label.setVisible(False)
-            self.ui.selector.setVisible(False)
             self.ui.forward.setEnabled(False)
             self.ui.backward.setEnabled(False)
             self.ui.left.setEnabled(False)
@@ -218,10 +226,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.plainify_modes()
             self.greenify(self.ui.rolling)
             self.cmd_state.mode = Mode.rolling
-            self.ui.selector_label.setVisible(False)
-            self.ui.selector.setVisible(False)
-            self.ui.forward.setEnabled(True)
-            self.ui.backward.setEnabled(True)
             self.ui.left.setEnabled(False)
             self.ui.right.setEnabled(False)
             self.ui.del_left.setEnabled(False)
@@ -238,7 +242,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state.x = x
         self.cmd_state.y = y
         self.cmd_state.z = z
-        print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
+        # print(f"X: {self.cmd_state.x}, Y: {self.cmd_state.y}, Z: {self.cmd_state.z}")
 
     def cleanup(self) -> None:
         print("Attempting Cleanup")
