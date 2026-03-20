@@ -2,13 +2,12 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
 import math
-from functools import partial
 
 import numpy as np
 
-from rift import constrain as cstr
 from rift import rover
 from rift.arraytypes import Matrix, MatrixStack
+from rift.tubetruss import constrain as cstr
 from rift.tubetruss.robots import InverseKinematicsError
 
 
@@ -106,7 +105,7 @@ def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     ))
     while True:
         try:
-            robot.take_substep(constraint)
+            robot.take_step(constraint)
         except InverseKinematicsError:
             break
     return robot.pos[rover.L1, 2] - dz - z0
@@ -123,7 +122,7 @@ def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     ))
     while True:
         try:
-            robot.take_substep(constraint)
+            robot.take_step(constraint)
         except InverseKinematicsError:
             break
     return robot.pos[rover.L1, 0] - dx - x0
@@ -133,22 +132,21 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
     robot = rover.make_robot(init_pos)
     initial_pos = robot.pos.copy()
     step_length = dx
-    t = np.linspace(0., 1., resolution)
-
-    def parabolic(k: float, t: float) -> float:
-        return 2. * k * (0.5-t)
-
     while True:
-        k = step_length / len(t)
         constraint = cstr.CompoundConstraint((
-            cstr.Motion.make(rover.CL1, k, 0., partial(parabolic, k)),
+            cstr.ParabolicPath.make(
+                rover.CL1,
+                init_pos=robot.pos,
+                delta_x=step_length,
+                resolution=resolution
+            ),
             cstr.Motion.lock(rover.CL2),
             cstr.Motion.lock(rover.CR1),
             cstr.Motion.lock(rover.CR2),
         ))
         try:
-            for ti in t:
-                robot.take_substep(constraint, t=ti)
+            for _ in range(resolution):
+                robot.take_step(constraint)
         except InverseKinematicsError:
             break
         step_length += dx

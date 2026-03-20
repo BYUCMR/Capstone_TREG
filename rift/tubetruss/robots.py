@@ -4,8 +4,8 @@ from dataclasses import dataclass
 import numpy as np
 import qpsolvers
 
-from rift import constrain as cstr
 from rift.arraytypes import Matrix, Vector
+from . import constrain as cstr
 from .control import LengthControl
 from .trusses import Truss
 
@@ -101,11 +101,10 @@ class TrussRobot:
         self,
         d_roll: Vector,
         *constraints: cstr.Constraint,
-        t: float = 0.,
     ) -> Matrix:
         rigidity = self.truss.rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint(constraints)
-        A, b = constraint.get(self.pos, t)
+        A, b = constraint.get(self.pos)
         d_length = self.control.forward @ d_roll
         d_pos, *_ = np.linalg.lstsq(
             np.concat((rigidity, A)),
@@ -115,10 +114,9 @@ class TrussRobot:
         self.pos += d_pos
         return d_pos
 
-    def take_substep(
+    def take_step(
         self,
         *constraints: cstr.Constraint,
-        t: float = 0.,
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Vector:
@@ -127,7 +125,7 @@ class TrussRobot:
             cstr.CustomConstraint(self.control.unreachable @ rigidity),
             *constraints
         ))
-        A, b = constraint.get(self.pos, t)
+        A, b = constraint.get(self.pos)
         e, v = cstr.singularity_eig(A, b if allow_redundant else None)
         if abs(e) <= 1e-3:
             raise SingularityError("Robot state is singular")
@@ -147,17 +145,16 @@ class TrussRobot:
         self.pos += dx.reshape(self.pos.shape)
         return dq
 
-    def take_step(
+    def repeat_step(
         self,
         *constraints: cstr.Constraint,
-        resolution: int,
+        times: int,
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Generator[Vector]:
-        for t in np.linspace(0., 1., resolution):
-            yield self.take_substep(
+        for _ in range(times):
+            yield self.take_step(
                 *constraints,
-                t=t,
                 allow_redundant=allow_redundant,
                 respect_floor=respect_floor,
             )

@@ -52,7 +52,7 @@ class DrawnLinks(AnimationItem):
 @dataclass(slots=True, frozen=True)
 class NodeTrace(AnimationItem):
     node: SingleIndex
-    length: int
+    length: SingleIndex
     drawing: gl.GLScatterPlotItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
@@ -123,7 +123,7 @@ def draw_links(nodes: IndexVector, pos: Matrix, *, color: str = 'gray', width: i
 
 def draw_traces(
     nodes: Iterable[SingleIndex],
-    length: int,
+    length: SingleIndex,
     pos: Matrix,
     *,
     size: int = 4,

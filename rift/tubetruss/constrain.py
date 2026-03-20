@@ -1,18 +1,16 @@
-from collections.abc import Callable, Sequence
+import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Protocol, Self
 
 import numpy as np
 
-from .arraytypes import Matrix, Vector
-
-
-type CanCall[T] = Callable[[float], T] | T
+from rift.arraytypes import Matrix, SingleIndex, Vector
 
 
 class Constraint(Protocol):
     """A general representation of a motion constraint."""
-    def get(self, x: Matrix, t: float, /) -> tuple[Matrix, Vector]: ...
+    def get(self, x: Matrix, /) -> tuple[Matrix, Vector]: ...
 
 
 @dataclass(slots=True)
@@ -21,7 +19,7 @@ class Point:
     _weights: Vector
 
     @classmethod
-    def node(cls, i: int, n: int) -> Self:
+    def node(cls, i: SingleIndex, n: SingleIndex) -> Self:
         """Represent point `i` out of `n`."""
         weights = np.zeros(n)
         weights[i] = 1
@@ -44,7 +42,7 @@ class Point:
         """Represent the center of mass of a collection of points."""
         return cls(mass / np.sum(mass))
 
-    def expand(self, using: Matrix | Vector = np.eye(3)) -> Matrix:
+    def expand(self, using: Matrix = np.eye(3)) -> Matrix:
         """
         Return a matrix that extracts this position from a flat position vector.
 
@@ -67,8 +65,8 @@ class CustomConstraint:
     A: Matrix
     b: Vector | None = None
 
-    def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
-        b = np.zeros(len(self.A)) if self.b is None else self.b
+    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
+        b = np.zeros(len(self.A)) if self.b is None else self.b.copy()
         return self.A, b
 
 
@@ -76,32 +74,20 @@ class CustomConstraint:
 class Motion:
     """A constraint representing the linear motion of a point."""
     point: Point
-    direction: Vector | Matrix = field(default_factory=lambda: np.eye(3))
-    v: CanCall[float | Vector] = field(default_factory=lambda: np.zeros(3))
+    directions: Matrix = field(default_factory=lambda: np.eye(3))
+    rates: Vector = field(default_factory=lambda: np.zeros(3))
 
     @classmethod
     def make(
         cls,
         point: Point,
-        x: CanCall[float] | None = None,
-        y: CanCall[float] | None = None,
-        z: CanCall[float] | None = None,
+        x: float | None = None,
+        y: float | None = None,
+        z: float | None = None,
     ) -> Self:
         """Set the motion of a point along the x, y, and z axes."""
         i = [e is not None for e in (x, y, z)]
-        if not np.any(i):
-            return cls(point, np.zeros(3), np.zeros(0))
-        def b(t: float) -> Vector:
-            rows: list[float] = []
-            for v in (x, y, z):
-                if v is None:
-                    continue
-                elif callable(v):
-                    row = v(t)
-                else:
-                    row = v
-                rows.append(row)
-            return np.array(rows)
+        b = np.array([e for e in (x, y, z) if e is not None])
         return cls(point, np.eye(3)[i], b)
 
     @classmethod
@@ -109,10 +95,9 @@ class Motion:
         """Constrain a point to be stationary."""
         return cls(point)
 
-    def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
-        A = self.point.expand(self.direction)
-        b = self.v(t) if callable(self.v) else self.v
-        return np.atleast_2d(A), np.atleast_1d(b)
+    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
+        A = self.point.expand(self.directions)
+        return A, self.rates.copy()
 
 
 @dataclass(slots=True)
@@ -120,7 +105,7 @@ class Orbit:
     """A constraint representing the rotation of some point about its origin."""
     radius: Point
     axis: Vector
-    rate: CanCall[float]
+    rate: float
 
     @classmethod
     def about_y(
@@ -135,13 +120,43 @@ class Orbit:
         rate = (target - th0) / resolution
         return cls(radius, np.array([0, 1, 0]), rate)
 
-    def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
+    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
         r = self.radius.get(x)
         r -= (self.axis @ r) * self.axis
-        M = np.cross(self.axis, r) / (r @ r)
-        A = self.radius.expand(M)
-        b = self.rate(t) if callable(self.rate) else self.rate
-        return np.array([A]), np.array([b])
+        v = np.cross(self.axis, r) / (r @ r)
+        A = self.radius.expand(v.reshape(1, -1))
+        return A, np.array([self.rate])
+
+
+@dataclass(slots=True)
+class ParabolicPath:
+    point: Point
+    origin: Vector
+    rate: float
+    rise: float
+
+    @classmethod
+    def make(
+        cls,
+        point: Point,
+        *,
+        init_pos: Matrix,
+        delta_x: float,
+        delta_y: float = 0.,
+        aspect_ratio: float = 0.5,
+        resolution: int,
+    ) -> Self:
+        origin = point.get(init_pos) + (delta_x, delta_y, 0.)
+        rate = math.hypot(delta_x, delta_y) / resolution
+        rise = 2. * aspect_ratio / resolution
+        return cls(point, origin, rate, rise)
+
+    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
+        dp = self.point.get(x) - self.origin
+        r = np.linalg.norm(dp[:2])
+        dp *= -self.rate / r
+        dp[2] += self.rise * r
+        return self.point.expand(), dp
 
 
 @dataclass(slots=True)
@@ -149,11 +164,11 @@ class CompoundConstraint:
     """A constraint equivalent to a combination of other constraints."""
     constraints: Sequence[Constraint] = ()
 
-    def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
+    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
         As: list[Matrix] = []
         bs: list[Vector] = []
         for c in self.constraints:
-            Ai, bi = c.get(x, t)
+            Ai, bi = c.get(x)
             As.append(Ai)
             bs.append(bi)
         A = np.concat(As)
