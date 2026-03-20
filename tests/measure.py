@@ -1,6 +1,3 @@
-import pathlib, sys
-sys.path.append(str(pathlib.Path.cwd()))
-
 import math
 
 import numpy as np

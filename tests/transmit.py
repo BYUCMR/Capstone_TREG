@@ -1,6 +1,3 @@
-import pathlib, sys
-sys.path.append(str(pathlib.Path.cwd()))
-
 import asyncio
 import io
 
