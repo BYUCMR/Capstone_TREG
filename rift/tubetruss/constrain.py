@@ -42,7 +42,7 @@ class Point:
         """Represent the center of mass of a collection of points."""
         return cls(mass / np.sum(mass))
 
-    def expand(self, using: Matrix | Vector = np.eye(3)) -> Matrix:
+    def expand(self, using: Matrix = np.eye(3)) -> Matrix:
         """
         Return a matrix that extracts this position from a flat position vector.
 
@@ -66,7 +66,7 @@ class CustomConstraint:
     b: Vector | None = None
 
     def get(self, x: Matrix) -> tuple[Matrix, Vector]:
-        b = np.zeros(len(self.A)) if self.b is None else self.b
+        b = np.zeros(len(self.A)) if self.b is None else self.b.copy()
         return self.A, b
 
 
@@ -74,8 +74,8 @@ class CustomConstraint:
 class Motion:
     """A constraint representing the linear motion of a point."""
     point: Point
-    direction: Vector | Matrix = field(default_factory=lambda: np.eye(3))
-    v: float | Vector = field(default_factory=lambda: np.zeros(3))
+    directions: Matrix = field(default_factory=lambda: np.eye(3))
+    rates: Vector = field(default_factory=lambda: np.zeros(3))
 
     @classmethod
     def make(
@@ -96,8 +96,8 @@ class Motion:
         return cls(point)
 
     def get(self, x: Matrix) -> tuple[Matrix, Vector]:
-        A = self.point.expand(self.direction)
-        return np.atleast_2d(A), np.atleast_1d(self.v)
+        A = self.point.expand(self.directions)
+        return A, self.rates.copy()
 
 
 @dataclass(slots=True)
@@ -123,9 +123,9 @@ class Orbit:
     def get(self, x: Matrix) -> tuple[Matrix, Vector]:
         r = self.radius.get(x)
         r -= (self.axis @ r) * self.axis
-        M = np.cross(self.axis, r) / (r @ r)
-        A = self.radius.expand(M)
-        return np.array([A]), np.array([self.rate])
+        v = np.cross(self.axis, r) / (r @ r)
+        A = self.radius.expand(v.reshape(1, -1))
+        return A, np.array([self.rate])
 
 
 @dataclass(slots=True)
