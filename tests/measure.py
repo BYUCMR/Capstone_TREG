@@ -132,7 +132,6 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
     robot = rover.make_robot(init_pos)
     initial_pos = robot.pos.copy()
     step_length = dx
-    t = np.linspace(0., 1., resolution)
     while True:
         constraint = cstr.CompoundConstraint((
             cstr.ParabolicPath.make(
@@ -146,8 +145,8 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
             cstr.Motion.lock(rover.CR2),
         ))
         try:
-            for ti in t:
-                robot.take_substep(constraint, t=ti)
+            for _ in range(resolution):
+                robot.take_substep(constraint)
         except InverseKinematicsError:
             break
         step_length += dx
