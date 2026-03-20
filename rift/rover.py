@@ -244,10 +244,6 @@ def set_up_animation(
     return view, partial(anim.update_all_pos, items)
 
 
-def parabolic(k: float, t: float) -> float:
-    return 2. * k * (0.5-t)
-
-
 def adjust_roller(
     robot: tt.TrussRobot,
     roller: SingleIndex,
@@ -337,15 +333,20 @@ def crawl(
     chassis_com = cstr.Point.com(chassis_mass)
     chassis_up = chassis_com - cstr.Point.avg(CP3, CQ3)
     no_wobble = cstr.Motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
-    dx, dy = step_length
-    dx /= resolution
-    dy /= resolution
-    ds = math.hypot(dx, dy)
-    steadily_forward = cstr.Motion.make(chassis_com, x=0.25 * dx)
+    x_dist, y_dist = step_length
+    steadily_forward = cstr.Motion.make(
+        chassis_com, x=0.25 * x_dist / resolution
+    )
     feet = (CL2, CL1, CR2, CR1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
-            cstr.Motion.make(foot, x=dx, y=dy, z=partial(parabolic, ds)),
+            cstr.ParabolicPath.make(
+                point=foot,
+                init_pos=robot.pos,
+                delta_x=x_dist,
+                delta_y=y_dist,
+                resolution=resolution,
+            ),
             *(
                 cstr.Motion.lock(other_foot)
                 for other_foot in feet
@@ -438,13 +439,22 @@ def roll(
         ),
     ))
     yield from robot.take_step(step_1, resolution=resolution)
-    dx = ((face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875) / resolution
-    foot_arc = partial(parabolic, -dx)
+    x_dist = (face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875
     step_2 = cstr.CompoundConstraint((
         cstr.Motion.lock(chassis_com),
         cstr.Motion.make(face - base, z=0.),
-        cstr.Motion.make(foot_l, x=dx, z=foot_arc),
-        cstr.Motion.make(foot_r, x=dx, z=foot_arc),
+        cstr.ParabolicPath.make(
+            foot_l,
+            init_pos=robot.pos,
+            delta_x=x_dist,
+            resolution=resolution,
+        ),
+        cstr.ParabolicPath.make(
+            foot_r,
+            init_pos=robot.pos,
+            delta_x=x_dist,
+            resolution=resolution,
+        ),
     ))
     yield from robot.take_step(step_2, resolution=resolution)
     step_3 = cstr.CompoundConstraint((

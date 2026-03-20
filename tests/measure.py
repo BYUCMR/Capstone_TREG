@@ -2,7 +2,6 @@ import pathlib, sys
 sys.path.append(str(pathlib.Path.cwd()))
 
 import math
-from functools import partial
 
 import numpy as np
 
@@ -134,14 +133,14 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
     initial_pos = robot.pos.copy()
     step_length = dx
     t = np.linspace(0., 1., resolution)
-
-    def parabolic(k: float, t: float) -> float:
-        return 2. * k * (0.5-t)
-
     while True:
-        k = step_length / len(t)
         constraint = cstr.CompoundConstraint((
-            cstr.Motion.make(rover.CL1, k, 0., partial(parabolic, k)),
+            cstr.ParabolicPath.make(
+                rover.CL1,
+                init_pos=robot.pos,
+                delta_x=step_length,
+                resolution=resolution
+            ),
             cstr.Motion.lock(rover.CL2),
             cstr.Motion.lock(rover.CR1),
             cstr.Motion.lock(rover.CR2),

@@ -1,3 +1,4 @@
+import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol, Self
@@ -142,6 +143,37 @@ class Orbit:
         A = self.radius.expand(M)
         b = self.rate(t) if callable(self.rate) else self.rate
         return np.array([A]), np.array([b])
+
+
+@dataclass(slots=True)
+class ParabolicPath:
+    point: Point
+    origin: Vector
+    rate: float
+    rise: float
+
+    @classmethod
+    def make(
+        cls,
+        point: Point,
+        *,
+        init_pos: Matrix,
+        delta_x: float,
+        delta_y: float = 0.,
+        aspect_ratio: float = 0.5,
+        resolution: int,
+    ) -> Self:
+        origin = point.get(init_pos) + (delta_x, delta_y, 0.)
+        rate = math.hypot(delta_x, delta_y) / resolution
+        rise = 2. * aspect_ratio / resolution
+        return cls(point, origin, rate, rise)
+
+    def get(self, x: Matrix, t: float) -> tuple[Matrix, Vector]:
+        dp = self.point.get(x) - self.origin
+        r = np.linalg.norm(dp[:2])
+        dp *= -self.rate / r
+        dp[2] += self.rise * r
+        return self.point.expand(), dp
 
 
 @dataclass(slots=True)
