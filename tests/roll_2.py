@@ -9,7 +9,7 @@ from functools import partial
 from rift import rover
 from rift.arraytypes import Matrix
 from rift.tubetruss.robots import InverseKinematicsError,TrussRobot
-import rift.constrain as cstr
+import rift.tubetruss.constrain as cstr
 import numpy as np
 from rift.transmit.conversion import *
 from rift.transmit import commands
@@ -34,7 +34,7 @@ def shrink_in(robot: TrussRobot,
         cstr.Motion.make(rover.CR2,y=dy),
         cstr.Motion.make(rover.CR3,y=dy),
     ))
-    yield from robot.take_step(step_0, resolution=resolution, allow_redundant=True)
+    yield from robot.repeat_step(step_0, times=resolution, allow_redundant=True)
 
 def roll(
     robot: TrussRobot,
@@ -78,16 +78,25 @@ def roll(
             for foot in other_feet
         ),
     ))
-    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
-    dx = ((face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875) / resolution
-    foot_arc = partial(rover.parabolic, -dx)
+    yield from robot.repeat_step(step_1, times=resolution, allow_redundant=True)
+    x_dist = (face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875
     step_2 = cstr.CompoundConstraint((
         cstr.Motion.lock(chassis_com),
         cstr.Motion.make(face - base, z=0.),
-        cstr.Motion.make(foot_l, x=dx, z=foot_arc),
-        cstr.Motion.make(foot_r, x=dx, z=foot_arc),
+        cstr.ParabolicPath.make(
+            foot_l,
+            init_pos=robot.pos,
+            delta_x=x_dist,
+            resolution=resolution,
+        ),
+        cstr.ParabolicPath.make(
+            foot_r,
+            init_pos=robot.pos,
+            delta_x=x_dist,
+            resolution=resolution,
+        ),
     ))
-    yield from robot.take_step(step_2, resolution=resolution)
+    yield from robot.repeat_step(step_2, times=resolution)
     step_3 = cstr.CompoundConstraint((
         cstr.Motion.lock(face),
         cstr.Orbit.about_y(robot.pos, base-face, np.pi/3, resolution),
@@ -98,7 +107,7 @@ def roll(
         cstr.Orbit.about_y(robot.pos, arm_l-foot_l, np.pi, resolution),
         cstr.Orbit.about_y(robot.pos, arm_r-foot_r, np.pi, resolution),
     ))
-    yield from robot.take_step(step_3, resolution=resolution)
+    yield from robot.repeat_step(step_3, times=resolution)
 
 def stand(
             robot: TrussRobot,
@@ -120,7 +129,7 @@ def stand(
         cstr.Motion.make(rover.CR1,z=0),
         cstr.Motion.make(rover.CR2,z=0),
     ))
-    yield from robot.take_step(step_0, resolution=resolution, allow_redundant=True)
+    yield from robot.repeat_step(step_0, times=resolution, allow_redundant=True)
 
 def roll_p1(
     robot: TrussRobot,
@@ -145,7 +154,7 @@ def roll_p1(
             for foot in other_feet
         ),
     ))
-    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+    yield from robot.repeat_step(step_1, times=resolution, allow_redundant=True)
 
 def roll_p2(
     robot: TrussRobot,
@@ -163,7 +172,7 @@ def roll_p2(
         cstr.Motion.lock(rover.CP3),
         cstr.Motion.lock(rover.CQ3),
     ))
-    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+    yield from robot.repeat_step(step_1, times=resolution, allow_redundant=True)
 
 def roll_p3(
     robot: TrussRobot,
@@ -182,7 +191,7 @@ def roll_p3(
         cstr.Motion.lock(rover.CP3),
         cstr.Motion.lock(rover.CQ3),
     ))
-    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+    yield from robot.repeat_step(step_1, times=resolution, allow_redundant=True)
 
 def roll_p4(
     robot: TrussRobot,
@@ -198,7 +207,7 @@ def roll_p4(
         cstr.Motion.lock(rover.CP3),
         cstr.Motion.lock(rover.CQ3),
     ))
-    yield from robot.take_step(step_1, resolution=resolution, allow_redundant=True)
+    yield from robot.repeat_step(step_1, times=resolution, allow_redundant=True)
 
 def scoot(
     robot: TrussRobot,
@@ -217,7 +226,7 @@ def scoot(
         cstr.Motion.make(rover.CR1,z=0),
         cstr.Motion.lock(rover.CR2),
     ))
-    yield from robot.take_step(step, resolution=resolution, allow_redundant=True) 
+    yield from robot.repeat_step(step, times=resolution, allow_redundant=True)
 
 def roll_p5(
     robot: TrussRobot,
@@ -242,7 +251,7 @@ def roll_p5(
         cstr.Orbit.about_y(robot.pos, rover.CL1-rover.CL2, np.pi, resolution),
         cstr.Orbit.about_y(robot.pos, rover.CL1-rover.CL2, np.pi, resolution),
     ))
-    yield from robot.take_step(step, resolution=resolution, allow_redundant=True)
+    yield from robot.repeat_step(step, times=resolution, allow_redundant=True)
 
 async def main(
     init_pos: Matrix = rover.ROLLING_POS,
@@ -291,15 +300,15 @@ async def main(
     #     print(message)
     #     animate(stabilizer.pos)
     #     await asyncio.sleep(0)
-    
+
     # for dq in roll_p5(robot, resolution=100):
     #     stabilizer.update_pos(robot.pos)
     #     message = f"VEL:{','.join(str(int(c)) for c in (rover.TICKS_PER_SIDE * dq / 1.5).ravel())}"
     #     print(message)
     #     animate(stabilizer.pos)
         # await asyncio.sleep(0)
-    
-    
+
+
 
 
     print("Done with animation")
