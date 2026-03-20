@@ -1,5 +1,36 @@
 [project]
-name = "PySide Project"
+name = "rift"
+version = "0.0.0"
+description = "BYU CMR 2025 Capstone project"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy",
+    "pygame",
+    "PyOpenGL",
+    "pyqtgraph",
+    "pyserial",
+    "PySide6",
+    "qpsolvers[piqp]",
+    "scipy",
+]
+
+[build-system]
+requires = ["flit_core>=3.4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.module]
+name = "rift"
 
 [tool.pyside6-project]
-files = ["dummy_main.py", "rift/__main__.py", "rift/ui/Handlers/controls.py", "rift/ui/Handlers/joystick_handler.py", "rift/ui/Handlers/testbench.py", "rift/ui/Handlers/vis_handler.py", "rift/ui/Notes.txt", "rift/ui/main.py", "rift/ui/main.ui", "rift/ui/ui_main.py"]
+files = [
+    "dummy_main.py",
+    "rift/__main__.py",
+    "rift/ui/Handlers/controls.py",
+    "rift/ui/Handlers/joystick_handler.py",
+    "rift/ui/Handlers/testbench.py",
+    "rift/ui/Handlers/vis_handler.py",
+    "rift/ui/Notes.txt",
+    "rift/ui/main.py",
+    "rift/ui/main.ui",
+    "rift/ui/ui_main.py",
+]
