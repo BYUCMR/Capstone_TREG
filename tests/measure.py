@@ -105,7 +105,7 @@ def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     ))
     while True:
         try:
-            robot.take_substep(constraint)
+            robot.take_step(constraint)
         except InverseKinematicsError:
             break
     return robot.pos[rover.L1, 2] - dz - z0
@@ -122,7 +122,7 @@ def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     ))
     while True:
         try:
-            robot.take_substep(constraint)
+            robot.take_step(constraint)
         except InverseKinematicsError:
             break
     return robot.pos[rover.L1, 0] - dx - x0
@@ -146,7 +146,7 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
         ))
         try:
             for _ in range(resolution):
-                robot.take_substep(constraint)
+                robot.take_step(constraint)
         except InverseKinematicsError:
             break
         step_length += dx

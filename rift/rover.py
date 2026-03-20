@@ -277,7 +277,7 @@ def nudge_node(
             for n in np.flatnonzero(locked)
         ),
     ])
-    return robot.take_substep(motion, respect_floor=True, allow_redundant=True)
+    return robot.take_step(motion, respect_floor=True, allow_redundant=True)
 
 
 def nudge_chassis(
@@ -298,7 +298,7 @@ def nudge_chassis(
         cstr.Motion.make(CR2, z=0),
         cstr.Motion.make(cstr.Point.avg(CL1, CL2, CR1, CR2), x=0, y=0),
     ))
-    return robot.take_substep(motion)
+    return robot.take_step(motion)
 
 
 def tilt_chassis(
@@ -318,7 +318,7 @@ def tilt_chassis(
         cstr.Motion.make(CL3, y=0.),
         cstr.Motion.make(CR3, y=0.),
     ))
-    return robot.take_substep(motion, respect_floor=False)
+    return robot.take_step(motion, respect_floor=False)
 
 
 def crawl(
@@ -355,7 +355,7 @@ def crawl(
             steadily_forward,
             no_wobble,
         ])
-        yield from robot.take_step(motion, resolution=resolution)
+        yield from robot.repeat_step(motion, times=resolution)
 
 
 def lean(
@@ -373,7 +373,7 @@ def lean(
         cstr.Motion.lock(CL2),
         cstr.Motion.lock(CR2),
     ))
-    yield from robot.take_step(constraint, resolution=resolution)
+    yield from robot.repeat_step(constraint, times=resolution)
 
 
 def reach(
@@ -390,9 +390,9 @@ def reach(
         cstr.Motion.lock(CL1),
         cstr.Motion.lock(CR1),
     ))
-    yield from robot.take_step(
+    yield from robot.repeat_step(
         constraint,
-        resolution=resolution,
+        times=resolution,
         allow_redundant=True,
     )
 
@@ -438,7 +438,7 @@ def roll(
             for foot in other_feet
         ),
     ))
-    yield from robot.take_step(step_1, resolution=resolution)
+    yield from robot.repeat_step(step_1, times=resolution)
     x_dist = (face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875
     step_2 = cstr.CompoundConstraint((
         cstr.Motion.lock(chassis_com),
@@ -456,7 +456,7 @@ def roll(
             resolution=resolution,
         ),
     ))
-    yield from robot.take_step(step_2, resolution=resolution)
+    yield from robot.repeat_step(step_2, times=resolution)
     step_3 = cstr.CompoundConstraint((
         cstr.Motion.lock(face),
         cstr.Orbit.about_y(robot.pos, base-face, np.pi/3, resolution),
@@ -467,4 +467,4 @@ def roll(
         cstr.Orbit.about_y(robot.pos, arm_l-foot_l, np.pi, resolution),
         cstr.Orbit.about_y(robot.pos, arm_r-foot_r, np.pi, resolution),
     ))
-    yield from robot.take_step(step_3, resolution=resolution)
+    yield from robot.repeat_step(step_3, times=resolution)

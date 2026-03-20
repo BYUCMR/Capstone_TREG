@@ -114,7 +114,7 @@ class TrussRobot:
         self.pos += d_pos
         return d_pos
 
-    def take_substep(
+    def take_step(
         self,
         *constraints: cstr.Constraint,
         allow_redundant: bool = False,
@@ -145,15 +145,15 @@ class TrussRobot:
         self.pos += dx.reshape(self.pos.shape)
         return dq
 
-    def take_step(
+    def repeat_step(
         self,
         *constraints: cstr.Constraint,
-        resolution: int,
+        times: int,
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Generator[Vector]:
-        for _ in range(resolution):
-            yield self.take_substep(
+        for _ in range(times):
+            yield self.take_step(
                 *constraints,
                 allow_redundant=allow_redundant,
                 respect_floor=respect_floor,
