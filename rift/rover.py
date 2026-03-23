@@ -214,8 +214,8 @@ def setup_rover_builder(w_p):
     pos[R3] = [0,-w_p-H,h_t]
 
     mass = np.zeros(len(pos))
-    mass[FEET] = 1.
-    mass[CHASSIS] = 6.
+    mass[:6] = 1.
+    mass[6:] = 6.
 
     return pos
 
