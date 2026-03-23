@@ -1,13 +1,12 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import pairwise
-from typing import Final, Protocol
+from typing import Final, Protocol, SupportsIndex
 
 import numpy as np
-import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
-from .arraytypes import IndexVector, Matrix, SingleIndex, Vector
+from .arraytypes import IndexVector, Matrix, Vector
 
 
 OKABE_ITO: Final = (
@@ -51,8 +50,8 @@ class DrawnLinks(AnimationItem):
 
 @dataclass(slots=True, frozen=True)
 class NodeTrace(AnimationItem):
-    node: SingleIndex
-    length: SingleIndex
+    node: SupportsIndex
+    length: SupportsIndex
     drawing: gl.GLScatterPlotItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
@@ -60,7 +59,7 @@ class NodeTrace(AnimationItem):
 
     def update_pos(self, pos: Matrix) -> None:
         points = () if self.drawing.pos is None else self.drawing.pos
-        self.drawing.setData(pos=[*points[-self.length:], pos[self.node]])
+        self.drawing.setData(pos=[*points[-int(self.length):], pos[self.node]])
 
 
 @dataclass(slots=True, frozen=True)
@@ -111,26 +110,21 @@ class BodyMesh(AnimationItem):
         self.mesh.setMeshData(meshdata=mesh_data)
 
 
-def draw_links(nodes: IndexVector, pos: Matrix, *, color: str = 'gray', width: int = 6) -> DrawnLinks:
-    drawing = gl.GLLinePlotItem(
-        pos=pos[nodes],
-        width=width,
-        color=pg.mkColor(color),
-    )
+def draw_links(nodes: IndexVector, pos: Matrix, **kwargs) -> DrawnLinks:
+    drawing = gl.GLLinePlotItem(pos=pos[nodes], **kwargs)
     drawing.setGLOptions('opaque')
     return DrawnLinks(nodes, drawing)
 
 
 def draw_traces(
-    nodes: Iterable[SingleIndex],
-    length: SingleIndex,
+    nodes: Iterable[SupportsIndex],
+    length: SupportsIndex,
     pos: Matrix,
-    *,
-    size: int = 4,
+    **kwargs,
 ) -> list[NodeTrace]:
     traces: list[NodeTrace] = []
     for node in nodes:
-        drawing = gl.GLScatterPlotItem(pos=[pos[node]], size=size)
+        drawing = gl.GLScatterPlotItem(pos=[pos[node]], **kwargs)
         drawing.setGLOptions('opaque')
         trace = NodeTrace(node, length, drawing)
         traces.append(trace)

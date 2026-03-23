@@ -1,16 +1,15 @@
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
-from functools import cached_property
-from typing import Self
+from typing import Self, SupportsIndex
 
 import numpy as np
 
-from rift.arraytypes import IndexVector, Matrix, MatrixStack, SingleIndex, Vector
+from rift.arraytypes import IndexVector, Matrix
 from .linalg import incidence_from_trails
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Truss:
     """A representation of a truss structure."""
     incidence: Matrix[np.int8]
@@ -24,30 +23,11 @@ class Truss:
         return self.incidence.shape[1]
 
     @classmethod
-    def from_trails(cls, *trails: Iterable[SingleIndex]) -> Self:
+    def from_trails(cls, *trails: Iterable[SupportsIndex]) -> Self:
         return cls(incidence_from_trails(*trails))
 
-    @cached_property
-    def nodes(self) -> Vector[np.intp]:
-        return np.unique(np.nonzero(self.incidence)[1])
-
-    @cached_property
-    def links(self) -> Matrix[np.intp]:
+    def get_links(self) -> Matrix[np.intp]:
         return np.array([np.flatnonzero(row) for row in self.incidence])
-
-    @cached_property
-    def pos_to_rigidity(self) -> MatrixStack:
-        """Return a 3-D matrix that can be used to calculate a rigidity matrix.
-
-        This matrix converts a vector of node positions into a rigidity matrix.
-        The rigidity matrix converts a column of node velocities into a column
-        comprising the length of each link times its rate of change.
-        """
-        M = np.array([np.linalg.outer(row, row) for row in self.incidence])
-        # We could skip the Kronecker product here and replace
-        # `M @ pos.ravel()` with `(M @ pos).reshape(-1, pos.size)`
-        # later on, but this keeps the interface simpler.
-        return np.kron(M, np.eye(3))
 
     def rigidity_at(self, pos: Matrix, *, normalize: bool = True) -> Matrix:
         """
@@ -59,7 +39,8 @@ class Truss:
         If `normalize == False`, then each value in the resulting vector will
         be multiplied by the length of the corresponding link.
         """
-        rigidity = self.pos_to_rigidity @ pos.ravel()
+        B = self.incidence
+        rigidity = (B[:,:,None] @ B[:,None,:] @ pos).reshape(-1, pos.size)
         if normalize:
             norms = np.linalg.vector_norm(rigidity, axis=1, keepdims=True)
             rigidity *= math.sqrt(2.) / norms

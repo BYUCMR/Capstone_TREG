@@ -1,18 +1,18 @@
 import math
 from collections.abc import Iterable
 from itertools import chain, pairwise
-from typing import cast
+from typing import SupportsIndex, cast
 
 import numpy as np
 
-from rift.arraytypes import Matrix, SingleIndex, Vector
+from rift.arraytypes import Matrix, Vector
 
 
 def incidence_from_trails(
-    *trails: Iterable[SingleIndex],
-    empty_cols: SingleIndex = 0,
+    *trails: Iterable[SupportsIndex],
+    empty_cols: SupportsIndex = 0,
 ) -> Matrix[np.int8]:
-    n_cols = 1 + max(chain.from_iterable(trails)) + empty_cols
+    n_cols = 1 + max(map(int, chain.from_iterable(trails))) + int(empty_cols)
     rows: list[Vector[np.int8]] = []
     for trail in trails:
         for i, j in pairwise(trail):

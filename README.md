@@ -14,8 +14,8 @@ similar to the one simulated by the MATLAB code, but this one carries a
 payload. It has also been simplified such that there is no offset between
 connected triangle modules.
 
-The package requires Python 3.13 or above. Its required libraries can be
-installed via `pip install -r rift/requirements.txt`
+The package requires Python 3.13 or above. It can be installed locally with
+`python -m pip install --editable .`.
 
 ### Tests
 The RIFT package is used through various tests. The `animate.py` script runs

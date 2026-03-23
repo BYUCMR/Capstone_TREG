@@ -1,7 +1,8 @@
+import enum
 import math
 from collections.abc import Callable, Generator
 from functools import partial
-from typing import Final
+from typing import Final, SupportsIndex
 
 import numpy as np
 import pyqtgraph as pg
@@ -10,33 +11,55 @@ import pyqtgraph.opengl as gl
 from . import anim
 from . import grav
 from . import tubetruss as tt
-from .arraytypes import Matrix, SingleIndex, Vector
+from .arraytypes import Matrix, Vector
 from .tubetruss import constrain as cstr
 
 
-# Left feet / end-effectors
-L1: Final = 0
-L2: Final = 1
-L3: Final = 2
+@enum.global_enum
+class Node(enum.Enum):
+    # Left feet / end-effectors
+    L1 = 0
+    L2 = 1
+    L3 = 2
+    # Right feet / end effectors
+    R1 = 3
+    R2 = 4
+    R3 = 5
+    # Left side of chassis / body
+    P1 = 6
+    P2 = 7
+    P3 = 8
+    # Right side of chassis / body
+    Q1 = 9
+    Q2 = 10
+    Q3 = 11
 
-# Right feet / end effectors
-R1: Final = 3
-R2: Final = 4
-R3: Final = 5
+    def __index__(self) -> int:
+        return self.value
 
-# Left side of chassis / body
-P1: Final = 6
-P2: Final = 7
-P3: Final = 8
+    @property
+    def i(self) -> int:
+        return self.value
 
-# Right side of chassis / body
-Q1: Final = 9
-Q2: Final = 10
-Q3: Final = 11
+    @property
+    def c(self) -> cstr.Point:
+        return cstr.Point.node(self, len(type(self)))
 
-# Slices
-FEET: Final = slice(L1, R3+1)
-CHASSIS: Final = slice(P1, Q3+1)
+
+# `enum.global_enum` does this, but tools can't tell.
+L1: Final = Node.L1
+L2: Final = Node.L2
+L3: Final = Node.L3
+R1: Final = Node.R1
+R2: Final = Node.R2
+R3: Final = Node.R3
+P1: Final = Node.P1
+P2: Final = Node.P2
+P3: Final = Node.P3
+Q1: Final = Node.Q1
+Q2: Final = Node.Q2
+Q3: Final = Node.Q3
+
 
 # Links
 L1_L2: Final = 0
@@ -60,7 +83,7 @@ Q2_R3: Final = 16
 R3_R1: Final = 17
 
 # Truss structures
-LEG_TRUSS: Final = tt.Truss.from_trails(
+TRUSS: Final = tt.Truss.from_trails(
     # These must follow the link order defined above.
     (L1, L2, P3, L1),
     (P1, L2, L3, P1),
@@ -68,8 +91,7 @@ LEG_TRUSS: Final = tt.Truss.from_trails(
     (R1, R2, Q3, R1),
     (Q1, R2, R3, Q1),
     (R1, Q2, R3, R1),
-)
-CHASSIS_TRUSS: Final = tt.Truss.from_trails(
+    # These can be in any order.
     (P1, Q1),
     (P2, Q2),
     (P3, Q3),
@@ -92,28 +114,14 @@ CONTROL: Final = tt.LengthControl.from_trails(
     (R2_Q3, R1_R2, Q3_R1),  # Rollers 07 and 08
     (R1_Q2, R3_R1, Q2_R3),  # Rollers 09 and 10
     (R3_Q1, R2_R3, Q1_R2),  # Rollers 11 and 12
-    n_static=CHASSIS_TRUSS.n_links,
+    n_static=12,
 )
 
 # Point masses
 MASS: Final = np.zeros(12)
-MASS[FEET] = 1.
-MASS[CHASSIS] = 6.
-
-# Constraint points
-CL1: Final = cstr.Point.node(L1, 12)
-CL2: Final = cstr.Point.node(L2, 12)
-CL3: Final = cstr.Point.node(L3, 12)
-CR1: Final = cstr.Point.node(R1, 12)
-CR2: Final = cstr.Point.node(R2, 12)
-CR3: Final = cstr.Point.node(R3, 12)
-CP1: Final = cstr.Point.node(P1, 12)
-CP2: Final = cstr.Point.node(P2, 12)
-CP3: Final = cstr.Point.node(P3, 12)
-CQ1: Final = cstr.Point.node(Q1, 12)
-CQ2: Final = cstr.Point.node(Q2, 12)
-CQ3: Final = cstr.Point.node(Q3, 12)
-CCOM: Final = cstr.Point.com(MASS)
+CHASSIS_MASS: Final = np.zeros(12)
+MASS[:6] = 1.
+MASS[6:] = CHASSIS_MASS[6:] = 6.
 
 # Physical size
 # In actuality, we have 1125 * 12 * 4 ticks per side, but we
@@ -217,8 +225,7 @@ ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 1.0)
 
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussRobot:
     pos = init_pos.copy()
-    truss = LEG_TRUSS.attach(CHASSIS_TRUSS)
-    return tt.TrussRobot(pos, truss, CONTROL)
+    return tt.TrussRobot(pos, TRUSS, CONTROL)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -230,12 +237,12 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
 def set_up_animation(
     init_pos: Matrix = CRAWLING_POS,
     *,
-    trace_len: SingleIndex = 100,
+    trace_len: SupportsIndex = 100,
 ) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
     items: list[anim.AnimationItem] = []
     chassis_mesh = gl.GLMeshItem(
         meshdata=gl.MeshData(
-            vertexes=init_pos[CHASSIS_TRUSS.nodes],
+            vertexes=init_pos[6:12],
             faces=[
                 [0, 1, 2], [3, 4, 5],
                 [0, 3, 5], [0, 2, 5],
@@ -246,23 +253,24 @@ def set_up_animation(
         color=pg.mkColor(anim.OKABE_ITO[-1]),
     )
     chassis_mesh.setGLOptions('opaque')
-    items.append(anim.BodyMesh(CHASSIS_TRUSS.nodes, chassis_mesh))
+    items.append(anim.BodyMesh(range(6, 12), chassis_mesh))
     items.append(anim.draw_links(
-        CHASSIS_TRUSS.links.ravel(),
+        TRUSS.get_links()[18:].ravel(),
         init_pos,
         color='black',
         width=4,
+        mode='lines',
     ))
     triangles = [
-        [P1, L2, L3, P1],
-        [P2, L3, L1, P2],
-        [P3, L1, L2, P3],
-        [Q1, R2, R3, Q1],
-        [Q2, R3, R1, Q2],
-        [Q3, R1, R2, Q3],
+        [P1.i, L2.i, L3.i, P1.i],
+        [P2.i, L3.i, L1.i, P2.i],
+        [P3.i, L1.i, L2.i, P3.i],
+        [Q1.i, R2.i, R3.i, Q1.i],
+        [Q2.i, R3.i, R1.i, Q2.i],
+        [Q3.i, R1.i, R2.i, Q3.i],
     ]
     items += (
-        anim.draw_links(trail, init_pos, color=color)
+        anim.draw_links(trail, init_pos, color=color, width=6)
         for trail, color in zip(triangles, anim.OKABE_ITO[1:])
     )
     for trail in triangles:
@@ -275,7 +283,7 @@ def set_up_animation(
         markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
         markers.update_pos(init_pos)
         items.append(markers)
-    items += anim.draw_traces(range(12), trace_len, init_pos)
+    items += anim.draw_traces(range(12), trace_len, init_pos, size=4)
 
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())
@@ -285,16 +293,16 @@ def set_up_animation(
 
 def adjust_roller(
     robot: tt.TrussRobot,
-    roller: SingleIndex,
+    roller: SupportsIndex,
     amount: float,
 ) -> Vector:
     dq = np.zeros(robot.n_rollers)
     dq[roller] = amount
     # We might be able to make better constraints than this.
     constraint = cstr.CompoundConstraint([
-        cstr.Motion.make(CL1, x=0, y=0, z=0),
-        cstr.Motion.make(CL2, y=0, z=0),
-        cstr.Motion.make(CR1, z=0),
+        cstr.Motion.make(L1.c, x=0, y=0, z=0),
+        cstr.Motion.make(L2.c, y=0, z=0),
+        cstr.Motion.make(R1.c, z=0),
     ])
     robot.apply_roll(dq, constraint)
     return dq
@@ -302,7 +310,7 @@ def adjust_roller(
 
 def nudge_node(
     robot: tt.TrussRobot,
-    node: SingleIndex,
+    node: SupportsIndex,
     x: float,
     y: float,
     z: float,
@@ -310,9 +318,9 @@ def nudge_node(
     locked = robot.pos[:, 2] < grav.DEFAULT_TOL
     locked[node] = False
     motion = cstr.CompoundConstraint([
-        cstr.Motion.make(cstr.Point.node(node, robot.n_nodes), x, y, z),
+        cstr.Motion.make(Node(node).c, x, y, z),
         *(
-            cstr.Motion.lock(cstr.Point.node(n, robot.n_nodes))
+            cstr.Motion.lock(Node(n).c)
             for n in np.flatnonzero(locked)
         ),
     ])
@@ -325,17 +333,15 @@ def nudge_chassis(
     y: float,
     z: float,
 ) -> Vector:
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(CHASSIS_MASS)
     motion = cstr.CompoundConstraint((
         cstr.Motion.make(chassis_com, x, y, z),
-        cstr.Motion.make(CP3-CQ3, x=0, z=0),
-        cstr.Motion.make(CL1, z=0),
-        cstr.Motion.make(CL2, z=0),
-        cstr.Motion.make(CR1, z=0),
-        cstr.Motion.make(CR2, z=0),
-        cstr.Motion.make(cstr.Point.avg(CL1, CL2, CR1, CR2), x=0, y=0),
+        cstr.Motion.make(P3.c-Q3.c, x=0, z=0),
+        cstr.Motion.make(L1.c, z=0),
+        cstr.Motion.make(L2.c, z=0),
+        cstr.Motion.make(R1.c, z=0),
+        cstr.Motion.make(R2.c, z=0),
+        cstr.Motion.make(cstr.Point.avg(L1.c, L2.c, R1.c, R2.c), x=0, y=0),
     ))
     return robot.take_step(motion)
 
@@ -344,18 +350,18 @@ def tilt_chassis(
     robot: tt.TrussRobot,
     angle: float,
 ) -> Vector:
-    base = cstr.Point.avg(CP3, CQ3)
-    face = cstr.Point.avg(CP2, CQ2)
+    base = cstr.Point.avg(P3.c, Q3.c)
+    face = cstr.Point.avg(P2.c, Q2.c)
     motion = cstr.CompoundConstraint((
         cstr.Motion.lock(base),
         cstr.Orbit(face-base, np.array([0, 1, 0]), angle),
         cstr.Motion.make(face - base, y=0.),
-        cstr.Motion.lock(CL1),
-        cstr.Motion.lock(CR1),
-        cstr.Motion.make(CL2, y=0.),
-        cstr.Motion.make(CR2, y=0.),
-        cstr.Motion.make(CL3, y=0.),
-        cstr.Motion.make(CR3, y=0.),
+        cstr.Motion.lock(L1.c),
+        cstr.Motion.lock(R1.c),
+        cstr.Motion.make(L2.c, y=0.),
+        cstr.Motion.make(R2.c, y=0.),
+        cstr.Motion.make(L3.c, y=0.),
+        cstr.Motion.make(R3.c, y=0.),
     ))
     return robot.take_step(motion, respect_floor=False)
 
@@ -367,16 +373,14 @@ def crawl(
     *,
     resolution: int = 50,
 ) -> Generator[Vector]:
-    chassis_mass = np.zeros(robot.n_nodes)
-    chassis_mass[CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
-    chassis_up = chassis_com - cstr.Point.avg(CP3, CQ3)
+    chassis_com = cstr.Point.com(CHASSIS_MASS)
+    chassis_up = chassis_com - cstr.Point.avg(P3.c, Q3.c)
     no_wobble = cstr.Motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
     steadily_forward = cstr.Motion.make(
         chassis_com, x=0.25 * x_dist / resolution
     )
-    feet = (CL2, CL1, CR2, CR1)
+    feet = (L2.c, L1.c, R2.c, R1.c)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
             cstr.ParabolicPath.make(
@@ -405,12 +409,12 @@ def lean(
 ) -> Generator[Vector]:
     dx = dist / resolution
     constraint = cstr.CompoundConstraint((
-        cstr.Motion.make(CP2, dx),
-        cstr.Motion.make(CQ2, dx),
-        cstr.Motion.lock(CL1),
-        cstr.Motion.lock(CR1),
-        cstr.Motion.lock(CL2),
-        cstr.Motion.lock(CR2),
+        cstr.Motion.make(P2.c, dx),
+        cstr.Motion.make(Q2.c, dx),
+        cstr.Motion.lock(L1.c),
+        cstr.Motion.lock(R1.c),
+        cstr.Motion.lock(L2.c),
+        cstr.Motion.lock(R2.c),
     ))
     yield from robot.repeat_step(constraint, times=resolution)
 
@@ -422,12 +426,12 @@ def reach(
     resolution: int = 100,
 ) -> Generator[Vector]:
     constraint = cstr.CompoundConstraint((
-        cstr.Motion.make(CL3, x=dist / resolution),
-        cstr.Motion.make(CR3, x=dist / resolution),
-        cstr.Motion.lock(CP3),
-        cstr.Motion.lock(CQ3),
-        cstr.Motion.lock(CL1),
-        cstr.Motion.lock(CR1),
+        cstr.Motion.make(L3.c, x=dist / resolution),
+        cstr.Motion.make(R3.c, x=dist / resolution),
+        cstr.Motion.lock(P3.c),
+        cstr.Motion.lock(Q3.c),
+        cstr.Motion.lock(L1.c),
+        cstr.Motion.lock(R1.c),
     ))
     yield from robot.repeat_step(
         constraint,
@@ -443,14 +447,14 @@ def roll(
     resolution: int = 100,
 ) -> Generator[Vector]:
     chassis_midpoints = (
-        cstr.Point.avg(CP1, CQ1),
-        cstr.Point.avg(CP3, CQ3),
-        cstr.Point.avg(CP2, CQ2),
+        cstr.Point.avg(P1.c, Q1.c),
+        cstr.Point.avg(P3.c, Q3.c),
+        cstr.Point.avg(P2.c, Q2.c),
     )
     foot_pairs = (
-        (CL1, CR1),
-        (CL3, CR3),
-        (CL2, CR2),
+        (L1.c, R1.c),
+        (L3.c, R3.c),
+        (L2.c, R2.c),
     )
     base = chassis_midpoints[i-2]
     face = chassis_midpoints[i-1]
@@ -462,9 +466,7 @@ def roll(
         for foot in pair
         if j != i
     ]
-    chassis_mass = np.zeros(robot.n_nodes)
-    chassis_mass[CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(CHASSIS_MASS)
     feet_midpoint = cstr.Point.avg(foot_l, foot_r)
     step_1 = cstr.CompoundConstraint((
         cstr.Motion.lock(base),
