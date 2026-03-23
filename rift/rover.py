@@ -213,6 +213,7 @@ def set_up_animation(
         init_pos,
         color='black',
         width=4,
+        mode='lines',
     ))
     triangles = [
         [P1, L2, L3, P1],
