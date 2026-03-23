@@ -1,10 +1,10 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Self
+from typing import Self, SupportsIndex
 
 import numpy as np
 
-from rift.arraytypes import Matrix, SingleIndex
+from rift.arraytypes import Matrix
 from .linalg import cokernel, incidence_from_trails
 
 
@@ -49,7 +49,7 @@ class LengthControl:
     @classmethod
     def from_trails(
         cls,
-        *trails: Iterable[SingleIndex],
+        *trails: Iterable[SupportsIndex],
         n_static: int = 0,
     ) -> Self:
         forward_T = incidence_from_trails(*trails, empty_cols=n_static)

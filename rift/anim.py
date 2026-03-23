@@ -1,12 +1,12 @@
 from collections.abc import Iterable
 from dataclasses import dataclass
 from itertools import pairwise
-from typing import Final, Protocol
+from typing import Final, Protocol, SupportsIndex
 
 import numpy as np
 import pyqtgraph.opengl as gl
 
-from .arraytypes import IndexVector, Matrix, SingleIndex, Vector
+from .arraytypes import IndexVector, Matrix, Vector
 
 
 OKABE_ITO: Final = (
@@ -50,8 +50,8 @@ class DrawnLinks(AnimationItem):
 
 @dataclass(slots=True, frozen=True)
 class NodeTrace(AnimationItem):
-    node: SingleIndex
-    length: SingleIndex
+    node: SupportsIndex
+    length: SupportsIndex
     drawing: gl.GLScatterPlotItem
 
     def add_to_view(self, view: gl.GLViewWidget) -> None:
@@ -59,7 +59,7 @@ class NodeTrace(AnimationItem):
 
     def update_pos(self, pos: Matrix) -> None:
         points = () if self.drawing.pos is None else self.drawing.pos
-        self.drawing.setData(pos=[*points[-self.length:], pos[self.node]])
+        self.drawing.setData(pos=[*points[-int(self.length):], pos[self.node]])
 
 
 @dataclass(slots=True, frozen=True)
@@ -117,8 +117,8 @@ def draw_links(nodes: IndexVector, pos: Matrix, **kwargs) -> DrawnLinks:
 
 
 def draw_traces(
-    nodes: Iterable[SingleIndex],
-    length: SingleIndex,
+    nodes: Iterable[SupportsIndex],
+    length: SupportsIndex,
     pos: Matrix,
     **kwargs,
 ) -> list[NodeTrace]:

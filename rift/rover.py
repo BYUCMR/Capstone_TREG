@@ -10,7 +10,7 @@ import pyqtgraph.opengl as gl
 from . import anim
 from . import grav
 from . import tubetruss as tt
-from .arraytypes import Matrix, SingleIndex, Vector
+from .arraytypes import Matrix, Vector
 from .tubetruss import constrain as cstr
 
 
@@ -186,7 +186,7 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
 def set_up_animation(
     init_pos: Matrix = CRAWLING_POS,
     *,
-    trace_len: SingleIndex = 100,
+    trace_len: SupportsIndex = 100,
 ) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
     items: list[anim.AnimationItem] = []
     chassis_mesh = gl.GLMeshItem(
@@ -242,7 +242,7 @@ def set_up_animation(
 
 def adjust_roller(
     robot: tt.TrussRobot,
-    roller: SingleIndex,
+    roller: SupportsIndex,
     amount: float,
 ) -> Vector:
     dq = np.zeros(robot.n_rollers)
@@ -259,7 +259,7 @@ def adjust_roller(
 
 def nudge_node(
     robot: tt.TrussRobot,
-    node: SingleIndex,
+    node: SupportsIndex,
     x: float,
     y: float,
     z: float,

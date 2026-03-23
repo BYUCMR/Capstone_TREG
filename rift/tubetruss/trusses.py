@@ -1,11 +1,11 @@
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Self
+from typing import Self, SupportsIndex
 
 import numpy as np
 
-from rift.arraytypes import IndexVector, Matrix, SingleIndex
+from rift.arraytypes import IndexVector, Matrix
 from .linalg import incidence_from_trails
 
 
@@ -23,7 +23,7 @@ class Truss:
         return self.incidence.shape[1]
 
     @classmethod
-    def from_trails(cls, *trails: Iterable[SingleIndex]) -> Self:
+    def from_trails(cls, *trails: Iterable[SupportsIndex]) -> Self:
         return cls(incidence_from_trails(*trails))
 
     def get_links(self) -> Matrix[np.intp]:

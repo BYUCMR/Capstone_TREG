@@ -1,12 +1,13 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass
 from enum import Enum
+from typing import SupportsIndex
 
 import numpy as np
 
 from rift import rover
 from rift import tubetruss as tt
-from rift.arraytypes import SingleIndex, Vector
+from rift.arraytypes import Vector
 
 
 class Mode(Enum):
@@ -21,7 +22,7 @@ class Mode(Enum):
 @dataclass
 class Command:
     mode: Mode
-    item: SingleIndex
+    item: SupportsIndex
     x: float
     y: float
     z: float

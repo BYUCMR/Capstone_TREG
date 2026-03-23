@@ -1,11 +1,11 @@
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Protocol, Self
+from typing import Protocol, Self, SupportsIndex
 
 import numpy as np
 
-from rift.arraytypes import Matrix, SingleIndex, Vector
+from rift.arraytypes import Matrix, Vector
 
 
 class Constraint(Protocol):
@@ -19,7 +19,7 @@ class Point:
     _weights: Vector
 
     @classmethod
-    def node(cls, i: SingleIndex, n: SingleIndex) -> Self:
+    def node(cls, i: SupportsIndex, n: SupportsIndex) -> Self:
         """Represent point `i` out of `n`."""
         weights = np.zeros(n)
         weights[i] = 1
