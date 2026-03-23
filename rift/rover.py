@@ -60,7 +60,7 @@ Q2_R3: Final = 16
 R3_R1: Final = 17
 
 # Truss structures
-LEG_TRUSS: Final = tt.Truss.from_trails(
+TRUSS: Final = tt.Truss.from_trails(
     # These must follow the link order defined above.
     (L1, L2, P3, L1),
     (P1, L2, L3, P1),
@@ -68,8 +68,7 @@ LEG_TRUSS: Final = tt.Truss.from_trails(
     (R1, R2, Q3, R1),
     (Q1, R2, R3, Q1),
     (R1, Q2, R3, R1),
-)
-CHASSIS_TRUSS: Final = tt.Truss.from_trails(
+    # These can be in any order.
     (P1, Q1),
     (P2, Q2),
     (P3, Q3),
@@ -92,7 +91,7 @@ CONTROL: Final = tt.LengthControl.from_trails(
     (R2_Q3, R1_R2, Q3_R1),  # Rollers 07 and 08
     (R1_Q2, R3_R1, Q2_R3),  # Rollers 09 and 10
     (R3_Q1, R2_R3, Q1_R2),  # Rollers 11 and 12
-    n_static=CHASSIS_TRUSS.n_links,
+    n_static=12,
 )
 
 # Point masses
@@ -178,8 +177,7 @@ ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 1.0)
 
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussRobot:
     pos = init_pos.copy()
-    truss = LEG_TRUSS.attach(CHASSIS_TRUSS)
-    return tt.TrussRobot(pos, truss, CONTROL)
+    return tt.TrussRobot(pos, TRUSS, CONTROL)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -209,7 +207,7 @@ def set_up_animation(
     chassis_mesh.setGLOptions('opaque')
     items.append(anim.BodyMesh(range(6, 12), chassis_mesh))
     items.append(anim.draw_links(
-        CHASSIS_TRUSS.get_links().ravel(),
+        TRUSS.get_links()[18:].ravel(),
         init_pos,
         color='black',
         width=4,
