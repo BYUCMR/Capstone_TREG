@@ -1,16 +1,15 @@
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
-from functools import cached_property
 from typing import Self
 
 import numpy as np
 
-from rift.arraytypes import IndexVector, Matrix, SingleIndex, Vector
+from rift.arraytypes import IndexVector, Matrix, SingleIndex
 from .linalg import incidence_from_trails
 
 
-@dataclass(frozen=True)
+@dataclass(slots=True, frozen=True)
 class Truss:
     """A representation of a truss structure."""
     incidence: Matrix[np.int8]
@@ -27,12 +26,7 @@ class Truss:
     def from_trails(cls, *trails: Iterable[SingleIndex]) -> Self:
         return cls(incidence_from_trails(*trails))
 
-    @cached_property
-    def nodes(self) -> Vector[np.intp]:
-        return np.unique(np.nonzero(self.incidence)[1])
-
-    @cached_property
-    def links(self) -> Matrix[np.intp]:
+    def get_links(self) -> Matrix[np.intp]:
         return np.array([np.flatnonzero(row) for row in self.incidence])
 
     def rigidity_at(self, pos: Matrix, *, normalize: bool = True) -> Matrix:

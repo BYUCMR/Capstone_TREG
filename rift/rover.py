@@ -196,7 +196,7 @@ def set_up_animation(
     items: list[anim.AnimationItem] = []
     chassis_mesh = gl.GLMeshItem(
         meshdata=gl.MeshData(
-            vertexes=init_pos[CHASSIS_TRUSS.nodes],
+            vertexes=init_pos[6:12],
             faces=[
                 [0, 1, 2], [3, 4, 5],
                 [0, 3, 5], [0, 2, 5],
@@ -207,9 +207,9 @@ def set_up_animation(
         color=pg.mkColor(anim.OKABE_ITO[-1]),
     )
     chassis_mesh.setGLOptions('opaque')
-    items.append(anim.BodyMesh(CHASSIS_TRUSS.nodes, chassis_mesh))
+    items.append(anim.BodyMesh(range(6, 12), chassis_mesh))
     items.append(anim.draw_links(
-        CHASSIS_TRUSS.links.ravel(),
+        CHASSIS_TRUSS.get_links().ravel(),
         init_pos,
         color='black',
         width=4,
