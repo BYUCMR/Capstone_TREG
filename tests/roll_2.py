@@ -18,21 +18,19 @@ def shrink_in(robot: TrussRobot,
     *,
     i: int = 0,
     resolution: int = 100,):
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[rover.CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(rover.CHASSIS_MASS)
 
     dy = 0.1 / resolution
     step_0 = cstr.CompoundConstraint((
-        cstr.Motion.lock(rover.CP3),
-        cstr.Motion.lock(rover.CQ3),
+        cstr.Motion.lock(rover.P3.c),
+        cstr.Motion.lock(rover.Q3.c),
         cstr.Motion.lock(chassis_com),
-        cstr.Motion.make(rover.CL1,y=-dy),
-        cstr.Motion.make(rover.CL2,y=-dy),
-        cstr.Motion.make(rover.CL3,y=-dy),
-        cstr.Motion.make(rover.CR1,y=dy),
-        cstr.Motion.make(rover.CR2,y=dy),
-        cstr.Motion.make(rover.CR3,y=dy),
+        cstr.Motion.make(rover.L1.c,y=-dy),
+        cstr.Motion.make(rover.L2.c,y=-dy),
+        cstr.Motion.make(rover.L3.c,y=-dy),
+        cstr.Motion.make(rover.R1.c,y=dy),
+        cstr.Motion.make(rover.R2.c,y=dy),
+        cstr.Motion.make(rover.R3.c,y=dy),
     ))
     yield from robot.repeat_step(step_0, times=resolution, allow_redundant=True)
 
@@ -43,14 +41,14 @@ def roll(
     resolution: int = 100,
 ) -> Generator[Vector]:
     chassis_midpoints = (
-        cstr.Point.avg(rover.CP1, rover.CQ1),
-        cstr.Point.avg(rover.CP3, rover.CQ3),
-        cstr.Point.avg(rover.CP2, rover.CQ2),
+        cstr.Point.avg(rover.P1.c, rover.Q1.c),
+        cstr.Point.avg(rover.P3.c, rover.Q3.c),
+        cstr.Point.avg(rover.P2.c, rover.Q2.c),
     )
     foot_pairs = (
-        (rover.CL1, rover.CR1),
-        (rover.CL3, rover.CR3),
-        (rover.CL2, rover.CR2),
+        (rover.L1.c, rover.R1.c),
+        (rover.L3.c, rover.R3.c),
+        (rover.L2.c, rover.R2.c),
     )
     base = chassis_midpoints[i-2]
     face = chassis_midpoints[i-1]
@@ -62,9 +60,7 @@ def roll(
         for foot in pair
         if j != i
     ]
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[rover.CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(rover.CHASSIS_MASS)
     feet_midpoint = cstr.Point.avg(foot_l, foot_r)
 
     step_1 = cstr.CompoundConstraint((
@@ -116,18 +112,16 @@ def stand(
     resolution: int = 100,
     z=.5
 ) -> Generator[Vector]:
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[rover.CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(rover.CHASSIS_MASS)
 
     dz = z / resolution
     step_0 = cstr.CompoundConstraint((
         cstr.Motion.make(chassis_com,z=dz,x=0,y=0),
-        cstr.Motion.make(rover.CP3,x=0,y=0),
-        cstr.Motion.make(rover.CL1,z=0),
-        cstr.Motion.make(rover.CL2,z=0),
-        cstr.Motion.make(rover.CR1,z=0),
-        cstr.Motion.make(rover.CR2,z=0),
+        cstr.Motion.make(rover.P3.c,x=0,y=0),
+        cstr.Motion.make(rover.L1.c,z=0),
+        cstr.Motion.make(rover.L2.c,z=0),
+        cstr.Motion.make(rover.R1.c,z=0),
+        cstr.Motion.make(rover.R2.c,z=0),
     ))
     yield from robot.repeat_step(step_0, times=resolution, allow_redundant=True)
 
@@ -136,19 +130,17 @@ def roll_p1(
     *,
     resolution: int = 100,
 ) -> Generator[Vector]:
-    base = cstr.Point.avg(rover.CP3, rover.CQ3)
-    face = cstr.Point.avg(rover.CP2, rover.CQ2)
-    other_feet = [rover.CL2, rover.CR2, rover.CL3, rover.CR3]
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[rover.CHASSIS] = 1.
+    base = cstr.Point.avg(rover.P3.c, rover.Q3.c)
+    face = cstr.Point.avg(rover.P2.c, rover.Q2.c)
+    other_feet = [rover.L2.c, rover.R2.c, rover.L3.c, rover.R3.c]
     step_1 = cstr.CompoundConstraint((
         cstr.Motion.lock(base),
         cstr.Orbit.about_y(robot.pos, face-base, np.pi, resolution),
         cstr.Motion.make(face - base, y=0.),
-        cstr.Motion.make(rover.CL2, z=0),
-        cstr.Motion.make(rover.CR2, z=0),
-        cstr.Motion.lock(rover.CL1),
-        cstr.Motion.lock(rover.CR1),
+        cstr.Motion.make(rover.L2.c, z=0),
+        cstr.Motion.make(rover.R2.c, z=0),
+        cstr.Motion.lock(rover.L1.c),
+        cstr.Motion.lock(rover.R1.c),
         *(
             cstr.Motion.make(foot, y=0.)
             for foot in other_feet
@@ -163,14 +155,14 @@ def roll_p2(
 ) -> Generator[Vector]:
     dz = .2/resolution
     step_1 = cstr.CompoundConstraint((
-        cstr.Motion.make(rover.CL2, z=dz),
-        cstr.Motion.make(rover.CR2, z=dz),
-        cstr.Motion.make(rover.CL1, z=dz),
-        cstr.Motion.make(rover.CR1, z=dz),
-        cstr.Motion.lock(rover.CP1),
-        cstr.Motion.lock(rover.CQ1),
-        cstr.Motion.lock(rover.CP3),
-        cstr.Motion.lock(rover.CQ3),
+        cstr.Motion.make(rover.L2.c, z=dz),
+        cstr.Motion.make(rover.R2.c, z=dz),
+        cstr.Motion.make(rover.L1.c, z=dz),
+        cstr.Motion.make(rover.R1.c, z=dz),
+        cstr.Motion.lock(rover.P1.c),
+        cstr.Motion.lock(rover.Q1.c),
+        cstr.Motion.lock(rover.P3.c),
+        cstr.Motion.lock(rover.Q3.c),
     ))
     yield from robot.repeat_step(step_1, times=resolution, allow_redundant=True)
 
@@ -182,14 +174,14 @@ def roll_p3(
     dx = -.5/resolution
     step_1 = cstr.CompoundConstraint((
 
-        cstr.Motion.make(rover.CL1, x=dx,z=0),
-        cstr.Motion.make(rover.CR1,x=dx,z=0),
-        cstr.Motion.make(rover.CL2, x=0),
-        cstr.Motion.make(rover.CR2,x=0),
-        cstr.Motion.lock(rover.CP1),
-        cstr.Motion.lock(rover.CQ1),
-        cstr.Motion.lock(rover.CP3),
-        cstr.Motion.lock(rover.CQ3),
+        cstr.Motion.make(rover.L1.c, x=dx,z=0),
+        cstr.Motion.make(rover.R1.c,x=dx,z=0),
+        cstr.Motion.make(rover.L2.c, x=0),
+        cstr.Motion.make(rover.R2.c,x=0),
+        cstr.Motion.lock(rover.P1.c),
+        cstr.Motion.lock(rover.Q1.c),
+        cstr.Motion.lock(rover.P3.c),
+        cstr.Motion.lock(rover.Q3.c),
     ))
     yield from robot.repeat_step(step_1, times=resolution, allow_redundant=True)
 
@@ -200,12 +192,12 @@ def roll_p4(
 ) -> Generator[Vector]:
     dz = -.2/resolution
     step_1 = cstr.CompoundConstraint((
-        cstr.Motion.make(rover.CL1, z=dz),
-        cstr.Motion.make(rover.CR1, z=dz),
-        cstr.Motion.lock(rover.CP1),
-        cstr.Motion.lock(rover.CQ1),
-        cstr.Motion.lock(rover.CP3),
-        cstr.Motion.lock(rover.CQ3),
+        cstr.Motion.make(rover.L1.c, z=dz),
+        cstr.Motion.make(rover.R1.c, z=dz),
+        cstr.Motion.lock(rover.P1.c),
+        cstr.Motion.lock(rover.Q1.c),
+        cstr.Motion.lock(rover.P3.c),
+        cstr.Motion.lock(rover.Q3.c),
     ))
     yield from robot.repeat_step(step_1, times=resolution, allow_redundant=True)
 
@@ -214,17 +206,15 @@ def scoot(
     *,
     resolution: int = 100,
 )-> Generator[Vector]:
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[rover.CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(rover.CHASSIS_MASS)
 
     dx = -0.2 / resolution
     step = cstr.CompoundConstraint((
         cstr.Motion.make(chassis_com,z=0,x=dx,y=0),
-        cstr.Motion.make(rover.CL1,z=0),
-        cstr.Motion.make(rover.CL2,z=0,x=0),
-        cstr.Motion.make(rover.CR1,z=0),
-        cstr.Motion.lock(rover.CR2),
+        cstr.Motion.make(rover.L1.c,z=0),
+        cstr.Motion.make(rover.L2.c,z=0,x=0),
+        cstr.Motion.make(rover.R1.c,z=0),
+        cstr.Motion.lock(rover.R2.c),
     ))
     yield from robot.repeat_step(step, times=resolution, allow_redundant=True)
 
@@ -233,23 +223,18 @@ def roll_p5(
     *,
     resolution: int = 100,
 ) -> Generator[Vector]:
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[rover.CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
-    base = cstr.Point.avg(rover.CP3, rover.CQ3)
-    face = cstr.Point.avg(rover.CP2, rover.CQ2)
-    other_feet = [rover.CL2, rover.CR2, rover.CL3, rover.CR3]
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[rover.CHASSIS] = 1.
+    chassis_com = cstr.Point.com(rover.CHASSIS_MASS)
+    base = cstr.Point.avg(rover.P3.c, rover.Q3.c)
+    face = cstr.Point.avg(rover.P2.c, rover.Q2.c)
     step = cstr.CompoundConstraint((
         cstr.Motion.lock(face),
         cstr.Orbit.about_y(robot.pos, base-face, np.pi/3, resolution),
         cstr.Motion.make(chassis_com - face, y=0.),
         cstr.Motion.make(base - face, y=0.),
-        cstr.Motion.lock(rover.CR2),
-        cstr.Motion.lock(rover.CL2),
-        cstr.Orbit.about_y(robot.pos, rover.CL1-rover.CL2, np.pi, resolution),
-        cstr.Orbit.about_y(robot.pos, rover.CL1-rover.CL2, np.pi, resolution),
+        cstr.Motion.lock(rover.R2.c),
+        cstr.Motion.lock(rover.L2.c),
+        cstr.Orbit.about_y(robot.pos, rover.L1.c-rover.L2.c, np.pi, resolution),
+        cstr.Orbit.about_y(robot.pos, rover.L1.c-rover.L2.c, np.pi, resolution),
     ))
     yield from robot.repeat_step(step, times=resolution, allow_redundant=True)
 
