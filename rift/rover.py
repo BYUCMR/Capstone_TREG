@@ -34,10 +34,6 @@ Q1: Final = 9
 Q2: Final = 10
 Q3: Final = 11
 
-# Slices
-FEET: Final = slice(L1, R3+1)
-CHASSIS: Final = slice(P1, Q3+1)
-
 # Links
 L1_L2: Final = 0
 L2_P3: Final = 1
@@ -96,8 +92,9 @@ CONTROL: Final = tt.LengthControl.from_trails(
 
 # Point masses
 MASS: Final = np.zeros(12)
-MASS[FEET] = 1.
-MASS[CHASSIS] = 6.
+CHASSIS_MASS: Final = np.zeros(12)
+MASS[:6] = 1.
+MASS[6:] = CHASSIS_MASS[6:] = 6.
 
 # Constraint points
 CL1: Final = cstr.Point.node(L1, 12)
@@ -285,9 +282,7 @@ def nudge_chassis(
     y: float,
     z: float,
 ) -> Vector:
-    chassis_mass = np.zeros(len(robot.pos))
-    chassis_mass[CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(CHASSIS_MASS)
     motion = cstr.CompoundConstraint((
         cstr.Motion.make(chassis_com, x, y, z),
         cstr.Motion.make(CP3-CQ3, x=0, z=0),
@@ -327,9 +322,7 @@ def crawl(
     *,
     resolution: int = 50,
 ) -> Generator[Vector]:
-    chassis_mass = np.zeros(robot.n_nodes)
-    chassis_mass[CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(CHASSIS_MASS)
     chassis_up = chassis_com - cstr.Point.avg(CP3, CQ3)
     no_wobble = cstr.Motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
@@ -422,9 +415,7 @@ def roll(
         for foot in pair
         if j != i
     ]
-    chassis_mass = np.zeros(robot.n_nodes)
-    chassis_mass[CHASSIS] = 1.
-    chassis_com = cstr.Point.com(chassis_mass)
+    chassis_com = cstr.Point.com(CHASSIS_MASS)
     feet_midpoint = cstr.Point.avg(foot_l, foot_r)
     step_1 = cstr.CompoundConstraint((
         cstr.Motion.lock(base),
