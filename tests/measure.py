@@ -61,14 +61,14 @@ def measure_max_shoulder_angle(pos: MatrixStack) -> float:
         pos[rover.Q1] - pos[rover.Q3],
     )
     bisectors_1 = (
-        pos[[rover.L1, rover.L2, rover.L3]]
-        + pos[[rover.L2, rover.L3, rover.L1]]
-        - pos[[rover.P3, rover.P1, rover.P2]] * 2.
+        pos[[rover.L1.i, rover.L2.i, rover.L3.i]]
+        + pos[[rover.L2.i, rover.L3.i, rover.L1.i]]
+        - pos[[rover.P3.i, rover.P1.i, rover.P2.i]] * 2.
     )
     bisectors_2 = (
-        pos[[rover.R1, rover.R2, rover.R3]]
-        + pos[[rover.R2, rover.R3, rover.R1]]
-        - pos[[rover.Q3, rover.Q1, rover.Q2]] * 2.
+        pos[[rover.R1.i, rover.R2.i, rover.R3.i]]
+        + pos[[rover.R2.i, rover.R3.i, rover.R1.i]]
+        - pos[[rover.Q3.i, rover.Q1.i, rover.Q2.i]] * 2.
     )
     normals = np.vstack((normals_1, normals_2))
     bisectors = np.hstack((bisectors_1, bisectors_2)).transpose(1, 0, 2)
