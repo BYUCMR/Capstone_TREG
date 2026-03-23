@@ -223,7 +223,7 @@ def set_up_animation(
         [Q3, R1, R2, Q3],
     ]
     items += (
-        anim.draw_links(trail, init_pos, color=color)
+        anim.draw_links(trail, init_pos, color=color, width=6)
         for trail, color in zip(triangles, anim.OKABE_ITO[1:])
     )
     for trail in triangles:
@@ -236,7 +236,7 @@ def set_up_animation(
         markers = anim.Markers(trail, [0.05, 0.95, 1.05, 1.95, 2.05, 2.95], marks)
         markers.update_pos(init_pos)
         items.append(markers)
-    items += anim.draw_traces(range(12), trace_len, init_pos)
+    items += anim.draw_traces(range(12), trace_len, init_pos, size=4)
 
     view = gl.GLViewWidget()
     view.addItem(gl.GLGridItem())

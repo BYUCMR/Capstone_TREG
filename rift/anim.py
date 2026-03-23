@@ -4,7 +4,6 @@ from itertools import pairwise
 from typing import Final, Protocol
 
 import numpy as np
-import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
 from .arraytypes import IndexVector, Matrix, SingleIndex, Vector
@@ -111,12 +110,8 @@ class BodyMesh(AnimationItem):
         self.mesh.setMeshData(meshdata=mesh_data)
 
 
-def draw_links(nodes: IndexVector, pos: Matrix, *, color: str = 'gray', width: int = 6) -> DrawnLinks:
-    drawing = gl.GLLinePlotItem(
-        pos=pos[nodes],
-        width=width,
-        color=pg.mkColor(color),
-    )
+def draw_links(nodes: IndexVector, pos: Matrix, **kwargs) -> DrawnLinks:
+    drawing = gl.GLLinePlotItem(pos=pos[nodes], **kwargs)
     drawing.setGLOptions('opaque')
     return DrawnLinks(nodes, drawing)
 
@@ -125,12 +120,11 @@ def draw_traces(
     nodes: Iterable[SingleIndex],
     length: SingleIndex,
     pos: Matrix,
-    *,
-    size: int = 4,
+    **kwargs,
 ) -> list[NodeTrace]:
     traces: list[NodeTrace] = []
     for node in nodes:
-        drawing = gl.GLScatterPlotItem(pos=[pos[node]], size=size)
+        drawing = gl.GLScatterPlotItem(pos=[pos[node]], **kwargs)
         drawing.setGLOptions('opaque')
         trace = NodeTrace(node, length, drawing)
         traces.append(trace)
