@@ -66,6 +66,17 @@ class Static:
     b: Vector | None = None
 
     @classmethod
+    def combine(cls, *others: Self) -> Self:
+        As: list[Matrix] = []
+        bs: list[Vector] = []
+        for c in others:
+            As.append(c.A)
+            bs.append(np.zeros(len(c.A)) if c.b is None else c.b)
+        A = np.concat(As)
+        b = np.concat(bs)
+        return cls(A, b)
+
+    @classmethod
     def lock(cls, point: Point) -> Self:
         """Constrain a point to be stationary."""
         return cls(point.expand())

@@ -94,12 +94,12 @@ def measure_max_crawl_speed(
 def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     z0 = robot.pos[rover.L1, 2]
-    constraint = cstr.CompoundConstraint((
+    constraint = cstr.Static.combine(
         cstr.xyz(rover.L1.c, 0., 0., dz),
         cstr.lock(rover.L2.c),
         cstr.lock(rover.R1.c),
         cstr.lock(rover.R2.c),
-    ))
+    )
     while True:
         try:
             robot.take_step(constraint)
@@ -111,12 +111,12 @@ def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
 def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     x0 = robot.pos[rover.L1, 0]
-    constraint = cstr.CompoundConstraint((
+    constraint = cstr.Static.combine(
         cstr.xyz(rover.L1.c, dx, 0., 0.),
         cstr.lock(rover.L2.c),
         cstr.lock(rover.R1.c),
         cstr.lock(rover.R2.c),
-    ))
+    )
     while True:
         try:
             robot.take_step(constraint)

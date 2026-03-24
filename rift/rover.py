@@ -260,11 +260,11 @@ def adjust_roller(
     dq = np.zeros(robot.n_rollers)
     dq[roller] = amount
     # We might be able to make better constraints than this.
-    constraint = cstr.CompoundConstraint([
+    constraint = cstr.Static.combine(
         cstr.xyz(L1.c, x=0, y=0, z=0),
         cstr.xyz(L2.c, y=0, z=0),
         cstr.xyz(R1.c, z=0),
-    ])
+    )
     robot.apply_roll(dq, constraint)
     return dq
 
@@ -278,13 +278,13 @@ def nudge_node(
 ) -> Vector:
     locked = robot.pos[:, 2] < grav.DEFAULT_TOL
     locked[node] = False
-    motion = cstr.CompoundConstraint([
+    motion = cstr.Static.combine(
         cstr.xyz(Node(node).c, x, y, z),
         *(
             cstr.lock(Node(n).c)
             for n in np.flatnonzero(locked)
         ),
-    ])
+    )
     return robot.take_step(motion, respect_floor=True, allow_redundant=True)
 
 
@@ -295,7 +295,7 @@ def nudge_chassis(
     z: float,
 ) -> Vector:
     chassis_com = cstr.Point.com(CHASSIS_MASS)
-    motion = cstr.CompoundConstraint((
+    motion = cstr.Static.combine(
         cstr.xyz(chassis_com, x, y, z),
         cstr.xyz(P3.c-Q3.c, x=0, z=0),
         cstr.xyz(L1.c, z=0),
@@ -303,7 +303,7 @@ def nudge_chassis(
         cstr.xyz(R1.c, z=0),
         cstr.xyz(R2.c, z=0),
         cstr.xyz(cstr.Point.avg(L1.c, L2.c, R1.c, R2.c), x=0, y=0),
-    ))
+    )
     return robot.take_step(motion)
 
 
@@ -369,14 +369,14 @@ def lean(
     resolution: int = 100,
 ) -> Generator[Vector]:
     dx = dist / resolution
-    constraint = cstr.CompoundConstraint((
+    constraint = cstr.Static.combine(
         cstr.xyz(P2.c, dx),
         cstr.xyz(Q2.c, dx),
         cstr.lock(L1.c),
         cstr.lock(R1.c),
         cstr.lock(L2.c),
         cstr.lock(R2.c),
-    ))
+    )
     yield from robot.repeat_step(constraint, times=resolution)
 
 
@@ -386,14 +386,14 @@ def reach(
     *,
     resolution: int = 100,
 ) -> Generator[Vector]:
-    constraint = cstr.CompoundConstraint((
+    constraint = cstr.Static.combine(
         cstr.xyz(L3.c, x=dist / resolution),
         cstr.xyz(R3.c, x=dist / resolution),
         cstr.lock(P3.c),
         cstr.lock(Q3.c),
         cstr.lock(L1.c),
         cstr.lock(R1.c),
-    ))
+    )
     yield from robot.repeat_step(
         constraint,
         times=resolution,
