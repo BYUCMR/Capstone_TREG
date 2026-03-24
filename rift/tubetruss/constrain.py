@@ -1,7 +1,7 @@
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass, field
-from typing import Protocol, Self, SupportsIndex
+from dataclasses import dataclass
+from typing import Final, Protocol, Self, SupportsIndex
 
 import numpy as np
 
@@ -60,25 +60,29 @@ class Point:
 
 
 @dataclass(slots=True)
-class CustomConstraint:
-    """A custom constraint that doesn't vary with position or time."""
+class Static:
+    """A constraint that doesn't vary with position."""
     A: Matrix
     b: Vector | None = None
 
-    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
-        b = np.zeros(len(self.A)) if self.b is None else self.b.copy()
-        return self.A, b
-
-
-@dataclass(slots=True)
-class Motion:
-    """A constraint representing the linear motion of a point."""
-    point: Point
-    directions: Matrix = field(default_factory=lambda: np.eye(3))
-    rates: Vector = field(default_factory=lambda: np.zeros(3))
+    @classmethod
+    def lock(cls, point: Point) -> Self:
+        """Constrain a point to be stationary."""
+        return cls(point.expand())
 
     @classmethod
-    def make(
+    def motion(
+        cls,
+        point: Point,
+        directions: Matrix,
+        rates: Vector,
+    ) -> Self:
+        """Constrain the linear motion of a point."""
+        A = point.expand(directions)
+        return cls(A, rates)
+
+    @classmethod
+    def xyz(
         cls,
         point: Point,
         x: float | None = None,
@@ -87,17 +91,18 @@ class Motion:
     ) -> Self:
         """Set the motion of a point along the x, y, and z axes."""
         i = [e is not None for e in (x, y, z)]
-        b = np.array([e for e in (x, y, z) if e is not None])
-        return cls(point, np.eye(3)[i], b)
+        directions = np.eye(3)[i]
+        rates = np.array([e for e in (x, y, z) if e is not None])
+        return cls.motion(point, directions, rates)
 
-    @classmethod
-    def lock(cls, point: Point) -> Self:
-        """Constrain a point to be stationary."""
-        return cls(point)
+    def get(self, x: Matrix | None = None) -> tuple[Matrix, Vector]:
+        b = np.zeros(len(self.A)) if self.b is None else self.b.copy()
+        return self.A, b
 
-    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
-        A = self.point.expand(self.directions)
-        return A, self.rates.copy()
+
+lock: Final = Static.lock
+motion: Final = Static.motion
+xyz: Final = Static.xyz
 
 
 @dataclass(slots=True)

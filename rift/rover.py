@@ -261,9 +261,9 @@ def adjust_roller(
     dq[roller] = amount
     # We might be able to make better constraints than this.
     constraint = cstr.CompoundConstraint([
-        cstr.Motion.make(L1.c, x=0, y=0, z=0),
-        cstr.Motion.make(L2.c, y=0, z=0),
-        cstr.Motion.make(R1.c, z=0),
+        cstr.xyz(L1.c, x=0, y=0, z=0),
+        cstr.xyz(L2.c, y=0, z=0),
+        cstr.xyz(R1.c, z=0),
     ])
     robot.apply_roll(dq, constraint)
     return dq
@@ -279,9 +279,9 @@ def nudge_node(
     locked = robot.pos[:, 2] < grav.DEFAULT_TOL
     locked[node] = False
     motion = cstr.CompoundConstraint([
-        cstr.Motion.make(Node(node).c, x, y, z),
+        cstr.xyz(Node(node).c, x, y, z),
         *(
-            cstr.Motion.lock(Node(n).c)
+            cstr.lock(Node(n).c)
             for n in np.flatnonzero(locked)
         ),
     ])
@@ -296,13 +296,13 @@ def nudge_chassis(
 ) -> Vector:
     chassis_com = cstr.Point.com(CHASSIS_MASS)
     motion = cstr.CompoundConstraint((
-        cstr.Motion.make(chassis_com, x, y, z),
-        cstr.Motion.make(P3.c-Q3.c, x=0, z=0),
-        cstr.Motion.make(L1.c, z=0),
-        cstr.Motion.make(L2.c, z=0),
-        cstr.Motion.make(R1.c, z=0),
-        cstr.Motion.make(R2.c, z=0),
-        cstr.Motion.make(cstr.Point.avg(L1.c, L2.c, R1.c, R2.c), x=0, y=0),
+        cstr.xyz(chassis_com, x, y, z),
+        cstr.xyz(P3.c-Q3.c, x=0, z=0),
+        cstr.xyz(L1.c, z=0),
+        cstr.xyz(L2.c, z=0),
+        cstr.xyz(R1.c, z=0),
+        cstr.xyz(R2.c, z=0),
+        cstr.xyz(cstr.Point.avg(L1.c, L2.c, R1.c, R2.c), x=0, y=0),
     ))
     return robot.take_step(motion)
 
@@ -314,15 +314,15 @@ def tilt_chassis(
     base = cstr.Point.avg(P3.c, Q3.c)
     face = cstr.Point.avg(P2.c, Q2.c)
     motion = cstr.CompoundConstraint((
-        cstr.Motion.lock(base),
+        cstr.lock(base),
         cstr.Orbit(face-base, np.array([0, 1, 0]), angle),
-        cstr.Motion.make(face - base, y=0.),
-        cstr.Motion.lock(L1.c),
-        cstr.Motion.lock(R1.c),
-        cstr.Motion.make(L2.c, y=0.),
-        cstr.Motion.make(R2.c, y=0.),
-        cstr.Motion.make(L3.c, y=0.),
-        cstr.Motion.make(R3.c, y=0.),
+        cstr.xyz(face - base, y=0.),
+        cstr.lock(L1.c),
+        cstr.lock(R1.c),
+        cstr.xyz(L2.c, y=0.),
+        cstr.xyz(R2.c, y=0.),
+        cstr.xyz(L3.c, y=0.),
+        cstr.xyz(R3.c, y=0.),
     ))
     return robot.take_step(motion, respect_floor=False)
 
@@ -336,9 +336,9 @@ def crawl(
 ) -> Generator[Vector]:
     chassis_com = cstr.Point.com(CHASSIS_MASS)
     chassis_up = chassis_com - cstr.Point.avg(P3.c, Q3.c)
-    no_wobble = cstr.Motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
+    no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
-    steadily_forward = cstr.Motion.make(
+    steadily_forward = cstr.xyz(
         chassis_com, x=0.25 * x_dist / resolution
     )
     feet = (L2.c, L1.c, R2.c, R1.c)
@@ -352,7 +352,7 @@ def crawl(
                 resolution=resolution,
             ),
             *(
-                cstr.Motion.lock(other_foot)
+                cstr.lock(other_foot)
                 for other_foot in feet
                 if foot is not other_foot
             ),
@@ -370,12 +370,12 @@ def lean(
 ) -> Generator[Vector]:
     dx = dist / resolution
     constraint = cstr.CompoundConstraint((
-        cstr.Motion.make(P2.c, dx),
-        cstr.Motion.make(Q2.c, dx),
-        cstr.Motion.lock(L1.c),
-        cstr.Motion.lock(R1.c),
-        cstr.Motion.lock(L2.c),
-        cstr.Motion.lock(R2.c),
+        cstr.xyz(P2.c, dx),
+        cstr.xyz(Q2.c, dx),
+        cstr.lock(L1.c),
+        cstr.lock(R1.c),
+        cstr.lock(L2.c),
+        cstr.lock(R2.c),
     ))
     yield from robot.repeat_step(constraint, times=resolution)
 
@@ -387,12 +387,12 @@ def reach(
     resolution: int = 100,
 ) -> Generator[Vector]:
     constraint = cstr.CompoundConstraint((
-        cstr.Motion.make(L3.c, x=dist / resolution),
-        cstr.Motion.make(R3.c, x=dist / resolution),
-        cstr.Motion.lock(P3.c),
-        cstr.Motion.lock(Q3.c),
-        cstr.Motion.lock(L1.c),
-        cstr.Motion.lock(R1.c),
+        cstr.xyz(L3.c, x=dist / resolution),
+        cstr.xyz(R3.c, x=dist / resolution),
+        cstr.lock(P3.c),
+        cstr.lock(Q3.c),
+        cstr.lock(L1.c),
+        cstr.lock(R1.c),
     ))
     yield from robot.repeat_step(
         constraint,
@@ -430,21 +430,21 @@ def roll(
     chassis_com = cstr.Point.com(CHASSIS_MASS)
     feet_midpoint = cstr.Point.avg(foot_l, foot_r)
     step_1 = cstr.CompoundConstraint((
-        cstr.Motion.lock(base),
+        cstr.lock(base),
         cstr.Orbit.about_y(robot.pos, face-base, np.pi, resolution),
-        cstr.Motion.make(face - base, y=0.),
-        cstr.Motion.lock(foot_l),
-        cstr.Motion.lock(foot_r),
+        cstr.xyz(face - base, y=0.),
+        cstr.lock(foot_l),
+        cstr.lock(foot_r),
         *(
-            cstr.Motion.make(foot, y=0.)
+            cstr.xyz(foot, y=0.)
             for foot in other_feet
         ),
     ))
     yield from robot.repeat_step(step_1, times=resolution)
     x_dist = (face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875
     step_2 = cstr.CompoundConstraint((
-        cstr.Motion.lock(chassis_com),
-        cstr.Motion.make(face - base, z=0.),
+        cstr.lock(chassis_com),
+        cstr.xyz(face - base, z=0.),
         cstr.ParabolicPath.make(
             foot_l,
             init_pos=robot.pos,
@@ -460,12 +460,12 @@ def roll(
     ))
     yield from robot.repeat_step(step_2, times=resolution)
     step_3 = cstr.CompoundConstraint((
-        cstr.Motion.lock(face),
+        cstr.lock(face),
         cstr.Orbit.about_y(robot.pos, base-face, np.pi/3, resolution),
-        cstr.Motion.make(chassis_com - face, y=0.),
-        cstr.Motion.make(base - face, y=0.),
-        cstr.Motion.lock(foot_l),
-        cstr.Motion.lock(foot_r),
+        cstr.xyz(chassis_com - face, y=0.),
+        cstr.xyz(base - face, y=0.),
+        cstr.lock(foot_l),
+        cstr.lock(foot_r),
         cstr.Orbit.about_y(robot.pos, arm_l-foot_l, np.pi, resolution),
         cstr.Orbit.about_y(robot.pos, arm_r-foot_r, np.pi, resolution),
     ))

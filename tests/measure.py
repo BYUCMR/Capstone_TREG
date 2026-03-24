@@ -95,10 +95,10 @@ def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     z0 = robot.pos[rover.L1, 2]
     constraint = cstr.CompoundConstraint((
-        cstr.Motion.make(rover.L1.c, 0., 0., dz),
-        cstr.Motion.lock(rover.L2.c),
-        cstr.Motion.lock(rover.R1.c),
-        cstr.Motion.lock(rover.R2.c),
+        cstr.xyz(rover.L1.c, 0., 0., dz),
+        cstr.lock(rover.L2.c),
+        cstr.lock(rover.R1.c),
+        cstr.lock(rover.R2.c),
     ))
     while True:
         try:
@@ -112,10 +112,10 @@ def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     x0 = robot.pos[rover.L1, 0]
     constraint = cstr.CompoundConstraint((
-        cstr.Motion.make(rover.L1.c, dx, 0., 0.),
-        cstr.Motion.lock(rover.L2.c),
-        cstr.Motion.lock(rover.R1.c),
-        cstr.Motion.lock(rover.R2.c),
+        cstr.xyz(rover.L1.c, dx, 0., 0.),
+        cstr.lock(rover.L2.c),
+        cstr.lock(rover.R1.c),
+        cstr.lock(rover.R2.c),
     ))
     while True:
         try:
@@ -137,9 +137,9 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
                 delta_x=step_length,
                 resolution=resolution
             ),
-            cstr.Motion.lock(rover.L2.c),
-            cstr.Motion.lock(rover.R1.c),
-            cstr.Motion.lock(rover.R2.c),
+            cstr.lock(rover.L2.c),
+            cstr.lock(rover.R1.c),
+            cstr.lock(rover.R2.c),
         ))
         try:
             for _ in range(resolution):

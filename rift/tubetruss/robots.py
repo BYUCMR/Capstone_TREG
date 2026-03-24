@@ -122,7 +122,7 @@ class TrussRobot:
     ) -> Vector:
         rigidity = self.truss.rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint((
-            cstr.CustomConstraint(self.control.unreachable @ rigidity),
+            cstr.Static(self.control.unreachable @ rigidity),
             *constraints
         ))
         A, b = constraint.get(self.pos)
