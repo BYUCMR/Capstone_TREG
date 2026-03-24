@@ -120,8 +120,8 @@ CONTROL: Final = tt.LengthControl.from_trails(
 # Point masses
 MASS: Final = np.zeros(12)
 CHASSIS_MASS: Final = np.zeros(12)
-MASS[:6] = 1.
-MASS[6:] = CHASSIS_MASS[6:] = 6.
+MASS[:6] = 2.
+MASS[6:] = CHASSIS_MASS[6:] = 1.
 
 # Physical size
 # In actuality, we have 1125 * 12 * 4 ticks per side, but we
