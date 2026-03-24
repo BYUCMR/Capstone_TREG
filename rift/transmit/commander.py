@@ -38,7 +38,7 @@ class Commander:
         self.send(commands.POS(()))
 
     def send_dq(self, dq: Vector[np.intp], dt: float) -> None:
-        cmd = commands.VEL(dq, dt)
+        cmd = commands.VEL(dq/dt, dt)
         self.send(cmd)
 
     def get_error(self) -> Vector[np.intp] | None:
