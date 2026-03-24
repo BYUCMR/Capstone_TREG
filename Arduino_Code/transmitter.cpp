@@ -60,11 +60,11 @@ bool sendToNode(uint8_t nodeIndex, const RadioPayload &p, uint8_t maxRetries = 3
     // send RadioPayload over radio
     bool ok = radio.write(&p, sizeof(p));
 
-    if (ok)// if it succeeds
+    if (ok) // if it succeeds
     {
       // Check for ACK payload with timeout
       unsigned long ackStart = millis();
-      while (!radio.isAckPayloadAvailable())// try to get ack for timed period
+      while (!radio.isAckPayloadAvailable()) // try to get ack for timed period
       {
         if (millis() - ackStart > 100) // 100ms timeout
         {
@@ -74,8 +74,8 @@ bool sendToNode(uint8_t nodeIndex, const RadioPayload &p, uint8_t maxRetries = 3
 
       if (radio.isAckPayloadAvailable()) // Radio has confirmed it received message
       {
-        radio.read(&ack, sizeof(ack)); // read payload acknowledgment
-        lastKnownPositions[nodeIndex] = ack.currentPosition; //save positions from ack
+        radio.read(&ack, sizeof(ack));                       // read payload acknowledgment
+        lastKnownPositions[nodeIndex] = ack.currentPosition; // save positions from ack
 
         return true; // Success!
       }
@@ -153,6 +153,38 @@ void printPositionsArray()
   Serial.flush();
 }
 
+float readFloat()
+{
+  float num;
+  if (Serial.available() >= 4)
+  {
+
+    for (int j = 0; j < 4; j++)
+    {
+      inSer[j] = Serial.read();
+    }
+    memcpy(&num, inSer, 4);
+    return num
+  }
+  return 0.0f
+}
+
+int readInt()
+{
+  int num;
+  if (Serial.available() >= 4)
+  {
+
+    for (int j = 0; j < 4; j++)
+    {
+      inSer[j] = Serial.read();
+    }
+    memcpy(&num, inSer, 4);
+    return num
+  }
+  return 0
+}
+
 // -------------------- Setup & Loop --------------------
 void setup()
 {
@@ -175,126 +207,89 @@ void setup()
 
 void loop()
 {
-  if (!Serial.available())
-    return;
-
-  String input = Serial.readStringUntil('\n');
-  input.trim();
-  if (input.length() == 0)
-    return;
-
-  String canon = input;
-  canon.replace(" ", "");
-
-  // -------- RESET --------
-  if (canon.equalsIgnoreCase("RESET"))
   {
-    for (int i = 0; i < NUMBER_OF_NODES; ++i)
+    if (!Serial.available())
     {
-      RadioPayload p = {};
-      p.isVelocityControl = true; // doesn't matter for reset; set true by convention
-      p.velocity = 0.0f;
-      p.position = 0;
-      p.duration_s = 0.0f;
-      p.reset = true;
-      sendToNode(i, p);
-    }
-  }
-  // -------- STOP --------
-  else if (canon.equalsIgnoreCase("STOP"))
-  {
-    for (int i = 0; i < NUMBER_OF_NODES; ++i)
-    {
-      RadioPayload p = {};
-      p.isVelocityControl = true;
-      p.velocity = 0.0f;
-      p.position = 0;
-      p.duration_s = 0.0f; // explicit immediate stop
-      p.reset = false;
-      sendToNode(i, p);
-    }
-  }
-  // -------- VEL:... --------
-  else if (canon.startsWith("VEL:") || canon.startsWith("vel:") || canon.startsWith("Vel:"))
-  {
-    String args = input.substring(input.indexOf(':') + 1); // keep original to allow signs, spaces
-    float vels[NUMBER_OF_NODES];
-    parseNodeVelocities(args, vels);
-
-    for (int i = 0; i < NUMBER_OF_NODES; ++i)
-    {
-      RadioPayload p = {};
-      p.isVelocityControl = true;
-      p.velocity = clampf(vels[i], -MAX_VELOCITY, MAX_VELOCITY);
-      p.position = 0;              // ignored by receiver in velocity mode
-      p.duration_s = VEL_DURATION; // from your requirement
-      p.reset = false;
-      sendToNode(i, p);
-    }
-  }
-  else if (canon.startsWith("VEL_DUR:") || canon.startsWith("vel_dur:") || canon.startsWith("Vel_Dur:"))
-  {
-    unsigned long t0 = millis(); // Start timing
-
-    String args = input.substring(input.indexOf(':') + 1); // get everything after "VEL_DUR:"
-    // Find the last colon which separates velocities from duration
-    int lastColon = args.lastIndexOf(':');
-    if (lastColon == -1)
-    {
-      Serial.println(F("Invalid VEL_DUR format. Use: VEL_DUR:v1,v2,v3,v4,v5,v6:duration"));
       return;
     }
-
-    // Split into velocity CSV and duration
-    String velCSV = args.substring(0, lastColon);
-    String durStr = args.substring(lastColon + 1);
-    durStr.trim();
-
-    float vels[NUMBER_OF_NODES];
-    parseNodeVelocities(velCSV, vels);
-
-    float duration = durStr.toFloat();
-    if (duration < 0.0f)
-      duration = 0.0f; // safety check
-
-    for (int i = 0; i < NUMBER_OF_NODES; ++i)
+    int type = readInt();
+    switch (type)
     {
-      RadioPayload p = {};
-      p.isVelocityControl = true;
-      p.velocity = clampf(vels[i], -MAX_VELOCITY, MAX_VELOCITY);
-      p.position = 0;          // ignored by receiver in velocity mode
-      p.duration_s = duration; // use the provided duration
-      p.reset = false;
-      sendToNode(i, p);
-    }
+    default:
+      Serial.println(F("Unrecognized command."));
 
-    unsigned long dt = millis() - t0; // Calculate elapsed time
-    Serial.print(F("VEL_DUR command completed in "));
-    Serial.print(dt);
-    Serial.println(F(" ms"));
-  }
-  // -------- POS:... --------
-  else if (canon.startsWith("POS:") || canon.startsWith("pos:") || canon.startsWith("Pos:"))
-  {
-    String args = input.substring(input.indexOf(':') + 1);
-    long positions[NUMBER_OF_NODES];
-    parseNodePositions(args, positions);
+      break;
 
-    for (int i = 0; i < NUMBER_OF_NODES; ++i)
-    {
-      RadioPayload p = {};
-      p.isVelocityControl = false; // position mode
-      p.velocity = 0.0f;           // not used in pos mode
-      p.position = positions[i];   // counts
-      p.duration_s = POS_DURATION; // provided per your spec
-      p.reset = false;
-      sendToNode(i, p);
+    case 0: // STOP
+      for (int i = 0; i < NUMBER_OF_NODES; ++i)
+      {
+        RadioPayload p = {};
+        p.isVelocityControl = true;
+        p.velocity = 0.0f;
+        p.position = 0;
+        p.duration_s = 0.0f; // explicit immediate stop
+        p.reset = false;
+        sendToNode(i, p);
+      }
+      break;
+
+    case 1: // RESET
+      for (int i = 0; i < NUMBER_OF_NODES; ++i)
+      {
+        RadioPayload p = {};
+        p.isVelocityControl = true; // doesn't matter for reset; set true by convention
+        p.velocity = 0.0f;
+        p.position = 0;
+        p.duration_s = 0.0f;
+        p.reset = true;
+        sendToNode(i, p);
+      }
+      break;
+    case 2: // VEL
+      // Read 4 bytes from Serial buffer
+      for (int i = 0; i < NUMBER_OF_NODES; i++)
+      {
+        float vel = readFloat();
+        memcpy(&vel, inSer, 4);
+        RadioPayload p = {};
+        p.isVelocityControl = true;
+        p.velocity = clampf(vel, -MAX_VELOCITY, MAX_VELOCITY);
+        p.position = 0;              // ignored by receiver in velocity mode
+        p.duration_s = VEL_DURATION; // from your requirement
+        p.reset = false;
+        sendToNode(i, p);
+      }
+      // Copy the byte array memory into the float variable memory
+      break;
+    case 3: // VEL_DUR
+      float time = readFloat();
+      for (int i = 0; i < NUMBER_OF_NODES; i++)
+      {
+        float vel = readFloat();
+        memcpy(&vel, inSer, 4);
+        RadioPayload p = {};
+        p.isVelocityControl = true;
+        p.velocity = clampf(vel, -MAX_VELOCITY, MAX_VELOCITY);
+        p.position = 0; // ignored by receiver in velocity mode
+        p.duration_s = time;
+        sendToNode(i, p);
+      }
+      break;
+    case 4://POS
+      for (int i = 0; i < NUMBER_OF_NODES; i++)
+      {
+        int pos = readInt();
+        memcpy(&pos, inSer, 4);
+        RadioPayload p = {};
+        p.isVelocityControl = false; // position mode
+        p.velocity = 0.0f;           // not used in pos mode
+        p.position = pos;            // counts
+        p.duration_s = POS_DURATION; // provided per your spec
+        p.reset = false;
+        sendToNode(i, p);
+      }
+      break;
     }
-  }
-  // -------- Unknown --------
-  else
-  {
-    Serial.println(F("Unrecognized command. Use: RESET | STOP | VEL:v1,v2,... | POS:p1,p2,..."));
   }
 
   // Print positions array back to the computer
