@@ -37,13 +37,17 @@ class Node(enum.Enum):
     def __index__(self) -> int:
         return self.value
 
+    def __array__(self) -> Vector:
+        out = np.zeros(len(type(self)))
+        out[self.value] = 1
+        return out
+
+    def __sub__(self, other: cstr.Point) -> Vector:
+        return np.array(self) - np.array(other)
+
     @property
     def i(self) -> int:
         return self.value
-
-    @property
-    def c(self) -> cstr.Point:
-        return cstr.Point.node(self, len(type(self)))
 
 
 # `enum.global_enum` does this, but tools can't tell.
@@ -261,9 +265,9 @@ def adjust_roller(
     dq[roller] = amount
     # We might be able to make better constraints than this.
     constraint = cstr.Static.combine(
-        cstr.xyz(L1.c, x=0, y=0, z=0),
-        cstr.xyz(L2.c, y=0, z=0),
-        cstr.xyz(R1.c, z=0),
+        cstr.xyz(L1, x=0, y=0, z=0),
+        cstr.xyz(L2, y=0, z=0),
+        cstr.xyz(R1, z=0),
     )
     robot.apply_roll(dq, constraint)
     return dq
@@ -279,9 +283,9 @@ def nudge_node(
     locked = robot.pos[:, 2] < grav.DEFAULT_TOL
     locked[node] = False
     motion = cstr.Static.combine(
-        cstr.xyz(Node(node).c, x, y, z),
+        cstr.xyz(Node(node), x, y, z),
         *(
-            cstr.lock(Node(n).c)
+            cstr.lock(Node(n))
             for n in np.flatnonzero(locked)
         ),
     )
@@ -294,15 +298,15 @@ def nudge_chassis(
     y: float,
     z: float,
 ) -> Vector:
-    chassis_com = cstr.Point.com(CHASSIS_MASS)
+    chassis_com = CHASSIS_MASS / np.sum(CHASSIS_MASS)
     motion = cstr.Static.combine(
         cstr.xyz(chassis_com, x, y, z),
-        cstr.xyz(P3.c-Q3.c, x=0, z=0),
-        cstr.xyz(L1.c, z=0),
-        cstr.xyz(L2.c, z=0),
-        cstr.xyz(R1.c, z=0),
-        cstr.xyz(R2.c, z=0),
-        cstr.xyz(cstr.Point.avg(L1.c, L2.c, R1.c, R2.c), x=0, y=0),
+        cstr.xyz(P3-Q3, x=0, z=0),
+        cstr.xyz(L1, z=0),
+        cstr.xyz(L2, z=0),
+        cstr.xyz(R1, z=0),
+        cstr.xyz(R2, z=0),
+        cstr.xyz(cstr.centroid(L1, L2, R1, R2), x=0, y=0),
     )
     return robot.take_step(motion)
 
@@ -311,18 +315,18 @@ def tilt_chassis(
     robot: tt.TrussRobot,
     angle: float,
 ) -> Vector:
-    base = cstr.Point.avg(P3.c, Q3.c)
-    face = cstr.Point.avg(P2.c, Q2.c)
+    base = cstr.centroid(P3, Q3)
+    face = cstr.centroid(P2, Q2)
     motion = cstr.CompoundConstraint((
         cstr.lock(base),
         cstr.Orbit(face-base, np.array([0, 1, 0]), angle),
         cstr.xyz(face - base, y=0.),
-        cstr.lock(L1.c),
-        cstr.lock(R1.c),
-        cstr.xyz(L2.c, y=0.),
-        cstr.xyz(R2.c, y=0.),
-        cstr.xyz(L3.c, y=0.),
-        cstr.xyz(R3.c, y=0.),
+        cstr.lock(L1),
+        cstr.lock(R1),
+        cstr.xyz(L2, y=0.),
+        cstr.xyz(R2, y=0.),
+        cstr.xyz(L3, y=0.),
+        cstr.xyz(R3, y=0.),
     ))
     return robot.take_step(motion, respect_floor=False)
 
@@ -334,14 +338,14 @@ def crawl(
     *,
     resolution: int = 50,
 ) -> Generator[Vector]:
-    chassis_com = cstr.Point.com(CHASSIS_MASS)
-    chassis_up = chassis_com - cstr.Point.avg(P3.c, Q3.c)
+    chassis_com = CHASSIS_MASS / np.sum(CHASSIS_MASS)
+    chassis_up = chassis_com - cstr.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
     steadily_forward = cstr.xyz(
         chassis_com, x=0.25 * x_dist / resolution
     )
-    feet = (L2.c, L1.c, R2.c, R1.c)
+    feet = (L2, L1, R2, R1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
             cstr.ParabolicPath.make(
@@ -370,12 +374,12 @@ def lean(
 ) -> Generator[Vector]:
     dx = dist / resolution
     constraint = cstr.Static.combine(
-        cstr.xyz(P2.c, dx),
-        cstr.xyz(Q2.c, dx),
-        cstr.lock(L1.c),
-        cstr.lock(R1.c),
-        cstr.lock(L2.c),
-        cstr.lock(R2.c),
+        cstr.xyz(P2, dx),
+        cstr.xyz(Q2, dx),
+        cstr.lock(L1),
+        cstr.lock(R1),
+        cstr.lock(L2),
+        cstr.lock(R2),
     )
     yield from robot.repeat_step(constraint, times=resolution)
 
@@ -387,12 +391,12 @@ def reach(
     resolution: int = 100,
 ) -> Generator[Vector]:
     constraint = cstr.Static.combine(
-        cstr.xyz(L3.c, x=dist / resolution),
-        cstr.xyz(R3.c, x=dist / resolution),
-        cstr.lock(P3.c),
-        cstr.lock(Q3.c),
-        cstr.lock(L1.c),
-        cstr.lock(R1.c),
+        cstr.xyz(L3, x=dist / resolution),
+        cstr.xyz(R3, x=dist / resolution),
+        cstr.lock(P3),
+        cstr.lock(Q3),
+        cstr.lock(L1),
+        cstr.lock(R1),
     )
     yield from robot.repeat_step(
         constraint,
@@ -408,14 +412,14 @@ def roll(
     resolution: int = 100,
 ) -> Generator[Vector]:
     chassis_midpoints = (
-        cstr.Point.avg(P1.c, Q1.c),
-        cstr.Point.avg(P3.c, Q3.c),
-        cstr.Point.avg(P2.c, Q2.c),
+        cstr.centroid(P1, Q1),
+        cstr.centroid(P3, Q3),
+        cstr.centroid(P2, Q2),
     )
     foot_pairs = (
-        (L1.c, R1.c),
-        (L3.c, R3.c),
-        (L2.c, R2.c),
+        (L1, R1),
+        (L3, R3),
+        (L2, R2),
     )
     base = chassis_midpoints[i-2]
     face = chassis_midpoints[i-1]
@@ -427,8 +431,8 @@ def roll(
         for foot in pair
         if j != i
     ]
-    chassis_com = cstr.Point.com(CHASSIS_MASS)
-    feet_midpoint = cstr.Point.avg(foot_l, foot_r)
+    chassis_com = CHASSIS_MASS / np.sum(CHASSIS_MASS)
+    feet_midpoint = cstr.centroid(foot_l, foot_r)
     step_1 = cstr.CompoundConstraint((
         cstr.lock(base),
         cstr.Orbit.about_y(robot.pos, face-base, np.pi, resolution),
@@ -441,7 +445,7 @@ def roll(
         ),
     ))
     yield from robot.repeat_step(step_1, times=resolution)
-    x_dist = (face - feet_midpoint).get(robot.pos)[0] - 0.5*0.875
+    x_dist = ((face - feet_midpoint) @ robot.pos)[0] - 0.5*0.875
     step_2 = cstr.CompoundConstraint((
         cstr.lock(chassis_com),
         cstr.xyz(face - base, z=0.),
