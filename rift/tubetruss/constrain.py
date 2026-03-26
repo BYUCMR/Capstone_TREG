@@ -101,17 +101,21 @@ class Orbit:
     rate: float
 
     @classmethod
-    def about_y(
+    def align(
         cls,
-        x: Matrix,
         radius: Point,
-        target: float,
+        end: Vector,
+        *,
+        init_pos: Matrix,
         resolution: int,
     ) -> Self:
-        r = radius @ x
-        th0 = np.atan2(r[2], -r[0])
-        rate = (target - th0) / resolution
-        return cls(radius, Y, rate)
+        start = radius @ init_pos
+        axis = -np.cross(start, end)
+        axis_norm = np.linalg.norm(axis)
+        angle = math.asin(axis_norm / (np.linalg.norm(start) * np.linalg.norm(end)))
+        rate = -angle / resolution
+        axis /= axis_norm
+        return cls(radius, axis, rate)
 
     def get(self, x: Matrix) -> tuple[Matrix, Vector]:
         r = self.radius @ x

@@ -435,7 +435,7 @@ def roll(
     feet_midpoint = cstr.centroid(foot_l, foot_r)
     step_1 = cstr.CompoundConstraint((
         cstr.lock(base),
-        cstr.Orbit.about_y(robot.pos, face-base, np.pi, resolution),
+        cstr.Orbit.align(face-base, cstr.X, init_pos=robot.pos, resolution=resolution),
         cstr.xyz(face - base, y=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
@@ -465,12 +465,17 @@ def roll(
     yield from robot.repeat_step(step_2, times=resolution)
     step_3 = cstr.CompoundConstraint((
         cstr.lock(face),
-        cstr.Orbit.about_y(robot.pos, base-face, np.pi/3, resolution),
+        cstr.Orbit.align(
+            base-face,
+            cstr.X + math.sqrt(3.)*cstr.Z,
+            init_pos=robot.pos,
+            resolution=resolution,
+        ),
         cstr.xyz(chassis_com - face, y=0.),
         cstr.xyz(base - face, y=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
-        cstr.Orbit.about_y(robot.pos, arm_l-foot_l, np.pi, resolution),
-        cstr.Orbit.about_y(robot.pos, arm_r-foot_r, np.pi, resolution),
+        cstr.Orbit.align(arm_l-foot_l, cstr.X, init_pos=robot.pos, resolution=resolution),
+        cstr.Orbit.align(arm_r-foot_r, cstr.X, init_pos=robot.pos, resolution=resolution),
     ))
     yield from robot.repeat_step(step_3, times=resolution)
