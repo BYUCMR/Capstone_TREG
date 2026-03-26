@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QApplication
 
 from rift import rover
 from rift.arraytypes import Matrix, Vector
-from rift.tubetruss.robots import InverseKinematicsError
+from rift.tubetruss.robots import InverseKinematicsError, TrussRobot
 from .controls import Bundler, Command, take_command
 
 
@@ -81,7 +81,11 @@ class VizWorker(QObject):
     @Slot(ndarray)
     def reset(self, pos: Matrix) -> None:
         self.bundler.delta_q = None
-        self.robot.pos[:] = pos
+        self.robot = TrussRobot(
+            pos.copy(),
+            self.robot.truss,
+            self.robot.control,
+        )
 
     @Slot()
     def run_next(self) -> None:
