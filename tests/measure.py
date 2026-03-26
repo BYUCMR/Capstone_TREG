@@ -126,10 +126,9 @@ def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
 
 
 def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution: int) -> float:
-    robot = rover.make_robot(init_pos)
-    initial_pos = robot.pos.copy()
     step_length = dx
     while True:
+        robot = rover.make_robot(init_pos)
         constraint = cstr.CompoundConstraint((
             cstr.ParabolicPath.make(
                 rover.L1,
@@ -147,7 +146,6 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
         except InverseKinematicsError:
             break
         step_length += dx
-        robot.pos = initial_pos.copy()
     return step_length - dx
 
 

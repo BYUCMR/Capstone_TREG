@@ -106,7 +106,7 @@ class TrussRobot:
 
     It comprises a position, a truss structure, and a control setup.
     """
-    pos: Matrix
+    _pos: Matrix
     truss: Truss
     control: LengthControl
 
@@ -124,6 +124,12 @@ class TrussRobot:
     def n_rollers(self) -> int:
         return self.control.n_inputs
 
+    @property
+    def pos(self) -> Matrix:
+        view = self._pos.view()
+        view.setflags(write=False)
+        return view
+
     def apply_roll(
         self,
         d_roll: Vector,
@@ -138,7 +144,7 @@ class TrussRobot:
             np.concat((d_length, b)),
         )
         d_pos = d_pos.reshape(self.pos.shape)
-        self.pos += d_pos
+        self._pos[:] += d_pos
         return d_pos
 
     def take_step(
@@ -160,7 +166,7 @@ class TrussRobot:
             respect_floor=respect_floor,
         )
         dq = self.control.inverse @ rigidity @ dx.ravel()
-        self.pos += dx
+        self._pos[:] += dx
         return dq
 
     def repeat_step(
