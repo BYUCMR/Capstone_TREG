@@ -90,7 +90,7 @@ def get_fall_transform(
     contacts = pos[np.abs(pos[:, 2]) <= tol]
     if len(contacts) == 0:
         xform = np.eye(4)
-        xform[:3, 3] = np.min(pos[:, 2]) / gravity[2] * gravity
+        xform[:3, 3] = -np.min(pos[:, 2]) / gravity[2] * gravity
         return xform
     elif len(contacts) == 1:
         origin = contacts[0]
