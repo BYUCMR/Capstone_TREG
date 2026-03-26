@@ -319,7 +319,7 @@ def tilt_chassis(
     face = cstr.centroid(P2, Q2)
     motion = cstr.CompoundConstraint((
         cstr.lock(base),
-        cstr.Orbit(face-base, np.array([0, 1, 0]), angle),
+        cstr.Orbit(face-base, cstr.Y, angle),
         cstr.xyz(face - base, y=0.),
         cstr.lock(L1),
         cstr.lock(R1),

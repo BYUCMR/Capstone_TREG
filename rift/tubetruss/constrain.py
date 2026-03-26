@@ -8,6 +8,14 @@ import numpy as np
 from rift.arraytypes import Matrix, Vector
 
 
+X: Final = np.array((1., 0., 0.))
+Y: Final = np.array((0., 1., 0.))
+Z: Final = np.array((0., 0., 1.))
+X.setflags(write=False)
+Y.setflags(write=False)
+Z.setflags(write=False)
+
+
 class Point(Protocol):
     """
     A general representation of a point on a truss.
@@ -103,7 +111,7 @@ class Orbit:
         r = radius @ x
         th0 = np.atan2(r[2], -r[0])
         rate = (target - th0) / resolution
-        return cls(radius, np.array([0, 1, 0]), rate)
+        return cls(radius, Y, rate)
 
     def get(self, x: Matrix) -> tuple[Matrix, Vector]:
         r = self.radius @ x
