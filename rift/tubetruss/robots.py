@@ -15,7 +15,7 @@ class SolverError(InverseKinematicsError): ...
 class SingularityError(InverseKinematicsError): ...
 
 
-def find_dx(
+def solve_qp(
     *,
     R: Matrix,
     f: Vector | None = None,
@@ -72,6 +72,33 @@ def find_dx(
     return x
 
 
+def find_dx(
+    *,
+    x: Matrix,
+    cost: Matrix,
+    constraint: cstr.Constraint,
+    allow_redundant: bool = False,
+    respect_floor: bool = False,
+) -> Matrix:
+    A, b = constraint.get(x)
+    e, v = cstr.singularity_eig(A, b if allow_redundant else None)
+    if abs(e) <= 1e-3:
+        raise SingularityError("Robot state is singular")
+    if respect_floor:
+        G = np.zeros((x.shape[0], x.size))
+        G[range(x.shape[0]), range(2, x.size, 3)] = -1.
+        h = x[:,2]
+        solver = 'piqp'
+    else:
+        G = None
+        h = None
+        solver = 'piqp' if allow_redundant else 'kkt'
+    dx = solve_qp(R=cost, A=A, b=b, G=G, h=h, solver=solver)
+    if dx is None:
+        raise SolverError("Could not find valid node velocities")
+    return dx.reshape(x.shape)
+
+
 @dataclass(slots=True)
 class TrussRobot:
     """
@@ -125,24 +152,15 @@ class TrussRobot:
             cstr.Static(self.control.unreachable @ rigidity),
             *constraints
         ))
-        A, b = constraint.get(self.pos)
-        e, v = cstr.singularity_eig(A, b if allow_redundant else None)
-        if abs(e) <= 1e-3:
-            raise SingularityError("Robot state is singular")
-        if respect_floor:
-            G = np.zeros((self.n_nodes, self.pos.size))
-            G[range(self.n_nodes), range(2, self.pos.size, 3)] = -1.
-            h = self.pos[:,2]
-            solver = 'piqp'
-        else:
-            G = None
-            h = None
-            solver = 'piqp' if allow_redundant else 'kkt'
-        dx = find_dx(R=rigidity, A=A, b=b, G=G, h=h, solver=solver)
-        if dx is None:
-            raise SolverError("Could not find valid node velocities")
-        dq = self.control.inverse @ rigidity @ dx
-        self.pos += dx.reshape(self.pos.shape)
+        dx = find_dx(
+            x=self.pos,
+            cost=rigidity,
+            constraint=constraint,
+            allow_redundant=allow_redundant,
+            respect_floor=respect_floor,
+        )
+        dq = self.control.inverse @ rigidity @ dx.ravel()
+        self.pos += dx
         return dq
 
     def repeat_step(
