@@ -72,9 +72,14 @@ class VizWorker(QObject):
         init_pos: Matrix = rover.ROLLING_POS,
         *,
         period: int = 1,
+        stabilize: bool = False,
     ) -> None:
         super().__init__()
         self.robot = rover.make_robot(init_pos)
+        if stabilize:
+            self.stabilizer = rover.make_stabilizer(init_pos)
+        else:
+            self.stabilizer = None
         self.bundler = Bundler(period)
         self.gen = None
 
@@ -86,6 +91,8 @@ class VizWorker(QObject):
             self.robot.truss,
             self.robot.control,
         )
+        if self.stabilizer is not None:
+            self.stabilizer = rover.make_stabilizer(pos)
 
     @Slot()
     def run_next(self) -> None:
@@ -105,7 +112,12 @@ class VizWorker(QObject):
             self.done.emit()
             self.message.emit(e.args[0])
         else:
-            self.results.emit(self.robot.pos.copy(), delta_q)
+            if self.stabilizer is not None:
+                self.stabilizer.update_pos(self.robot.pos)
+                out_pos = self.stabilizer.pos
+            else:
+                out_pos = self.robot.pos.copy()
+            self.results.emit(out_pos, delta_q)
 
     @Slot(Command)
     def run_cmd(self, cmd: Command) -> None:
