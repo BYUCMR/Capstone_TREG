@@ -140,20 +140,19 @@ class TrussRobot:
 
     def apply_roll(
         self,
-        d_roll: Vector,
-        *constraints: cstr.Constraint,
+        dq: Vector,
+        constraint: cstr.Constraint,
     ) -> Matrix:
-        constraint = cstr.CompoundConstraint(constraints)
-        A, b = constraint.get(self.pos)
-        d_length = self.control.forward @ d_roll
-        d_pos = np.linalg.solve(
+        A, b = constraint.get(self.pos, 1.)
+        dL = self.control.forward @ dq
+        dx = np.linalg.solve(
             np.concat((self.rigidity, A)),
-            np.concat((d_length, b)),
+            np.concat((dL, b)),
         )
-        d_pos = d_pos.reshape(self.pos.shape)
+        dx = dx.reshape(self.pos.shape)
         self._rigidity = None
-        self._pos[:] += d_pos
-        return d_pos
+        self._pos[:] += dx
+        return dx
 
     def take_step(
         self,
