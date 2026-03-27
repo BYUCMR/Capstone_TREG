@@ -99,11 +99,17 @@ CONTROL: Final = tt.LengthControl.from_trails(
     n_static=12,   # The number of chassis links
 )
 
-# Point masses
-MASS: Final = np.zeros(12)
-CHASSIS_MASS: Final = np.zeros(12)
-MASS[:6] = 2.
-MASS[6:] = CHASSIS_MASS[6:] = 1.
+
+# Centers of mass
+COM: Final = np.zeros(12)
+CHASSIS_COM: Final = np.zeros(12)
+COM[:6] = 2.
+COM[6:] = CHASSIS_COM[6:] = 1.
+COM[:] /= np.sum(COM)
+CHASSIS_COM[:] /= np.sum(CHASSIS_COM)
+COM.setflags(write=False)
+CHASSIS_COM.setflags(write=False)
+
 
 # Physical size
 # In actuality, we have 1125 * 12 * 4 ticks per side, but we
@@ -173,8 +179,7 @@ def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussRobot:
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
     source_pos = init_pos.copy()
-    rel_mass = MASS / np.sum(MASS)
-    return grav.Stabilizer(source_pos, rel_mass=rel_mass)
+    return grav.Stabilizer(source_pos, rel_mass=COM)
 
 
 def set_up_animation(
@@ -276,9 +281,8 @@ def nudge_chassis(
     y: float,
     z: float,
 ) -> Vector:
-    chassis_com = CHASSIS_MASS / np.sum(CHASSIS_MASS)
     motion = cstr.Static.combine(
-        cstr.xyz(chassis_com, x, y, z),
+        cstr.xyz(CHASSIS_COM, x, y, z),
         cstr.xyz(P3-Q3, x=0, z=0),
         cstr.xyz(L1, z=0),
         cstr.xyz(L2, z=0),
@@ -316,11 +320,10 @@ def crawl(
     *,
     resolution: int = 50,
 ) -> Generator[Vector]:
-    chassis_com = CHASSIS_MASS / np.sum(CHASSIS_MASS)
-    chassis_up = chassis_com - cstr.centroid(P3, Q3)
+    chassis_up = CHASSIS_COM - cstr.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
-    steadily_forward = cstr.xyz(chassis_com, x=0.25 * x_dist)
+    steadily_forward = cstr.xyz(CHASSIS_COM, x=0.25 * x_dist)
     feet = (L2, L1, R2, R1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
@@ -405,7 +408,6 @@ def roll(
         for foot in pair
         if j != i
     ]
-    chassis_com = CHASSIS_MASS / np.sum(CHASSIS_MASS)
     feet_midpoint = cstr.centroid(foot_l, foot_r)
     step_1 = cstr.CompoundConstraint((
         cstr.lock(base),
@@ -421,7 +423,7 @@ def roll(
     yield from robot.repeat_step(step_1, times=resolution)
     x_dist = ((face - feet_midpoint) @ robot.pos)[0] - 0.5*0.875
     step_2 = cstr.CompoundConstraint((
-        cstr.lock(chassis_com),
+        cstr.lock(CHASSIS_COM),
         cstr.xyz(face - base, z=0.),
         cstr.ParabolicPath.make(foot_l, init_pos=robot.pos, delta_x=x_dist),
         cstr.ParabolicPath.make(foot_r, init_pos=robot.pos, delta_x=x_dist),
@@ -434,7 +436,7 @@ def roll(
             cstr.X + math.sqrt(3.)*cstr.Z,
             init_pos=robot.pos,
         ),
-        cstr.xyz(chassis_com - face, y=0.),
+        cstr.xyz(CHASSIS_COM - face, y=0.),
         cstr.xyz(base - face, y=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
