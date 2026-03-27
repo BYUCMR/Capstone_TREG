@@ -7,12 +7,14 @@ import numpy as np
 from rift.arraytypes import Matrix
 from .linalg import cokernel, incidence_from_trails
 
+type RealMatrix = Matrix[np.integer | np.floating]
 
-@dataclass(frozen=True)
+
+@dataclass(slots=True, frozen=True)
 class LengthControl:
-    forward: Matrix[np.integer | np.floating]
-    inverse: Matrix[np.integer | np.floating]
-    unreachable: Matrix[np.integer | np.floating]
+    forward: RealMatrix
+    inverse: RealMatrix
+    unreachable: RealMatrix
 
     def __post_init__(self) -> None:
         if self.forward.shape != self.inverse.T.shape:
@@ -35,13 +37,17 @@ class LengthControl:
         return len(self.forward)
 
     @classmethod
-    def from_unreachable(cls, unreachable: Matrix[np.integer]) -> Self:
+    def make_simple(cls, n: int) -> Self:
+        return cls(np.eye(n), np.eye(n), np.zeros((0, n)))
+
+    @classmethod
+    def from_unreachable(cls, unreachable: RealMatrix) -> Self:
         forward = cokernel(unreachable.T).T
         inverse = np.linalg.pinv(forward)
         return cls(forward, inverse, unreachable)
 
     @classmethod
-    def from_forward(cls, forward: Matrix[np.integer]) -> Self:
+    def from_forward(cls, forward: RealMatrix) -> Self:
         inverse = np.linalg.pinv(forward)
         unreachable = cokernel(forward)
         return cls(forward, inverse, unreachable)
