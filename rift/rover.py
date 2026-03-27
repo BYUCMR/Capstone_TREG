@@ -65,37 +65,14 @@ Q2: Final = Node.Q2
 Q3: Final = Node.Q3
 
 
-# Links
-L1_L2: Final = 0
-L2_P3: Final = 1
-P3_L1: Final = 2
-P1_L2: Final = 3
-L2_L3: Final = 4
-L3_P1: Final = 5
-L1_P2: Final = 6
-P2_L3: Final = 7
-L3_L1: Final = 8
-
-R1_R2: Final = 9
-R2_Q3: Final = 10
-Q3_R1: Final = 11
-Q1_R2: Final = 12
-R2_R3: Final = 13
-R3_Q1: Final = 14
-R1_Q2: Final = 15
-Q2_R3: Final = 16
-R3_R1: Final = 17
-
 # Truss structures
 TRUSS: Final = tt.Truss.from_trails(
-    # These must follow the link order defined above.
     (L1, L2, P3, L1),
     (P1, L2, L3, P1),
     (L1, P2, L3, L1),
     (R1, R2, Q3, R1),
     (Q1, R2, R3, Q1),
     (R1, Q2, R3, R1),
-    # These can be in any order.
     (P1, Q1),
     (P2, Q2),
     (P3, Q3),
@@ -112,13 +89,14 @@ TRUSS: Final = tt.Truss.from_trails(
 
 # Roller setup
 CONTROL: Final = tt.LengthControl.from_trails(
-    (P3_L1, L1_L2, L2_P3),  # Rollers 01 and 02
-    (P1_L2, L2_L3, L3_P1),  # Rollers 03 and 04
-    (P2_L3, L3_L1, L1_P2),  # Rollers 05 and 06
-    (R2_Q3, R1_R2, Q3_R1),  # Rollers 07 and 08
-    (R1_Q2, R3_R1, Q2_R3),  # Rollers 09 and 10
-    (R3_Q1, R2_R3, Q1_R2),  # Rollers 11 and 12
-    n_static=12,
+    # These indices are based on the construction order above.
+    ( 2,  0,  1),  # Rollers 01 and 02; P3-L1-L2-P3
+    ( 3,  4,  5),  # Rollers 03 and 04; P1-L2-L3-P1
+    ( 7,  8,  6),  # Rollers 05 and 06; P2-L3-L1-P2
+    (10,  9, 11),  # Rollers 07 and 08; Q3-R2-R1-Q3
+    (15, 17, 16),  # Rollers 09 and 10; Q2-R1-R3-Q2
+    (14, 13, 12),  # Rollers 11 and 12; Q1-R3-R2-Q1
+    n_static=12,   # The number of chassis links
 )
 
 # Point masses
