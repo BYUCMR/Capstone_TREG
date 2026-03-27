@@ -342,9 +342,7 @@ def crawl(
     chassis_up = chassis_com - cstr.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
-    steadily_forward = cstr.xyz(
-        chassis_com, x=0.25 * x_dist / resolution
-    )
+    steadily_forward = cstr.xyz(chassis_com, x=0.25 * x_dist)
     feet = (L2, L1, R2, R1)
     for foot in (feet * cycles):
         motion = cstr.CompoundConstraint([
@@ -353,7 +351,6 @@ def crawl(
                 init_pos=robot.pos,
                 delta_x=x_dist,
                 delta_y=y_dist,
-                resolution=resolution,
             ),
             *(
                 cstr.lock(other_foot)
@@ -372,10 +369,9 @@ def lean(
     *,
     resolution: int = 100,
 ) -> Generator[Vector]:
-    dx = dist / resolution
     constraint = cstr.Static.combine(
-        cstr.xyz(P2, dx),
-        cstr.xyz(Q2, dx),
+        cstr.xyz(P2, dist),
+        cstr.xyz(Q2, dist),
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.lock(L2),
@@ -391,8 +387,8 @@ def reach(
     resolution: int = 100,
 ) -> Generator[Vector]:
     constraint = cstr.Static.combine(
-        cstr.xyz(L3, x=dist / resolution),
-        cstr.xyz(R3, x=dist / resolution),
+        cstr.xyz(L3, x=dist),
+        cstr.xyz(R3, x=dist),
         cstr.lock(P3),
         cstr.lock(Q3),
         cstr.lock(L1),
@@ -435,7 +431,7 @@ def roll(
     feet_midpoint = cstr.centroid(foot_l, foot_r)
     step_1 = cstr.CompoundConstraint((
         cstr.lock(base),
-        cstr.Orbit.align(face-base, cstr.X, init_pos=robot.pos, resolution=resolution),
+        cstr.Orbit.align(face-base, cstr.X, init_pos=robot.pos),
         cstr.xyz(face - base, y=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
@@ -449,18 +445,8 @@ def roll(
     step_2 = cstr.CompoundConstraint((
         cstr.lock(chassis_com),
         cstr.xyz(face - base, z=0.),
-        cstr.ParabolicPath.make(
-            foot_l,
-            init_pos=robot.pos,
-            delta_x=x_dist,
-            resolution=resolution,
-        ),
-        cstr.ParabolicPath.make(
-            foot_r,
-            init_pos=robot.pos,
-            delta_x=x_dist,
-            resolution=resolution,
-        ),
+        cstr.ParabolicPath.make(foot_l, init_pos=robot.pos, delta_x=x_dist),
+        cstr.ParabolicPath.make(foot_r, init_pos=robot.pos, delta_x=x_dist),
     ))
     yield from robot.repeat_step(step_2, times=resolution)
     step_3 = cstr.CompoundConstraint((
@@ -469,13 +455,12 @@ def roll(
             base-face,
             cstr.X + math.sqrt(3.)*cstr.Z,
             init_pos=robot.pos,
-            resolution=resolution,
         ),
         cstr.xyz(chassis_com - face, y=0.),
         cstr.xyz(base - face, y=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
-        cstr.Orbit.align(arm_l-foot_l, cstr.X, init_pos=robot.pos, resolution=resolution),
-        cstr.Orbit.align(arm_r-foot_r, cstr.X, init_pos=robot.pos, resolution=resolution),
+        cstr.Orbit.align(arm_l-foot_l, cstr.X, init_pos=robot.pos),
+        cstr.Orbit.align(arm_r-foot_r, cstr.X, init_pos=robot.pos),
     ))
     yield from robot.repeat_step(step_3, times=resolution)

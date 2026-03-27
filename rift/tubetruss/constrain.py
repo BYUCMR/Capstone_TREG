@@ -28,7 +28,7 @@ class Point(Protocol):
 
 class Constraint(Protocol):
     """A general representation of a motion constraint."""
-    def get(self, x: Matrix, /) -> tuple[Matrix, Vector]: ...
+    def get(self, x: Matrix, /, scale: float) -> tuple[Matrix, Vector]: ...
 
 
 def centroid(*points: Point) -> Vector:
@@ -83,9 +83,9 @@ class Static:
         rates = np.array([e for e in (x, y, z) if e is not None])
         return cls.motion(point, directions, rates)
 
-    def get(self, x: Matrix | None = None) -> tuple[Matrix, Vector]:
+    def get(self, x: Matrix | None = None, scale: float = 1.) -> tuple[Matrix, Vector]:
         b = np.zeros(len(self.A)) if self.b is None else self.b.copy()
-        return self.A, b
+        return self.A, b * scale
 
 
 lock: Final = Static.lock
@@ -107,22 +107,20 @@ class Orbit:
         end: Vector,
         *,
         init_pos: Matrix,
-        resolution: int,
     ) -> Self:
         start = radius @ init_pos
         axis = -np.cross(start, end)
         axis_norm = np.linalg.norm(axis)
         angle = math.asin(axis_norm / (np.linalg.norm(start) * np.linalg.norm(end)))
-        rate = -angle / resolution
         axis /= axis_norm
-        return cls(radius, axis, rate)
+        return cls(radius, axis, -angle)
 
-    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
+    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
         r = self.radius @ x
         r -= (self.axis @ r) * self.axis
         v = np.cross(self.axis, r) / (r @ r)
         A = np.kron(self.radius, v.reshape(1, -1))
-        return A, np.array([self.rate])
+        return A, np.array((self.rate * scale,))
 
 
 @dataclass(slots=True)
@@ -141,18 +139,18 @@ class ParabolicPath:
         delta_x: float,
         delta_y: float = 0.,
         aspect_ratio: float = 0.5,
-        resolution: int,
     ) -> Self:
         origin = point @ init_pos + (delta_x, delta_y, 0.)
-        rate = math.hypot(delta_x, delta_y) / resolution
-        rise = 2. * aspect_ratio / resolution
+        rate = math.hypot(delta_x, delta_y)
+        rise = 2. * aspect_ratio
         return cls(point, origin, rate, rise)
 
-    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
+    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
         dp = self.point @ x - self.origin
         r = np.linalg.norm(dp[:2])
         dp *= -self.rate / r
         dp[2] += self.rise * r
+        dp *= scale
         A = np.kron(self.point, np.eye(3))
         return A, dp
 
@@ -162,11 +160,11 @@ class CompoundConstraint:
     """A constraint equivalent to a combination of other constraints."""
     constraints: Sequence[Constraint] = ()
 
-    def get(self, x: Matrix) -> tuple[Matrix, Vector]:
+    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
         As: list[Matrix] = []
         bs: list[Vector] = []
         for c in self.constraints:
-            Ai, bi = c.get(x)
+            Ai, bi = c.get(x, scale)
             As.append(Ai)
             bs.append(bi)
         A = np.concat(As)

@@ -77,10 +77,11 @@ def find_dx(
     x: Matrix,
     cost: Matrix,
     constraint: cstr.Constraint,
+    scale: float = 1,
     allow_redundant: bool = False,
     respect_floor: bool = False,
 ) -> Matrix:
-    A, b = constraint.get(x)
+    A, b = constraint.get(x, scale)
     e, v = cstr.singularity_eig(A, b if allow_redundant else None)
     if abs(e) <= 1e-3:
         raise SingularityError("Robot state is singular")
@@ -157,6 +158,7 @@ class TrussRobot:
     def take_step(
         self,
         *constraints: cstr.Constraint,
+        scale: float = 1,
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Vector:
@@ -168,6 +170,7 @@ class TrussRobot:
             x=self.pos,
             cost=self.rigidity,
             constraint=constraint,
+            scale=scale,
             allow_redundant=allow_redundant,
             respect_floor=respect_floor,
         )
@@ -183,9 +186,11 @@ class TrussRobot:
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Generator[Vector]:
+        scale = 1 / times
         for _ in range(times):
             yield self.take_step(
                 *constraints,
+                scale=scale,
                 allow_redundant=allow_redundant,
                 respect_floor=respect_floor,
             )
