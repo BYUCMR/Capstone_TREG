@@ -1,5 +1,5 @@
 from collections.abc import Generator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import qpsolvers
@@ -109,6 +109,7 @@ class TrussRobot:
     _pos: Matrix
     truss: Truss
     control: LengthControl
+    _rigidity: Matrix | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         if len(self.pos) != self.truss.n_nodes:
@@ -130,20 +131,26 @@ class TrussRobot:
         view.setflags(write=False)
         return view
 
+    @property
+    def rigidity(self) -> Matrix:
+        if self._rigidity is None:
+            self._rigidity = self.truss.rigidity_at(self._pos)
+        return self._rigidity
+
     def apply_roll(
         self,
         d_roll: Vector,
         *constraints: cstr.Constraint,
     ) -> Matrix:
-        rigidity = self.truss.rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint(constraints)
         A, b = constraint.get(self.pos)
         d_length = self.control.forward @ d_roll
         d_pos = np.linalg.solve(
-            np.concat((rigidity, A)),
+            np.concat((self.rigidity, A)),
             np.concat((d_length, b)),
         )
         d_pos = d_pos.reshape(self.pos.shape)
+        self._rigidity = None
         self._pos[:] += d_pos
         return d_pos
 
@@ -153,19 +160,19 @@ class TrussRobot:
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Vector:
-        rigidity = self.truss.rigidity_at(self.pos)
         constraint = cstr.CompoundConstraint((
-            cstr.Static(self.control.unreachable @ rigidity),
+            cstr.Static(self.control.unreachable @ self.rigidity),
             *constraints
         ))
         dx = find_dx(
             x=self.pos,
-            cost=rigidity,
+            cost=self.rigidity,
             constraint=constraint,
             allow_redundant=allow_redundant,
             respect_floor=respect_floor,
         )
-        dq = self.control.inverse @ rigidity @ dx.ravel()
+        dq = self.control.inverse @ self.rigidity @ dx.ravel()
+        self._rigidity = None
         self._pos[:] += dx
         return dq
 
