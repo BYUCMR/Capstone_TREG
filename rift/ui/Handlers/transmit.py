@@ -56,11 +56,8 @@ class TransmitWorker(QObject):
     ) -> None:
         super().__init__(parent)
         self.ser = serial.Serial(baudrate=115200, timeout=timeout)
-        self.commander = commander.Commander(
-            ser=self.ser,
-            q_des=np.zeros(12, dtype=np.intp),
-            log=self.message.emit,
-        )
+        self.q_des = np.zeros(12, dtype=np.intp)
+        self.commander = commander.Commander(self.ser, self.message.emit)
         self.feedback = feedback
         self.done_timer = QTimer(self)
         self.update_error_timer = QTimer(self, interval=3000, singleShot=True)
@@ -71,17 +68,18 @@ class TransmitWorker(QObject):
         self.done_timer.stop()
         if not self.ser.is_open:
             return
-        self.commander.stop()
+        self.commander.send_stop()
         self.update_error_timer.start()
 
     @Slot()
     def update_error(self) -> None:
-        error = self.commander.get_error()
-        if error is not None:
-            self.update_sliders.emit(error)
+        q_cur = self.commander.get_q()
+        if q_cur is not None:
+            self.update_sliders.emit(q_cur - self.q_des)
 
     @Slot()
     def set_zero(self) -> None:
+        self.q_des[:] = 0
         if not self.ser.is_open:
             return
         self.commander.set_zero()
@@ -89,6 +87,7 @@ class TransmitWorker(QObject):
 
     @Slot()
     def to_zero(self) -> None:
+        self.q_des[:] = 0
         if not self.ser.is_open:
             return
         self.commander.to_zero()
@@ -98,7 +97,8 @@ class TransmitWorker(QObject):
     def catch_up(self) -> None:
         if not self.ser.is_open:
             return
-        self.commander.catch_up()
+        self.commander.send_stop()
+        self.commander.send_q(self.q_des)
         self.update_error_timer.start()
 
     @Slot(ndarray, ndarray)
@@ -106,13 +106,13 @@ class TransmitWorker(QObject):
         if not self.ser.is_open:
             self.ready.emit()
             return
-        error = self.commander.get_error()
-        if error is not None:
-            self.update_sliders.emit(error)
+        q_cur = self.commander.get_q()
+        if q_cur is not None:
+            self.update_sliders.emit(q_cur - self.q_des)
         ticks = (rover.TICKS_PER_SIDE * dq).astype(np.intp)
-        self.commander.update(ticks)
-        if self.feedback and error is not None:
-            ticks += error
+        self.q_des += ticks
+        if self.feedback and q_cur is not None:
+            ticks = self.q_des - q_cur
         dt = commands.get_smallest_dt(ticks, max_speed=1000)
         self.commander.send_dq(ticks, dt)
         self.done_timer.singleShot(int(dt * 1000), self.ready.emit)
