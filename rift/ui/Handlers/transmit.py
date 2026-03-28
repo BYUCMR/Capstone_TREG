@@ -68,6 +68,7 @@ class TransmitWorker(QObject):
 
     @Slot()
     def stop(self) -> None:
+        self.done_timer.stop()
         if not self.ser.is_open:
             return
         self.commander.stop()
