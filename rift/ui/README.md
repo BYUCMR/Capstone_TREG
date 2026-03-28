@@ -10,4 +10,4 @@ The UI's execution of simulation, animation, and control are done using separate
 This file contains the class for simulation and visualization. The `SimWindow` class is implemented into the main UI thread, and the `VizWorker` class is implemented on a separate thread for more resource intensive tasks as needed.
 
 ## Handlers/joystick_handler.py
-This file contains the `JoystickHandler` class to set up joystick control using the Pygame package, and the `JoyWorker` class to take live inputs. Because Pygame uses a while loop structure, the `JoyWorker` class is implemented on a separate thread.
+This file contains the `JoystickHandler` class to set up joystick control using the Panda3D package, and the `JoyWorker` class to take live inputs. Because this uses a while loop structure, the `JoyWorker` class is implemented on a separate thread.

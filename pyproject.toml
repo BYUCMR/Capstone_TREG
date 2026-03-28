@@ -5,7 +5,7 @@ description = "BYU CMR 2025 Capstone project"
 requires-python = ">=3.13"
 dependencies = [
     "numpy",
-    "pygame",
+    "Panda3D",
     "PyOpenGL",
     "pyqtgraph",
     "pyserial",

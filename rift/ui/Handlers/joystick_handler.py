@@ -1,11 +1,6 @@
-from os import environ
-import warnings
 import time
 
-environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
-warnings.filterwarnings("ignore")
-
-import pygame
+import panda3d.core as p3d
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 
 
@@ -44,32 +39,29 @@ class JoyWorker(QObject):
     action = Signal(float, float, float)
     message = Signal(str)
     finished = Signal()
+    device_mgr = p3d.InputDeviceManager.get_global_ptr()
 
     @Slot()
     def heavy_task(self):
-        self.message.emit("Pygame Running")
-        pygame.init()
-        pygame.joystick.init()
-        if(pygame.joystick.get_count() == 0):
-            pygame.joystick.quit()
-            pygame.quit()
+        self.message.emit("Joystick Handler Running")
+        self.device_mgr.update()
+        joysticks = self.device_mgr.get_devices(p3d.InputDevice.DeviceClass.flight_stick)
+        if len(joysticks) == 0:
             self.finished.emit()
             self.message.emit("No Joystick Found")
         else:
-            joystick = pygame.joystick.Joystick(0)
-            self.message.emit(f"Jostick Initialized: {joystick.get_name()}")
+            joystick = joysticks[0]
+            self.message.emit(f"Jostick Initialized: {joystick.name}")
             self.hosting = True
             while self.hosting:
-                # for event in pygame.event.get():
-                #     if event.type == pygame.JOYBUTTONDOWN:
-                #         self.message.emit("Joystick Button Pressed")
-                #         self.action.emit()
-                pygame.event.pump()
-                x = joystick.get_axis(0)
+                # if joystick.find_button('trigger').pressed:
+                #     self.message.emit("Joystick Button Pressed")
+                #     self.action.emit()
+                x = -joystick.find_axis(p3d.InputDevice.Axis.pitch).value
                 if x < 0.1 and x > -0.1: x = 0
-                y = joystick.get_axis(1)
+                y = -joystick.find_axis(p3d.InputDevice.Axis.roll).value
                 if y < 0.1 and y > -0.1: y = 0
-                z = joystick.get_axis(2)
+                z = -joystick.find_axis(p3d.InputDevice.Axis.yaw).value
                 if z < 0.1 and z > -0.1: z = 0
                 self.action.emit(x,y,z)
                 time.sleep(0.1)
