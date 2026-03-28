@@ -40,26 +40,27 @@ def take_command(
     elif command.mode is Mode.crawling:
         x = command.x * 0.125
         y = -command.y * 0.125
-        yield from rover.crawl(robot, 1, (x, y), resolution=100)
+        yield from robot.divide_steps(rover.crawl(1, (x, y)), resolution=100)
     elif command.mode is Mode.node_control:
-        yield rover.nudge_node(
-            robot,
+        motion = rover.node_nudge(
             command.item,
             command.x * 0.0005,
             command.y * 0.0005,
             command.z * 0.0005,
         )
+        yield robot.take_step(motion, respect_floor=True, allow_redundant=True)
     elif command.mode is Mode.calibration:
         yield rover.adjust_roller(robot, command.item, command.x * 0.0005)
     elif command.mode is Mode.stand:
-        yield rover.nudge_chassis(
-            robot,
+        motion = rover.chassis_nudge(
             command.x * 0.0005,
             command.y * 0.0005,
             command.z * 0.0005,
         )
+        yield robot.take_step(motion)
     elif command.mode is Mode.rolling:
-        yield rover.tilt_chassis(robot, np.pi * command.x / 1000)
+        motion = rover.chassis_tilt(np.pi * command.x / 1000)
+        yield robot.take_step(motion)
 
 
 @dataclass(slots=True)

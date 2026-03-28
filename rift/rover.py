@@ -256,32 +256,22 @@ def adjust_roller(
     return dq
 
 
-def nudge_node(
-    robot: tt.TrussRobot,
-    node: SupportsIndex,
-    x: float,
-    y: float,
-    z: float,
-) -> Vector:
-    locked = robot.pos[:, 2] < grav.DEFAULT_TOL
-    locked[node] = False
-    motion = cstr.Static.combine(
-        cstr.xyz(Node(node), x, y, z),
-        *(
-            cstr.lock(Node(n))
-            for n in np.flatnonzero(locked)
-        ),
-    )
-    return robot.take_step(motion, respect_floor=True, allow_redundant=True)
+def node_nudge(node: SupportsIndex, x: float, y: float, z: float) -> cstr.Constraint:
+    def sleeper(pos: Matrix) -> cstr.Static:
+        locked = pos[:, 2] < 1e-6
+        locked[node] = False
+        return cstr.Static.combine(
+            cstr.xyz(Node(node), x, y, z),
+            *(
+                cstr.lock(Node(n))
+                for n in np.flatnonzero(locked)
+            ),
+        )
+    return cstr.Sleeper(sleeper)
 
 
-def nudge_chassis(
-    robot: tt.TrussRobot,
-    x: float,
-    y: float,
-    z: float,
-) -> Vector:
-    motion = cstr.Static.combine(
+def chassis_nudge(x: float, y: float, z: float) -> cstr.Constraint:
+    return cstr.Static.combine(
         cstr.xyz(CHASSIS_COM, x, y, z),
         cstr.xyz(P3-Q3, x=0, z=0),
         cstr.xyz(L1, z=0),
@@ -290,16 +280,12 @@ def nudge_chassis(
         cstr.xyz(R2, z=0),
         cstr.xyz(cstr.centroid(L1, L2, R1, R2), x=0, y=0),
     )
-    return robot.take_step(motion)
 
 
-def tilt_chassis(
-    robot: tt.TrussRobot,
-    angle: float,
-) -> Vector:
+def chassis_tilt(angle: float) -> cstr.Constraint:
     base = cstr.centroid(P3, Q3)
     face = cstr.centroid(P2, Q2)
-    motion = cstr.CompoundConstraint((
+    return cstr.CompoundConstraint((
         cstr.lock(base),
         cstr.Orbit(face-base, cstr.Y, angle),
         cstr.xyz(face - base, y=0.),
@@ -310,26 +296,21 @@ def tilt_chassis(
         cstr.xyz(L3, y=0.),
         cstr.xyz(R3, y=0.),
     ))
-    return robot.take_step(motion, respect_floor=False)
 
 
 def crawl(
-    robot: tt.TrussRobot,
     cycles: int = 1,
     step_length: tuple[float, float] = (0.125, 0.),
-    *,
-    resolution: int = 50,
-) -> Generator[Vector]:
+) -> Generator[cstr.Constraint]:
     chassis_up = CHASSIS_COM - cstr.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
     steadily_forward = cstr.xyz(CHASSIS_COM, x=0.25 * x_dist)
     feet = (L2, L1, R2, R1)
     for foot in (feet * cycles):
-        motion = cstr.CompoundConstraint([
+        yield cstr.CompoundConstraint([
             cstr.ParabolicPath.make(
                 point=foot,
-                init_pos=robot.pos,
                 delta_x=x_dist,
                 delta_y=y_dist,
             ),
@@ -341,16 +322,10 @@ def crawl(
             steadily_forward,
             no_wobble,
         ])
-        yield from robot.repeat_step(motion, times=resolution)
 
 
-def lean(
-    robot: tt.TrussRobot,
-    dist: float = 0.6,
-    *,
-    resolution: int = 100,
-) -> Generator[Vector]:
-    constraint = cstr.Static.combine(
+def lean(dist: float = 0.6) -> cstr.Static:
+    return cstr.Static.combine(
         cstr.xyz(P2, dist),
         cstr.xyz(Q2, dist),
         cstr.lock(L1),
@@ -358,16 +333,10 @@ def lean(
         cstr.lock(L2),
         cstr.lock(R2),
     )
-    yield from robot.repeat_step(constraint, times=resolution)
 
 
-def reach(
-    robot: tt.TrussRobot,
-    dist: float = 1.,
-    *,
-    resolution: int = 100,
-) -> Generator[Vector]:
-    constraint = cstr.Static.combine(
+def reach(dist: float = 1.) -> cstr.Static:
+    return cstr.Static.combine(
         cstr.xyz(L3, x=dist),
         cstr.xyz(R3, x=dist),
         cstr.lock(P3),
@@ -375,19 +344,9 @@ def reach(
         cstr.lock(L1),
         cstr.lock(R1),
     )
-    yield from robot.repeat_step(
-        constraint,
-        times=resolution,
-        allow_redundant=True,
-    )
 
 
-def roll(
-    robot: tt.TrussRobot,
-    *,
-    i: int = 0,
-    resolution: int = 100,
-) -> Generator[Vector]:
+def roll(*, i: int = 0) -> Generator[cstr.Constraint]:
     chassis_midpoints = (
         cstr.centroid(P1, Q1),
         cstr.centroid(P3, Q3),
@@ -409,9 +368,9 @@ def roll(
         if j != i
     ]
     feet_midpoint = cstr.centroid(foot_l, foot_r)
-    step_1 = cstr.CompoundConstraint((
+    yield cstr.CompoundConstraint((
         cstr.lock(base),
-        cstr.Orbit.align(face-base, cstr.X, init_pos=robot.pos),
+        cstr.Orbit.align(face-base, cstr.X),
         cstr.xyz(face - base, y=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
@@ -420,27 +379,27 @@ def roll(
             for foot in other_feet
         ),
     ))
-    yield from robot.repeat_step(step_1, times=resolution)
-    x_dist = ((face - feet_midpoint) @ robot.pos)[0] - 0.5*0.875
-    step_2 = cstr.CompoundConstraint((
+    def step_back(x: Matrix) -> cstr.Constraint:
+        x_dist = ((face - feet_midpoint) @ x)[0] - 0.5*0.875
+        return cstr.CompoundConstraint((
+            cstr.ParabolicPath.make(foot_l, init_pos=x, delta_x=x_dist),
+            cstr.ParabolicPath.make(foot_r, init_pos=x, delta_x=x_dist),
+        ))
+    yield cstr.CompoundConstraint((
         cstr.lock(CHASSIS_COM),
         cstr.xyz(face - base, z=0.),
-        cstr.ParabolicPath.make(foot_l, init_pos=robot.pos, delta_x=x_dist),
-        cstr.ParabolicPath.make(foot_r, init_pos=robot.pos, delta_x=x_dist),
+        cstr.Sleeper(step_back),
     ))
-    yield from robot.repeat_step(step_2, times=resolution)
-    step_3 = cstr.CompoundConstraint((
+    yield cstr.CompoundConstraint((
         cstr.lock(face),
         cstr.Orbit.align(
             base-face,
             cstr.X + math.sqrt(3.)*cstr.Z,
-            init_pos=robot.pos,
         ),
         cstr.xyz(CHASSIS_COM - face, y=0.),
         cstr.xyz(base - face, y=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
-        cstr.Orbit.align(arm_l-foot_l, cstr.X, init_pos=robot.pos),
-        cstr.Orbit.align(arm_r-foot_r, cstr.X, init_pos=robot.pos),
+        cstr.Orbit.align(arm_l-foot_l, cstr.X),
+        cstr.Orbit.align(arm_r-foot_r, cstr.X),
     ))
-    yield from robot.repeat_step(step_3, times=resolution)

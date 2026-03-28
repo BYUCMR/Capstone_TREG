@@ -1,5 +1,5 @@
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Final, Protocol, Self
 
@@ -34,6 +34,17 @@ class Constraint(Protocol):
 def centroid(*points: Point) -> Vector:
     """Return the mean of the input points."""
     return np.average(np.array(points), axis=0)
+
+
+@dataclass(slots=True)
+class Sleeper:
+    constructor: Callable[[Matrix], Constraint]
+    constraint: Constraint | None = None
+
+    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
+        if self.constraint is None:
+            self.constraint = self.constructor(x)
+        return self.constraint.get(x, scale)
 
 
 @dataclass(slots=True)
@@ -106,8 +117,10 @@ class Orbit:
         radius: Point,
         end: Vector,
         *,
-        init_pos: Matrix,
-    ) -> Self:
+        init_pos: Matrix | None = None,
+    ) -> Self | Sleeper:
+        if init_pos is None:
+            return Sleeper(lambda x: cls.align(radius, end, init_pos=x))
         start = radius @ init_pos
         axis = -np.cross(start, end)
         axis_norm = np.linalg.norm(axis)
@@ -135,11 +148,19 @@ class ParabolicPath:
         cls,
         point: Point,
         *,
-        init_pos: Matrix,
         delta_x: float,
         delta_y: float = 0.,
         aspect_ratio: float = 0.5,
-    ) -> Self:
+        init_pos: Matrix | None = None,
+    ) -> Self | Sleeper:
+        if init_pos is None:
+            return Sleeper(lambda x: cls.make(
+                point=point,
+                delta_x=delta_x,
+                delta_y=delta_y,
+                aspect_ratio=aspect_ratio,
+                init_pos=x,
+            ))
         origin = point @ init_pos + (delta_x, delta_y, 0.)
         rate = math.hypot(delta_x, delta_y)
         rise = 2. * aspect_ratio

@@ -18,7 +18,7 @@ async def main(
     view, animate = rover.set_up_animation(init_pos)
     view.show()
     try:
-        for _ in rover.roll(robot, resolution=resolution):
+        for _ in robot.divide_steps(rover.roll(), resolution=resolution):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
             await asyncio.sleep(0)

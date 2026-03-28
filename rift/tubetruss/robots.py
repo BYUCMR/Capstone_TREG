@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -178,18 +178,20 @@ class TrussRobot:
         self._pos[:] += dx
         return dq
 
-    def repeat_step(
+    def divide_steps(
         self,
-        *constraints: cstr.Constraint,
-        times: int,
+        steps: Iterable[cstr.Constraint],
+        *,
+        resolution: int,
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Generator[Vector]:
-        scale = 1 / times
-        for _ in range(times):
-            yield self.take_step(
-                *constraints,
-                scale=scale,
-                allow_redundant=allow_redundant,
-                respect_floor=respect_floor,
-            )
+        scale = 1 / resolution
+        for step in steps:
+            for _ in range(resolution):
+                yield self.take_step(
+                    step,
+                    scale=scale,
+                    allow_redundant=allow_redundant,
+                    respect_floor=respect_floor,
+                )

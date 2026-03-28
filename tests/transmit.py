@@ -23,7 +23,7 @@ async def main(
     view.show()
     t = 37.5 / resolution
     try:
-        for dr in rover.roll(robot, resolution=resolution):
+        for dr in robot.divide_steps(rover.roll(), resolution=resolution):
             stabilizer.update_pos(robot.pos)
             animate(stabilizer.pos)
             ticks_per_sec = rover.TICKS_PER_SIDE * dr / t

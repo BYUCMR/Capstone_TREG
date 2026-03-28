@@ -9,7 +9,7 @@ def main():
     t0 = time.time()
     with cProfile.Profile() as profile:
         robot = rover.make_robot()
-        for _ in rover.crawl(robot, 10):
+        for _ in robot.divide_steps(rover.crawl(10), resolution=50):
             pass
     t1 = time.time()
     stats = pstats.Stats(profile).sort_stats(pstats.SortKey.CUMULATIVE)
