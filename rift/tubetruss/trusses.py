@@ -1,4 +1,3 @@
-import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Self, SupportsIndex
@@ -39,12 +38,11 @@ class Truss:
         If `normalize == False`, then each value in the resulting vector will
         be multiplied by the length of the corresponding link.
         """
-        B = self.incidence
-        rigidity = (B[:,:,None] @ B[:,None,:] @ pos).reshape(-1, pos.size)
+        link_vectors = self.incidence @ pos
         if normalize:
-            norms = np.linalg.vector_norm(rigidity, axis=1, keepdims=True)
-            rigidity *= math.sqrt(2.) / norms
-        return rigidity
+            link_vectors /= np.linalg.vector_norm(link_vectors, axis=1, keepdims=True)
+        rigidity = self.incidence[:,:,None] @ link_vectors[:,None,:]
+        return rigidity.reshape(-1, pos.size)
 
     def attach(self, other: Self, nodemap: IndexVector | None = None) -> Self:
         """
