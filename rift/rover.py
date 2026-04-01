@@ -347,57 +347,50 @@ def reach(dist: float = 1.) -> cstr.Static:
 
 
 def roll(*, i: int = 0) -> Generator[cstr.Constraint]:
-    chassis_midpoints = (
-        cstr.centroid(P1, Q1),
-        cstr.centroid(P3, Q3),
-        cstr.centroid(P2, Q2),
+    chassis_pairs = (
+        (P1, Q1),
+        (P3, Q3),
+        (P2, Q2),
     )
     foot_pairs = (
         (L1, R1),
         (L3, R3),
         (L2, R2),
     )
-    base = chassis_midpoints[i-2]
-    face = chassis_midpoints[i-1]
+    base_l, base_r = chassis_pairs[i-2]
+    face_l, face_r = chassis_pairs[i-1]
+    back_l, back_r = chassis_pairs[i-0]
+    base = cstr.centroid(base_l, base_r)
+    face = cstr.centroid(face_l, face_r)
+    back = cstr.centroid(back_l, back_r)
     foot_l, foot_r = foot_pairs[i]
     arm_l, arm_r = foot_pairs[i-2]
-    other_feet = [
-        foot
-        for j, pair in enumerate(foot_pairs)
-        for foot in pair
-        if j != i
-    ]
     feet_midpoint = cstr.centroid(foot_l, foot_r)
     yield cstr.CompoundConstraint((
         cstr.lock(base),
-        cstr.Orbit.align(face-base, cstr.X),
-        cstr.xyz(face - base, y=0.),
-        cstr.lock(foot_l),
-        cstr.lock(foot_r),
-        *(
-            cstr.xyz(foot, y=0.)
-            for foot in other_feet
-        ),
+        cstr.xyz(COM - feet_midpoint, x=0.25),
+        cstr.Orbit.align(face - base, cstr.X),
+        cstr.xyz(base_l - base_r, x=0., z=0.),
+        cstr.xyz(foot_l, z=0.),
+        cstr.xyz(foot_r, z=0.),
     ))
     def step_back(x: Matrix) -> cstr.Constraint:
         x_dist = ((face - feet_midpoint) @ x)[0] - 0.5*0.875
         return cstr.CompoundConstraint((
-            cstr.ParabolicPath.make(foot_l, init_pos=x, delta_x=x_dist),
-            cstr.ParabolicPath.make(foot_r, init_pos=x, delta_x=x_dist),
+            cstr.xyz(COM, x=x_dist*0.5),
+            cstr.xyz(foot_l, x_dist, 0., 0.),
+            cstr.xyz(foot_r, x_dist, 0., 0.),
         ))
     yield cstr.CompoundConstraint((
         cstr.lock(CHASSIS_COM),
-        cstr.xyz(face - base, z=0.),
+        cstr.xyz(face_l - face_r, z=0.),
+        cstr.xyz(face - base, y=0., z=0.),
         cstr.Sleeper(step_back),
     ))
     yield cstr.CompoundConstraint((
         cstr.lock(face),
-        cstr.Orbit.align(
-            base-face,
-            cstr.X + math.sqrt(3.)*cstr.Z,
-        ),
-        cstr.xyz(CHASSIS_COM - face, y=0.),
-        cstr.xyz(base - face, y=0.),
+        cstr.Orbit.align(back - base, cstr.X),
+        cstr.xyz(face_l - face_r, x=0., z=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
         cstr.Orbit.align(arm_l-foot_l, cstr.X),
