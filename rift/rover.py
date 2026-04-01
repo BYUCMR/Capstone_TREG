@@ -324,6 +324,44 @@ def crawl(
         ])
 
 
+def shuffle(x_dist: float = 0.125) -> Generator[cstr.Constraint]:
+    chassis_up = CHASSIS_COM - cstr.centroid(P3, Q3)
+    no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
+    c_dist = x_dist * 0.4
+    yield cstr.CompoundConstraint((
+        cstr.lock(L1),
+        cstr.lock(R1),
+        cstr.lock(L2),
+        cstr.lock(R2),
+        cstr.xyz(COM, x=c_dist),
+        no_wobble,
+    ))
+    yield cstr.CompoundConstraint((
+        cstr.lock(L1),
+        cstr.lock(R1),
+        cstr.Static.xyz(L2, x_dist, 0., 0.),
+        cstr.Static.xyz(R2, x_dist, 0., 0.),
+        cstr.xyz(COM, x=0.5*x_dist-c_dist),
+        no_wobble,
+    ))
+    yield cstr.CompoundConstraint((
+        cstr.lock(L1),
+        cstr.lock(R1),
+        cstr.lock(L2),
+        cstr.lock(R2),
+        cstr.xyz(COM, x=-c_dist),
+        no_wobble,
+    ))
+    yield cstr.CompoundConstraint((
+        cstr.Static.xyz(L1, x_dist, 0., 0.),
+        cstr.Static.xyz(R1, x_dist, 0., 0.),
+        cstr.lock(L2),
+        cstr.lock(R2),
+        cstr.xyz(COM, x=0.5*x_dist+c_dist),
+        no_wobble,
+    ))
+
+
 def lean(dist: float = 0.6) -> cstr.Static:
     return cstr.Static.combine(
         cstr.xyz(P2, dist),
