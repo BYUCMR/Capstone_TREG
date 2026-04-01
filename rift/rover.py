@@ -114,7 +114,7 @@ CHASSIS_COM.setflags(write=False)
 # Physical size
 # In actuality, we have 1125 * 12 * 4 ticks per side, but we
 # increase this to account for not simulating node offsets.
-TICKS_PER_SIDE: Final = 1125 * 12 * 4 * 1.5
+TICKS_PER_SIDE: Final = 1125 * 12 * 4 * 2
 
 
 def make_pos(
