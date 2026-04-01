@@ -7,7 +7,7 @@ from PySide6.QtGui import QCloseEvent, QKeyEvent
 from PySide6.QtWidgets import QMainWindow, QWidget
 
 from rift import rover
-from rift.arraytypes import Vector
+from rift.arraytypes import Matrix, Vector
 from .ui_main import Ui_Control
 from .Handlers.controls import Command, Mode
 from .Handlers.joystick_handler import JoystickHandler
@@ -34,6 +34,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.bot_handler.message.connect(self.term_log)
         self.bot_handler.update_sliders.connect(self.update_motor_sliders)
         self.vis_handler.worker.results.connect(self.bot_handler.worker.transmit)
+        self.vis_handler.worker.results.connect(self.write)
         self.bot_handler.worker.ready.connect(self.vis_handler.worker.run_next)
 
         self.ui.node_select_label.setVisible(False)
@@ -80,6 +81,10 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.rolling.clicked.connect(lambda: self.mode_select(Mode.rolling))
 
         self.ui.sim_toggle.clicked.emit()
+
+    @Slot(np.ndarray, np.ndarray)
+    def write(self, x: Matrix, dq: Vector) -> None:
+        ...
 
     @Slot()
     def toggle_sim(self) -> None:
