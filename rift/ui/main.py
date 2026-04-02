@@ -26,7 +26,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state = Command(Mode.offline, 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
-        self.vis_handler = SimWindow(self.cmd_state, self.ui)
+        self.vis_handler = SimWindow(self.cmd_state)
+        self.ui.Full_Splitter.addWidget(self.vis_handler.view)
         self.bot_handler = TransmitHandler()
         self.joystick_handler.message.connect(self.term_log)
         self.joystick_handler.command.connect(self.cmd_set)
