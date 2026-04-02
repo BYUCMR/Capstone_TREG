@@ -39,7 +39,7 @@ def take_command(
         return
     elif command.mode is Mode.crawling:
         x = command.x * 0.125
-        y = -command.y * 0.125
+        y = command.y * 0.125
         if not (x or y):
             return
         yield from robot.divide_steps(rover.crawl(1, (x, y)), resolution=100)

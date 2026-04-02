@@ -61,15 +61,15 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
         self.ui.backward.pressed.connect(lambda: self.cmd_update(-1, 0, 0))
-        self.ui.left.pressed.connect(lambda: self.cmd_update(0, -1, 0))
-        self.ui.right.pressed.connect(lambda: self.cmd_update(0, 1, 0))
+        self.ui.left.pressed.connect(lambda: self.cmd_update(0, 1, 0))
+        self.ui.right.pressed.connect(lambda: self.cmd_update(0, -1, 0))
         self.ui.del_right.pressed.connect(lambda: self.cmd_update(0, 0, 1))
         self.ui.del_left.pressed.connect(lambda: self.cmd_update(0, 0, -1))
 
         self.ui.forward.released.connect(lambda: self.cmd_update(-1, 0, 0))
         self.ui.backward.released.connect(lambda: self.cmd_update(1, 0, 0))
-        self.ui.left.released.connect(lambda: self.cmd_update(0, 1, 0))
-        self.ui.right.released.connect(lambda: self.cmd_update(0, -1, 0))
+        self.ui.left.released.connect(lambda: self.cmd_update(0, -1, 0))
+        self.ui.right.released.connect(lambda: self.cmd_update(0, 1, 0))
         self.ui.del_right.released.connect(lambda: self.cmd_update(0, 0, -1))
         self.ui.del_left.released.connect(lambda: self.cmd_update(0, 0, 1))
 
@@ -282,11 +282,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         if event.isAutoRepeat(): return
         key = event.key()
         if key == Qt.Key.Key_A:
-            self.cmd_update(0, -1, 0)
+            self.cmd_update(0, 1, 0)
         elif key == Qt.Key.Key_S:
             self.cmd_update(-1, 0, 0)
         elif key == Qt.Key.Key_D:
-            self.cmd_update(0, 1, 0)
+            self.cmd_update(0, -1, 0)
         elif key == Qt.Key.Key_W:
             self.cmd_update(1, 0, 0)
         elif key == Qt.Key.Key_E:
@@ -299,11 +299,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         if event.isAutoRepeat(): return
         key = event.key()
         if key == Qt.Key.Key_A:
-            self.cmd_update(0, 1, 0)
+            self.cmd_update(0, -1, 0)
         elif key == Qt.Key.Key_S:
             self.cmd_update(1, 0, 0)
         elif key == Qt.Key.Key_D:
-            self.cmd_update(0, -1, 0)
+            self.cmd_update(0, 1, 0)
         elif key == Qt.Key.Key_W:
             self.cmd_update(-1, 0, 0)
         elif key == Qt.Key.Key_E:
