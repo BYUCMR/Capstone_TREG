@@ -105,6 +105,32 @@ xyz: Final = Static.xyz
 
 
 @dataclass(slots=True)
+class Radial:
+    radius: Point
+    rate: float
+
+    @classmethod
+    def get_to(
+        cls,
+        radius: Point,
+        length: float,
+        *,
+        init_pos: Matrix | None = None,
+    ) -> Self | Sleeper:
+        if init_pos is None:
+            return Sleeper(lambda x: cls.get_to(radius, length, init_pos=x))
+        current_length = np.linalg.norm(radius @ init_pos)
+        rate = length - current_length
+        return cls(radius, float(rate))
+
+    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
+        r = self.radius @ x
+        r /= np.linalg.norm(r)
+        A = np.kron(self.radius, r.reshape(1, -1))
+        return A, np.array((self.rate * scale,))
+
+
+@dataclass(slots=True)
 class Orbit:
     """A constraint representing the rotation of some point about its origin."""
     radius: Point
