@@ -152,7 +152,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.mb_10.clicked.connect(lambda: self.correct_motor_error(10))
         self.ui.mb_11.clicked.connect(lambda: self.correct_motor_error(11))
         self.ui.mb_12.clicked.connect(lambda: self.correct_motor_error(12))
-        self.ui.eq_all.clicked.connect(lambda: self.correct_motor_error(0))
 
     @Slot()
     def correct_motor_error(self, motor) -> None:
