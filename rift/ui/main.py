@@ -26,7 +26,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state = Command(Mode.offline, 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
-        self.vis_handler = SimWindow(self.cmd_state, self.ui)
+        self.vis_handler = SimWindow(self.cmd_state)
+        self.ui.Full_Splitter.addWidget(self.vis_handler.view)
         self.bot_handler = TransmitHandler()
         self.joystick_handler.message.connect(self.term_log)
         self.joystick_handler.command.connect(self.cmd_set)
@@ -62,15 +63,15 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
         # self.ui.forward.pressed.connect(self.cleanup)
         self.ui.backward.pressed.connect(lambda: self.cmd_update(-1, 0, 0))
-        self.ui.left.pressed.connect(lambda: self.cmd_update(0, -1, 0))
-        self.ui.right.pressed.connect(lambda: self.cmd_update(0, 1, 0))
+        self.ui.left.pressed.connect(lambda: self.cmd_update(0, 1, 0))
+        self.ui.right.pressed.connect(lambda: self.cmd_update(0, -1, 0))
         self.ui.del_right.pressed.connect(lambda: self.cmd_update(0, 0, 1))
         self.ui.del_left.pressed.connect(lambda: self.cmd_update(0, 0, -1))
 
         self.ui.forward.released.connect(lambda: self.cmd_update(-1, 0, 0))
         self.ui.backward.released.connect(lambda: self.cmd_update(1, 0, 0))
-        self.ui.left.released.connect(lambda: self.cmd_update(0, 1, 0))
-        self.ui.right.released.connect(lambda: self.cmd_update(0, -1, 0))
+        self.ui.left.released.connect(lambda: self.cmd_update(0, -1, 0))
+        self.ui.right.released.connect(lambda: self.cmd_update(0, 1, 0))
         self.ui.del_right.released.connect(lambda: self.cmd_update(0, 0, -1))
         self.ui.del_left.released.connect(lambda: self.cmd_update(0, 0, 1))
 
@@ -156,7 +157,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.mb_10.clicked.connect(lambda: self.correct_motor_error(10))
         self.ui.mb_11.clicked.connect(lambda: self.correct_motor_error(11))
         self.ui.mb_12.clicked.connect(lambda: self.correct_motor_error(12))
-        self.ui.eq_all.clicked.connect(lambda: self.correct_motor_error(0))
 
     @Slot()
     def correct_motor_error(self, motor) -> None:
@@ -287,11 +287,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         if event.isAutoRepeat(): return
         key = event.key()
         if key == Qt.Key.Key_A:
-            self.cmd_update(0, -1, 0)
+            self.cmd_update(0, 1, 0)
         elif key == Qt.Key.Key_S:
             self.cmd_update(-1, 0, 0)
         elif key == Qt.Key.Key_D:
-            self.cmd_update(0, 1, 0)
+            self.cmd_update(0, -1, 0)
         elif key == Qt.Key.Key_W:
             self.cmd_update(1, 0, 0)
         elif key == Qt.Key.Key_E:
@@ -304,11 +304,11 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         if event.isAutoRepeat(): return
         key = event.key()
         if key == Qt.Key.Key_A:
-            self.cmd_update(0, 1, 0)
+            self.cmd_update(0, -1, 0)
         elif key == Qt.Key.Key_S:
             self.cmd_update(1, 0, 0)
         elif key == Qt.Key.Key_D:
-            self.cmd_update(0, -1, 0)
+            self.cmd_update(0, 1, 0)
         elif key == Qt.Key.Key_W:
             self.cmd_update(-1, 0, 0)
         elif key == Qt.Key.Key_E:

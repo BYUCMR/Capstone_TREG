@@ -14,22 +14,20 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     message = Signal(str)
     reset = Signal(ndarray)
 
+    work_thread: QThread | None = None
+
     def __init__(
         self,
         cmd_state: Command,
-        ui,
         parent: QObject | None = None
     ) -> None:
         super().__init__(parent)
         self.cmd_state = cmd_state
-        self.sim_live = False
-        view, self.animate = rover.set_up_animation(
+        self.view, self.animate = rover.set_up_animation(
             rover.ROLLING_POS,
             trace_len=10,
         )
-        # ui.ctr_layout.insertWidget(1, view)
-        ui.Full_Splitter.addWidget(view)
-        view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.worker = VizWorker(period=10)
         self.send_cmd.connect(self.worker.run_cmd)
@@ -38,6 +36,10 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
         self.worker.message.connect(self.message.emit)
         self.reset.connect(self.worker.reset)
         self.reset.connect(self.update_anim)
+
+    @property
+    def sim_live(self) -> bool:
+        return self.work_thread is not None and self.work_thread.isRunning()
 
     @Slot(ndarray)
     @Slot(ndarray, ndarray)
@@ -54,12 +56,11 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
         self.work_thread.finished.connect(self.worker.pull_to_main)
         self.send_new()
         self.work_thread.start()
-        self.sim_live = True
 
     def kill_sim(self) -> None:
         self.reset.emit(rover.ROLLING_POS)
-        self.work_thread.requestInterruption()
-        self.sim_live = False
+        if self.work_thread is not None:
+            self.work_thread.requestInterruption()
 
 
 class VizWorker(QObject):
