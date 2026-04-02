@@ -85,7 +85,9 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     @Slot(np.ndarray, np.ndarray)
     def write(self, x: Matrix, dq: Vector) -> None:
-        ...
+        with open(f"sim_data.txt","a") as file:
+            file.write(datetime.now())
+            file.write(x)
 
     @Slot()
     def toggle_sim(self) -> None:
