@@ -117,11 +117,15 @@ class Orbit:
         radius: Point,
         end: Vector,
         *,
+        axis: Vector | None = None,
         init_pos: Matrix | None = None,
     ) -> Self | Sleeper:
         if init_pos is None:
-            return Sleeper(lambda x: cls.align(radius, end, init_pos=x))
+            return Sleeper(lambda x: cls.align(radius, end, axis=axis, init_pos=x))
         start = radius @ init_pos
+        if axis is not None:
+            start -= (axis @ start) * axis
+            end = end - (axis @ end) * axis
         axis = -np.cross(start, end)
         axis_norm = np.linalg.norm(axis)
         angle = math.asin(axis_norm / (np.linalg.norm(start) * np.linalg.norm(end)))

@@ -431,6 +431,6 @@ def roll(*, i: int = 0) -> Generator[cstr.Constraint]:
         cstr.xyz(face_l - face_r, x=0., z=0.),
         cstr.lock(foot_l),
         cstr.lock(foot_r),
-        cstr.Orbit.align(arm_l-foot_l, cstr.X),
-        cstr.Orbit.align(arm_r-foot_r, cstr.X),
+        cstr.Orbit.align(arm_l-foot_l, cstr.X, axis=cstr.Y),
+        cstr.Orbit.align(arm_r-foot_r, cstr.X, axis=cstr.Y),
     ))
