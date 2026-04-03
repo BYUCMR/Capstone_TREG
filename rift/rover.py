@@ -415,7 +415,6 @@ def roll(*, i: int = 0) -> Generator[cstr.Constraint]:
     def step_back(x: Matrix) -> cstr.Constraint:
         x_dist = ((face - feet_midpoint) @ x)[0] - 0.5
         return cstr.CompoundConstraint((
-            cstr.xyz(COM, x=x_dist*0.5),
             cstr.xyz(foot_l, x_dist, 0., 0.),
             cstr.xyz(foot_r, x_dist, 0., 0.),
         ))
@@ -423,16 +422,7 @@ def roll(*, i: int = 0) -> Generator[cstr.Constraint]:
         cstr.lock(CHASSIS_COM),
         cstr.xyz(face_l - face_r, z=0.),
         cstr.xyz(face - base, y=0., z=0.),
-        cstr.xyz(arm_l, y=0.),
-        cstr.xyz(arm_r, y=0.),
         cstr.Sleeper(step_back),
-    ))
-    yield cstr.CompoundConstraint((
-        cstr.lock(CHASSIS_COM),
-        cstr.xyz(face_l - face_r, z=0.),
-        cstr.xyz(face - base, y=0., z=0.),
-        cstr.lock(foot_l),
-        cstr.lock(foot_r),
         cstr.Radial.get_to(arm_l-foot_l, 1.),
         cstr.Radial.get_to(arm_r-foot_r, 1.),
         cstr.Orbit.align(arm_l-foot_l, cstr.X, axis=cstr.Y),
