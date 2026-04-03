@@ -110,6 +110,14 @@ class Ui_Control(object):
 
         self.L12.addWidget(self.stop)
 
+        self.reset_button = QPushButton(self.verticalLayoutWidget_2)
+        self.reset_button.setObjectName(u"reset_button")
+        self.reset_button.setEnabled(True)
+        self.reset_button.setStyleSheet(u"background-color: rgb(85, 170, 255);\n"
+"color: rgb(0, 0, 0);")
+
+        self.L12.addWidget(self.reset_button)
+
         self.L121 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.L12.addItem(self.L121)
@@ -186,12 +194,6 @@ class Ui_Control(object):
         self.crawling.setStyleSheet(u"")
 
         self.L14.addWidget(self.crawling, 0, 1, 1, 1)
-
-        self.reset_button = QPushButton(self.verticalLayoutWidget_2)
-        self.reset_button.setObjectName(u"reset_button")
-        self.reset_button.setEnabled(True)
-
-        self.L14.addWidget(self.reset_button, 1, 1, 1, 1)
 
         self.calibration = QPushButton(self.verticalLayoutWidget_2)
         self.calibration.setObjectName(u"calibration")
@@ -572,6 +574,7 @@ class Ui_Control(object):
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
         self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))
         self.stop.setText(QCoreApplication.translate("Control", u"STOP", None))
+        self.reset_button.setText(QCoreApplication.translate("Control", u"Reset", None))
         self.symm_toggle_label.setText(QCoreApplication.translate("Control", u"Force Symmetry", None))
         self.symm_toggle.setText("")
         self.roll_select_label.setText(QCoreApplication.translate("Control", u"Roller", None))
@@ -604,7 +607,6 @@ class Ui_Control(object):
 
         self.node_control.setText(QCoreApplication.translate("Control", u"Node Control", None))
         self.crawling.setText(QCoreApplication.translate("Control", u"Crawling", None))
-        self.reset_button.setText(QCoreApplication.translate("Control", u"Reset", None))
         self.calibration.setText(QCoreApplication.translate("Control", u"Calibration", None))
         self.rolling.setText(QCoreApplication.translate("Control", u"Rolling", None))
         self.sit_stand.setText(QCoreApplication.translate("Control", u"Sit/Stand", None))
