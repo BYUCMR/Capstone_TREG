@@ -19,10 +19,8 @@ def solve_qp(
     *,
     R: Matrix,
     f: Vector | None = None,
-    A: Matrix | None = None,
-    b: Vector | None = None,
-    G: Matrix | None = None,
-    h: Vector | None = None,
+    Ab: Matrix | None = None,
+    Gh: Matrix | None = None,
     solver: str = 'kkt',
 ) -> Vector | None:
     """
@@ -37,26 +35,22 @@ def solve_qp(
     if f is None:
         f = np.zeros(n)
     elif len(f) != n:
-        raise ValueError(f"Wrong shape for f: expected ({n}, [1]), got {f.shape}")
-    if A is None:
-        A = np.zeros((0, n))
-    elif A.shape[1] != n:
-        raise ValueError(f"Wrong shape for A: expected (_, {n}), got {A.shape}")
-    if b is None:
-        b = np.zeros(len(A))
-    elif len(b) != len(A):
-        raise ValueError(f"Wrong shape for b: expected ({len(A)}, [1]), got {b.shape}")
-    if solver == 'kkt' and (G is not None or h is not None):
+        raise ValueError(f"Wrong shape for f: expected ({n}, [1]); got {f.shape}")
+    if Ab is None:
+        Ab = np.zeros((0, n+1))
+    elif Ab.shape[1] != n+1:
+        raise ValueError(f"Wrong shape for [A|b]: expected (_, {n+1}); got {Ab.shape}")
+    if solver == 'kkt' and Gh is not None:
         raise ValueError("Cannot use KKT to solve with inequality constraints")
-    if G is None:
-        G = np.zeros((0, n))
-    elif G.shape[1] != n:
-        raise ValueError(f"Wrong shape for G: expected (_, {n}), got {G.shape}")
-    if h is None:
-        h = np.zeros(len(G))
-    elif len(h) != len(G):
-        raise ValueError(f"Wrong shape for b: expected ({len(G)}, [1]), got {h.shape}")
+    if Gh is None:
+        Gh = np.zeros((0, n+1))
+    elif Gh.shape[1] != n+1:
+        raise ValueError(f"Wrong shape for [G|h]: expected (_, {n+1}); got {Gh.shape}")
 
+    A = Ab[:, :-1]
+    G = Gh[:, :-1]
+    b = Ab[:, -1]
+    h = Gh[:, -1]
     H = R.T @ R
     if solver != 'kkt':
         return qpsolvers.solve_qp(P=H, q=f, A=A, b=b, G=G, h=h, solver=solver)
@@ -77,27 +71,26 @@ def find_dx(
     x: Matrix,
     cost: Matrix,
     constraint: cstr.Constraint,
-    scale: float = 1,
+    dt: float = 1.,
     allow_redundant: bool = False,
     respect_floor: bool = False,
 ) -> Matrix:
-    A, b = constraint.get(x, scale)
-    e, v = cstr.singularity_eig(A, b if allow_redundant else None)
+    Ab = constraint.at(x)
+    e, v = cstr.singularity_eig(Ab[:, :-1], Ab[:, -1] if allow_redundant else None)
     if abs(e) <= 1e-3:
         raise SingularityError("Robot state is singular")
     if respect_floor:
-        G = np.zeros((x.shape[0], x.size))
-        G[range(x.shape[0]), range(2, x.size, 3)] = -1.
-        h = x[:,2]
+        Gh = np.zeros((x.shape[0], x.size+1))
+        Gh[range(x.shape[0]), range(2, x.size, 3)] = -1.
+        Gh[:, -1] = x[:,2]
         solver = 'piqp'
     else:
-        G = None
-        h = None
+        Gh = None
         solver = 'piqp' if allow_redundant else 'kkt'
-    dx = solve_qp(R=cost, A=A, b=b, G=G, h=h, solver=solver)
-    if dx is None:
+    vel = solve_qp(R=cost, Ab=Ab, Gh=Gh, solver=solver)
+    if vel is None:
         raise SolverError("Could not find valid node velocities")
-    return dx.reshape(x.shape)
+    return vel.reshape(x.shape) * dt
 
 
 @dataclass(slots=True)
@@ -149,11 +142,11 @@ class TrussRobot:
         dq: Vector,
         constraint: cstr.Constraint,
     ) -> Matrix:
-        A, b = constraint.get(self.pos, 1.)
+        Ab = constraint.at(self.pos)
         dL = self.control.forward @ dq
         dx = np.linalg.solve(
-            np.concat((self.rigidity, A)),
-            np.concat((dL, b)),
+            np.concat((self.rigidity, Ab[:, :-1])),
+            np.concat((dL, Ab[:, -1])),
         )
         dx = dx.reshape(self.pos.shape)
         self._rigidity = None
@@ -163,19 +156,19 @@ class TrussRobot:
     def take_step(
         self,
         *constraints: cstr.Constraint,
-        scale: float = 1,
+        dt: float = 1,
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Vector:
         constraint = cstr.CompoundConstraint((
-            cstr.Static(self.control.unreachable @ self.rigidity),
+            cstr.Static.make_hom(self.control.unreachable @ self.rigidity),
             *constraints
         ))
         dx = find_dx(
             x=self.pos,
             cost=self.rigidity,
             constraint=constraint,
-            scale=scale,
+            dt=dt,
             allow_redundant=allow_redundant,
             respect_floor=respect_floor,
         )
@@ -192,12 +185,12 @@ class TrussRobot:
         allow_redundant: bool = False,
         respect_floor: bool = False,
     ) -> Generator[Vector]:
-        scale = 1 / resolution
+        dt = 1 / resolution
         for step in steps:
             for _ in range(resolution):
                 yield self.take_step(
                     step,
-                    scale=scale,
+                    dt=dt,
                     allow_redundant=allow_redundant,
                     respect_floor=respect_floor,
                 )
