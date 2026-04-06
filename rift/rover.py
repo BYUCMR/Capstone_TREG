@@ -65,8 +65,8 @@ Q2: Final = Node.Q2
 Q3: Final = Node.Q3
 
 
-# Truss structures
-TRUSS: Final = tt.Truss.from_trails(
+# Truss structure
+INCIDENCE: Final = tt.incidence_from_trails(
     (L1, L2, P3, L1),
     (P1, L2, L3, P1),
     (L1, P2, L3, L1),
@@ -86,6 +86,7 @@ TRUSS: Final = tt.Truss.from_trails(
     (Q2, Q3),
     (Q3, Q1),
 )
+INCIDENCE.setflags(write=False)
 
 # Roller setup
 CONTROL: Final = tt.LengthControl.from_trails(
@@ -174,7 +175,7 @@ ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 1.0)
 
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussRobot:
     pos = init_pos.copy()
-    return tt.TrussRobot(pos, TRUSS, CONTROL)
+    return tt.TrussRobot(pos, INCIDENCE, CONTROL)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -202,8 +203,9 @@ def set_up_animation(
     )
     chassis_mesh.setGLOptions('opaque')
     items.append(anim.BodyMesh(range(6, 12), chassis_mesh))
+    chassis_links = np.array([np.flatnonzero(row) for row in INCIDENCE[18:]])
     items.append(anim.draw_links(
-        TRUSS.get_links()[18:].ravel(),
+        chassis_links.ravel(),
         init_pos,
         color='black',
         width=4,

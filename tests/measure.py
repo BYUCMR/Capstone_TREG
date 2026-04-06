@@ -151,10 +151,10 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
 def measure_length_change(init_pos: Matrix, pos_hist: MatrixStack) -> tuple[float, float]:
     robot = rover.make_robot(init_pos)
     p0 = pos_hist[0]
-    d0 = robot.truss.incidence @ p0
+    d0 = robot.incidence @ p0
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
     p1 = pos_hist[-1]
-    d1 = robot.truss.incidence @ p1
+    d1 = robot.incidence @ p1
     L1 = np.sqrt(np.sum(np.square(d1), axis=1))
     delta_L = L1 - L0
     error = np.abs(np.sum(delta_L))

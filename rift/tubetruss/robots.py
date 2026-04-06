@@ -7,7 +7,7 @@ import qpsolvers
 from rift.arraytypes import Matrix, Vector
 from . import constrain as cstr
 from .control import LengthControl
-from .trusses import Truss
+from .linalg import get_rigidity
 
 
 class InverseKinematicsError(Exception): ...
@@ -108,19 +108,19 @@ class TrussRobot:
     It comprises a position, a truss structure, and a control setup.
     """
     _pos: Matrix
-    truss: Truss
+    _incidence: Matrix[np.int8]
     control: LengthControl
     _rigidity: Matrix | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
-        if len(self.pos) != self.truss.n_nodes:
-            raise ValueError("Robot position and truss have mismatched node counts")
-        if self.truss.n_links != self.control.n_outputs:
-            raise ValueError("Robot truss and control have mismatched link counts")
+        if self._pos.shape[0] != self._incidence.shape[1]:
+            raise ValueError("Robot position and incidence have mismatched node counts")
+        if self._incidence.shape[0] != self.control.n_outputs:
+            raise ValueError("Robot incidence and control have mismatched link counts")
 
     @property
     def n_nodes(self) -> int:
-        return self.truss.n_nodes
+        return len(self._pos)
 
     @property
     def n_rollers(self) -> int:
@@ -133,9 +133,15 @@ class TrussRobot:
         return view
 
     @property
+    def incidence(self) -> Matrix[np.int8]:
+        view = self._incidence.view()
+        view.setflags(write=False)
+        return view
+
+    @property
     def rigidity(self) -> Matrix:
         if self._rigidity is None:
-            self._rigidity = self.truss.rigidity_at(self._pos)
+            self._rigidity = get_rigidity(self._incidence, self._pos)
         return self._rigidity
 
     def apply_roll(
