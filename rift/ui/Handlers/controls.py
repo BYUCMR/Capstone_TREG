@@ -62,9 +62,9 @@ def take_command(
             command.z * 0.0005,
         )
         yield robot.take_step(motion)
-    elif command.mode is Mode.rolling:
-        motion = rover.chassis_tilt(np.pi * command.x / 1000)
-        yield robot.take_step(motion)
+    elif command.mode is Mode.rolling and command.x > 0:
+        yield from robot.divide_steps(rover.roll(), resolution=100)
+        robot.state = robot.state.roll()
 
 
 @dataclass(slots=True)
