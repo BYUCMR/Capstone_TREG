@@ -7,6 +7,7 @@ import numpy as np
 
 from rift import rover
 from rift import tubetruss as tt
+import rift.tubetruss.constrain as cstr
 from rift.arraytypes import Vector
 
 
@@ -50,7 +51,8 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        yield robot.take_step(motion, respect_floor=True, allow_redundant=True)
+        respect_floor = cstr.PlanarBarrier(np.eye(robot.n_nodes), cstr.Z)
+        yield robot.take_step(motion, respect_floor, allow_redundant=True)
     elif command.mode is Mode.calibration:
         yield rover.adjust_roller(robot, command.item, command.x * 0.0005)
     elif command.mode is Mode.stand:

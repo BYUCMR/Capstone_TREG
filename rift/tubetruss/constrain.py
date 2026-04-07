@@ -104,6 +104,18 @@ xyz: Final = Static.xyz
 
 
 @dataclass(slots=True)
+class PlanarBarrier:
+    """As an inequality constraint, this keeps nodes on one side of a plane."""
+    points: Matrix
+    normal: Vector
+
+    def at(self, pos: Matrix) -> Matrix:
+        A = np.kron(self.points, -self.normal)
+        b = self.points @ pos @ self.normal
+        return np.column_stack((A, b))
+
+
+@dataclass(slots=True)
 class Radial:
     radius: Point
     rate: float

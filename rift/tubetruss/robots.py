@@ -1,5 +1,6 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
+from typing import Protocol
 
 import numpy as np
 import qpsolvers
@@ -13,6 +14,27 @@ from .linalg import get_rigidity
 class InverseKinematicsError(Exception): ...
 class SolverError(InverseKinematicsError): ...
 class SingularityError(InverseKinematicsError): ...
+
+
+class RobotLike(Protocol):
+    @property
+    def dx_to_dq(self, /) -> Matrix: ...
+    def nudge(self, dx: Vector, /) -> object: ...
+    def resolve_constraint(self, constraint: cstr.Constraint, /) -> Matrix: ...
+
+
+def apply_roll(
+    robot: RobotLike,
+    dq: Vector,
+    constraint: cstr.Constraint,
+) -> Matrix:
+    Ab = robot.resolve_constraint(constraint)
+    dx = np.linalg.solve(
+        np.concat((robot.dx_to_dq, Ab[:, :-1])),
+        np.concat((dq, Ab[:, -1])),
+    )
+    robot.nudge(dx)
+    return dx
 
 
 def solve_qp(
@@ -66,31 +88,52 @@ def solve_qp(
     return x
 
 
-def find_dx(
-    *,
-    x: Matrix,
-    cost: Matrix,
+def take_step(
+    robot: RobotLike,
     constraint: cstr.Constraint,
+    ineq_constraint: cstr.Constraint | None = None,
+    *,
     dt: float = 1.,
+    cost: Matrix | None = None,
     allow_redundant: bool = False,
-    respect_floor: bool = False,
-) -> Matrix:
-    Ab = constraint.at(x)
+) -> Vector:
+    if cost is None:
+        cost = robot.dx_to_dq
+    Ab = robot.resolve_constraint(constraint)
     e, v = cstr.singularity_eig(Ab[:, :-1], Ab[:, -1] if allow_redundant else None)
     if abs(e) <= 1e-3:
         raise SingularityError("Robot state is singular")
-    if respect_floor:
-        Gh = np.zeros((x.shape[0], x.size+1))
-        Gh[range(x.shape[0]), range(2, x.size, 3)] = -1.
-        Gh[:, -1] = x[:,2]
-        solver = 'piqp'
-    else:
+    if ineq_constraint is None:
         Gh = None
         solver = 'piqp' if allow_redundant else 'kkt'
+    else:
+        Gh = robot.resolve_constraint(ineq_constraint)
+        solver = 'piqp'
     vel = solve_qp(R=cost, Ab=Ab, Gh=Gh, solver=solver)
     if vel is None:
         raise SolverError("Could not find valid node velocities")
-    return vel.reshape(x.shape) * dt
+    dx = vel * dt
+    dq = robot.dx_to_dq @ dx
+    robot.nudge(dx)
+    return dq
+
+
+def divide_steps(
+    robot: RobotLike,
+    steps: Iterable[cstr.Constraint],
+    *,
+    resolution: int,
+    allow_redundant: bool = False,
+) -> Generator[Vector]:
+    dt = 1 / resolution
+    for step in steps:
+        for _ in range(resolution):
+            yield take_step(
+                robot,
+                step,
+                dt=dt,
+                allow_redundant=allow_redundant,
+            )
 
 
 @dataclass(slots=True)
@@ -137,60 +180,21 @@ class TrussRobot:
             self._rigidity = get_rigidity(self._incidence, self._pos)
         return self._rigidity
 
-    def apply_roll(
-        self,
-        dq: Vector,
-        constraint: cstr.Constraint,
-    ) -> Matrix:
-        Ab = constraint.at(self.pos)
-        dL = self.control.forward @ dq
-        dx = np.linalg.solve(
-            np.concat((self.rigidity, Ab[:, :-1])),
-            np.concat((dL, Ab[:, -1])),
-        )
-        dx = dx.reshape(self.pos.shape)
+    @property
+    def dx_to_dq(self) -> Matrix:
+        return self.control.inverse @ self.rigidity
+
+    def resolve_constraint(self, constraint: cstr.Constraint) -> Matrix:
+        length_constraint = cstr.Static.make_hom(self.control.unreachable @ self.rigidity)
+        constraint = cstr.CompoundConstraint((length_constraint, constraint))
+        return constraint.at(self.pos)
+
+    def nudge(self, dx: Matrix | Vector) -> None:
+        if len(dx.shape) == 1:
+            dx = dx.reshape(self._pos.shape)
         self._rigidity = None
         self._pos[:] += dx
-        return dx
 
-    def take_step(
-        self,
-        *constraints: cstr.Constraint,
-        dt: float = 1,
-        allow_redundant: bool = False,
-        respect_floor: bool = False,
-    ) -> Vector:
-        constraint = cstr.CompoundConstraint((
-            cstr.Static.make_hom(self.control.unreachable @ self.rigidity),
-            *constraints
-        ))
-        dx = find_dx(
-            x=self.pos,
-            cost=self.rigidity,
-            constraint=constraint,
-            dt=dt,
-            allow_redundant=allow_redundant,
-            respect_floor=respect_floor,
-        )
-        dq = self.control.inverse @ self.rigidity @ dx.ravel()
-        self._rigidity = None
-        self._pos[:] += dx
-        return dq
-
-    def divide_steps(
-        self,
-        steps: Iterable[cstr.Constraint],
-        *,
-        resolution: int,
-        allow_redundant: bool = False,
-        respect_floor: bool = False,
-    ) -> Generator[Vector]:
-        dt = 1 / resolution
-        for step in steps:
-            for _ in range(resolution):
-                yield self.take_step(
-                    step,
-                    dt=dt,
-                    allow_redundant=allow_redundant,
-                    respect_floor=respect_floor,
-                )
+    apply_roll = apply_roll
+    take_step = take_step
+    divide_steps = divide_steps
