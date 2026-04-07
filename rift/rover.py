@@ -1,8 +1,9 @@
 import enum
 import math
 from collections.abc import Callable, Generator
+from dataclasses import dataclass
 from functools import partial
-from typing import Final, SupportsIndex
+from typing import Final, Self, SupportsIndex
 
 import numpy as np
 import pyqtgraph as pg
@@ -13,6 +14,7 @@ from . import grav
 from . import tubetruss as tt
 from .arraytypes import Matrix, Vector
 from .tubetruss import constrain as cstr
+from .tubetruss import robots
 
 
 @enum.global_enum
@@ -173,9 +175,8 @@ CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 1.0)
 
 
-def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussRobot:
-    pos = init_pos.copy()
-    return tt.TrussRobot(pos, INCIDENCE, CONTROL)
+def make_robot(init_pos: Matrix = CRAWLING_POS) -> 'Rover':
+    return Rover.make_pos(init_pos)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -241,8 +242,64 @@ def set_up_animation(
     return view, partial(anim.update_all_pos, items)
 
 
+class RoverState(enum.Enum):
+    R1 = 0
+    R2 = 2
+    R3 = 1
+
+    def roll(self) -> Self:
+        return type(self)((self.value - 1) % 3)
+
+    def get_permuter(self) -> Matrix[np.bool]:
+        i = self.value
+        order = [i, (i+1)%3, (i-1)%3]
+        I = np.eye(3, dtype=np.bool)
+        return np.kron(np.eye(4, dtype=np.bool), np.kron(I[order], I))
+
+
+@dataclass(slots=True)
+class Rover:
+    robot: tt.TrussRobot
+    state: RoverState = RoverState.R1
+
+    @classmethod
+    def make_pos(cls, pos: Matrix) -> Self:
+        return cls(tt.TrussRobot(pos.copy(), INCIDENCE, CONTROL), RoverState.R1)
+
+    @property
+    def n_nodes(self) -> int:
+        return self.robot.n_nodes
+
+    @property
+    def n_rollers(self) -> int:
+        return self.robot.n_rollers
+
+    @property
+    def pos(self) -> Matrix:
+        return self.robot.pos
+
+    @property
+    def incidence(self) -> Matrix[np.int8]:
+        return self.robot.incidence
+
+    @property
+    def dx_to_dq(self) -> Matrix:
+        return self.robot.dx_to_dq
+
+    def nudge(self, dx: Matrix | Vector) -> None:
+        self.robot.nudge(dx)
+
+    def resolve_constraint(self, constraint: cstr.Constraint) -> Matrix:
+        permuted = cstr.Permuted(constraint, self.state.get_permuter())
+        return self.robot.resolve_constraint(permuted)
+
+    apply_roll = robots.apply_roll
+    take_step = robots.take_step
+    divide_steps = robots.divide_steps
+
+
 def adjust_roller(
-    robot: tt.TrussRobot,
+    robot: Rover,
     roller: SupportsIndex,
     amount: float,
 ) -> Vector:
@@ -386,53 +443,38 @@ def reach(dist: float = 1.) -> cstr.Static:
     )
 
 
-def roll(*, i: int = 0) -> Generator[cstr.Constraint]:
-    chassis_pairs = (
-        (P1, Q1),
-        (P3, Q3),
-        (P2, Q2),
-    )
-    foot_pairs = (
-        (L1, R1),
-        (L3, R3),
-        (L2, R2),
-    )
-    base_l, base_r = chassis_pairs[i-2]
-    face_l, face_r = chassis_pairs[i-1]
-    back_l, back_r = chassis_pairs[i-0]
-    base = cstr.centroid(base_l, base_r)
-    face = cstr.centroid(face_l, face_r)
-    back = cstr.centroid(back_l, back_r)
-    foot_l, foot_r = foot_pairs[i]
-    arm_l, arm_r = foot_pairs[i-2]
-    feet_midpoint = cstr.centroid(foot_l, foot_r)
+def roll() -> Generator[cstr.Constraint]:
+    base = cstr.centroid(P3, Q3)
+    face = cstr.centroid(P2, Q2)
+    back = cstr.centroid(P1, Q1)
+    feet_midpoint = cstr.centroid(L1, R1)
     yield cstr.CompoundConstraint((
         cstr.lock(base),
         cstr.xyz(COM - feet_midpoint, x=0.25),
         cstr.Orbit.align(face - base, cstr.X),
-        cstr.xyz(base_l - base_r, x=0., z=0.),
-        cstr.xyz(foot_l, z=0.),
-        cstr.xyz(foot_r, z=0.),
+        cstr.xyz(P3 - Q3, x=0., z=0.),
+        cstr.xyz(L1, z=0.),
+        cstr.xyz(R1, z=0.),
     ))
     def step_back(x: Matrix) -> cstr.Constraint:
         x_dist = ((face - feet_midpoint) @ x)[0] - 0.5
         return cstr.CompoundConstraint((
-            cstr.xyz(foot_l, x_dist, 0., 0.),
-            cstr.xyz(foot_r, x_dist, 0., 0.),
+            cstr.xyz(L1, x_dist, 0., 0.),
+            cstr.xyz(R1, x_dist, 0., 0.),
         ))
     yield cstr.CompoundConstraint((
         cstr.lock(CHASSIS_COM),
-        cstr.xyz(face_l - face_r, z=0.),
+        cstr.xyz(P2 - Q2, z=0.),
         cstr.xyz(face - base, y=0., z=0.),
         cstr.Sleeper(step_back),
-        cstr.Radial.get_to(arm_l-foot_l, 1.),
-        cstr.Radial.get_to(arm_r-foot_r, 1.),
-        cstr.Orbit.align(arm_l-foot_l, cstr.X, axis=cstr.Y),
-        cstr.Orbit.align(arm_r-foot_r, cstr.X, axis=cstr.Y),
+        cstr.Radial.get_to(L3-L1, 1.),
+        cstr.Radial.get_to(R3-R1, 1.),
+        cstr.Orbit.align(L3-L1, cstr.X, axis=cstr.Y),
+        cstr.Orbit.align(R3-R1, cstr.X, axis=cstr.Y),
     ))
     def align_feet(x: Matrix) -> cstr.Constraint:
-        point_l = arm_l - foot_l
-        point_r = arm_r - foot_r
+        point_l = L3 - L1
+        point_r = R3 - R1
         target = (1., 0., 0.)
         return cstr.CompoundConstraint((
             cstr.Static.motion(point_l, np.eye(3), target - (point_l @ x)),
@@ -441,8 +483,8 @@ def roll(*, i: int = 0) -> Generator[cstr.Constraint]:
     yield cstr.CompoundConstraint((
         cstr.lock(face),
         cstr.Orbit.align(back - base, cstr.X),
-        cstr.xyz(face_l - face_r, x=0., z=0.),
-        cstr.xyz(foot_l, x=0., z=0.),
-        cstr.xyz(foot_r, x=0., z=0.),
+        cstr.xyz(P2 - Q2, x=0., z=0.),
+        cstr.xyz(L1, x=0., z=0.),
+        cstr.xyz(R1, x=0., z=0.),
         cstr.Sleeper(align_feet),
     ))

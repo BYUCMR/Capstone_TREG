@@ -48,6 +48,18 @@ class Sleeper:
 
 
 @dataclass(slots=True)
+class Permuted:
+    constraint: Constraint
+    permuter: Matrix[np.bool]
+
+    def at(self, pos: Matrix) -> Matrix:
+        pos = (pos.ravel() @ self.permuter.T).reshape(pos.shape)
+        aug = self.constraint.at(pos)
+        aug[:, :-1] @= self.permuter
+        return aug
+
+
+@dataclass(slots=True)
 class Static:
     """A constraint that doesn't vary with position."""
     aug: Matrix

@@ -33,7 +33,7 @@ class Command:
 
 
 def take_command(
-    robot: tt.TrussRobot,
+    robot: rover.Rover,
     command: Command,
 ) -> Generator[Vector]:
     if not command:
