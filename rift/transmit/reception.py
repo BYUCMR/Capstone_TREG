@@ -14,7 +14,7 @@ def read_q(
     for line in lines:
         try:
             string = line.decode()
-        except UnicodeEncodeError:
+        except UnicodeDecodeError:
             # Sometimes our data might be corrupted.
             continue
         q_match = re.fullmatch(r'\[(.*)\]\r\n', string)
