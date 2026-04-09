@@ -51,7 +51,7 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        respect_floor = cstr.PlanarBarrier(np.eye(robot.n_nodes), cstr.Z)
+        respect_floor = cstr.PlanarBarrier(np.eye(len(robot.pos)), cstr.Z)
         yield robot.take_step(motion, respect_floor, allow_redundant=True)
     elif command.mode is Mode.calibration:
         yield rover.adjust_roller(robot, command.item, command.x * 0.0005)

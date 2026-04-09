@@ -267,14 +267,6 @@ class Rover:
         return cls(tt.TrussRobot(pos.copy(), INCIDENCE, CONTROL), RoverState.R1)
 
     @property
-    def n_nodes(self) -> int:
-        return self.robot.n_nodes
-
-    @property
-    def n_rollers(self) -> int:
-        return self.robot.n_rollers
-
-    @property
     def pos(self) -> Matrix:
         return self.robot.pos
 
@@ -303,7 +295,7 @@ def adjust_roller(
     roller: SupportsIndex,
     amount: float,
 ) -> Vector:
-    dq = np.zeros(robot.n_rollers)
+    dq = np.zeros(len(robot.dx_to_dq))
     dq[roller] = amount
     # We might be able to make better constraints than this.
     constraint = cstr.Static.combine(

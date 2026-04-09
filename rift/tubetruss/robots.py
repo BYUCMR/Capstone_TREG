@@ -155,14 +155,6 @@ class TrussRobot:
             raise ValueError("Robot incidence and control have mismatched link counts")
 
     @property
-    def n_nodes(self) -> int:
-        return len(self._pos)
-
-    @property
-    def n_rollers(self) -> int:
-        return self.control.n_inputs
-
-    @property
     def pos(self) -> Matrix:
         view = self._pos.view()
         view.setflags(write=False)
