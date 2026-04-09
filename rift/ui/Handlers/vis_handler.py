@@ -87,11 +87,7 @@ class VizWorker(QObject):
     @Slot(ndarray)
     def reset(self, pos: Matrix) -> None:
         self.bundler.delta_q = None
-        self.robot = TrussRobot(
-            pos.copy(),
-            self.robot.truss,
-            self.robot.control,
-        )
+        self.robot = rover.make_robot(pos)
         if self.stabilizer is not None:
             self.stabilizer = rover.make_stabilizer(pos)
 

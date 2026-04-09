@@ -5,7 +5,7 @@ from typing import SupportsIndex, cast
 
 import numpy as np
 
-from rift.arraytypes import Matrix, Vector
+from rift.arraytypes import IndexVector, Matrix, Vector
 
 
 def incidence_from_trails(
@@ -21,6 +21,47 @@ def incidence_from_trails(
             row[j] = -1
             rows.append(row)
     return np.array(rows)
+
+
+def combine_incidence[T: np.generic](
+    a: Matrix[T],
+    b: Matrix[T],
+    nodemap: IndexVector | None = None,
+) -> Matrix[T]:
+    """
+    Combine two networks.
+
+    If specified, `nodemap` should be a vector of the indices that the nodes
+    of the second netwrork should map to in the new network. The nodes of the
+    first network keep their indices in the new one.
+    """
+    n_links_a, n_nodes_a = a.shape
+    n_links_b, n_nodes_b = b.shape
+    n_links_c = n_links_a + n_links_b
+    if nodemap is None:
+        nodemap = np.arange(n_nodes_b)
+    last_node = max(*range(n_nodes_a), *nodemap)
+    c = np.zeros((n_links_c, last_node+1), dtype=a.dtype)
+    c[:n_links_a, :n_nodes_a] = a
+    c[n_links_a:, nodemap] = b
+    return c
+
+
+def get_rigidity(incidence: Matrix[np.int8], pos: Matrix, *, normalize: bool = True) -> Matrix:
+    """
+    Return the rigidity matrix of a truss in a given position.
+
+    This matrix converts a flattened vector of node velocities into a
+    vector comprising the rate of change of each link.
+
+    If `normalize == False`, then each value in the resulting vector will
+    be multiplied by the length of the corresponding link.
+    """
+    link_vectors = incidence @ pos
+    if normalize:
+        link_vectors /= np.linalg.vector_norm(link_vectors, axis=1, keepdims=True)
+    rigidity = incidence[:,:,None] @ link_vectors[:,None,:]
+    return rigidity.reshape(-1, pos.size)
 
 
 def reduce[T: np.integer](mat: Matrix[T], *, in_place: bool = False) -> Matrix[T]:

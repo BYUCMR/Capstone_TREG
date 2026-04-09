@@ -7,6 +7,7 @@ import numpy as np
 
 from rift import rover
 from rift import tubetruss as tt
+import rift.tubetruss.constrain as cstr
 from rift.arraytypes import Vector
 
 
@@ -32,7 +33,7 @@ class Command:
 
 
 def take_command(
-    robot: tt.TrussRobot,
+    robot: rover.Rover,
     command: Command,
 ) -> Generator[Vector]:
     if not command:
@@ -50,7 +51,8 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        yield robot.take_step(motion, respect_floor=True, allow_redundant=True)
+        respect_floor = cstr.PlanarBarrier(np.eye(len(robot.pos)), cstr.Z)
+        yield robot.take_step(motion, respect_floor, allow_redundant=True)
     elif command.mode is Mode.calibration:
         yield rover.adjust_roller(robot, command.item, command.x * 0.0005)
     elif command.mode is Mode.stand:
@@ -61,8 +63,8 @@ def take_command(
         )
         yield robot.take_step(motion)
     elif command.mode is Mode.rolling and command.x > 0:
-        motion = rover.roll()
-        yield from robot.divide_steps(motion, resolution=100)
+        yield from robot.divide_steps(rover.roll(), resolution=100)
+        robot.state = robot.state.roll()
 
 
 @dataclass(slots=True)

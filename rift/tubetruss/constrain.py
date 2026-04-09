@@ -28,7 +28,7 @@ class Point(Protocol):
 
 class Constraint(Protocol):
     """A general representation of a motion constraint."""
-    def get(self, x: Matrix, /, scale: float) -> tuple[Matrix, Vector]: ...
+    def at(self, pos: Matrix, /) -> Matrix: ...
 
 
 def centroid(*points: Point) -> Vector:
@@ -41,33 +41,44 @@ class Sleeper:
     constructor: Callable[[Matrix], Constraint]
     constraint: Constraint | None = None
 
-    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
+    def at(self, pos: Matrix) -> Matrix:
         if self.constraint is None:
-            self.constraint = self.constructor(x)
-        return self.constraint.get(x, scale)
+            self.constraint = self.constructor(pos)
+        return self.constraint.at(pos)
+
+
+@dataclass(slots=True)
+class Permuted:
+    constraint: Constraint
+    permuter: Matrix[np.bool]
+
+    def at(self, pos: Matrix) -> Matrix:
+        pos = (pos.ravel() @ self.permuter.T).reshape(pos.shape)
+        aug = self.constraint.at(pos)
+        aug[:, :-1] @= self.permuter
+        return aug
 
 
 @dataclass(slots=True)
 class Static:
     """A constraint that doesn't vary with position."""
-    A: Matrix
-    b: Vector | None = None
+    aug: Matrix
 
     @classmethod
     def combine(cls, *others: Self) -> Self:
-        As: list[Matrix] = []
-        bs: list[Vector] = []
-        for c in others:
-            As.append(c.A)
-            bs.append(np.zeros(len(c.A)) if c.b is None else c.b)
-        A = np.concat(As)
-        b = np.concat(bs)
-        return cls(A, b)
+        return cls(np.concat([c.aug for c in others]))
+
+    @classmethod
+    def make_hom(cls, A: Matrix) -> Self:
+        m, n = A.shape
+        aug = np.zeros((m, n+1))
+        aug[:, :-1] = A
+        return cls(aug)
 
     @classmethod
     def lock(cls, point: Point) -> Self:
         """Constrain a point to be stationary."""
-        return cls(np.kron(point, np.eye(3)))
+        return cls.make_hom(np.kron(point, np.eye(3)))
 
     @classmethod
     def motion(
@@ -78,7 +89,8 @@ class Static:
     ) -> Self:
         """Constrain the linear motion of a point."""
         A = np.kron(point, directions)
-        return cls(A, rates)
+        aug = np.column_stack((A, rates))
+        return cls(aug)
 
     @classmethod
     def xyz(
@@ -94,14 +106,25 @@ class Static:
         rates = np.array([e for e in (x, y, z) if e is not None])
         return cls.motion(point, directions, rates)
 
-    def get(self, x: Matrix | None = None, scale: float = 1.) -> tuple[Matrix, Vector]:
-        b = np.zeros(len(self.A)) if self.b is None else self.b.copy()
-        return self.A, b * scale
+    def at(self, pos: Matrix | None = None) -> Matrix:
+        return self.aug.copy()
 
 
 lock: Final = Static.lock
 motion: Final = Static.motion
 xyz: Final = Static.xyz
+
+
+@dataclass(slots=True)
+class PlanarBarrier:
+    """As an inequality constraint, this keeps nodes on one side of a plane."""
+    points: Matrix
+    normal: Vector
+
+    def at(self, pos: Matrix) -> Matrix:
+        A = np.kron(self.points, -self.normal)
+        b = self.points @ pos @ self.normal
+        return np.column_stack((A, b))
 
 
 @dataclass(slots=True)
@@ -118,16 +141,16 @@ class Radial:
         init_pos: Matrix | None = None,
     ) -> Self | Sleeper:
         if init_pos is None:
-            return Sleeper(lambda x: cls.get_to(radius, length, init_pos=x))
+            return Sleeper(lambda pos: cls.get_to(radius, length, init_pos=pos))
         current_length = np.linalg.norm(radius @ init_pos)
         rate = length - current_length
         return cls(radius, float(rate))
 
-    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
-        r = self.radius @ x
+    def at(self, pos: Matrix) -> Matrix:
+        r = self.radius @ pos
         r /= np.linalg.norm(r)
         A = np.kron(self.radius, r.reshape(1, -1))
-        return A, np.array((self.rate * scale,))
+        return np.column_stack((A, self.rate))
 
 
 @dataclass(slots=True)
@@ -147,7 +170,7 @@ class Orbit:
         init_pos: Matrix | None = None,
     ) -> Self | Sleeper:
         if init_pos is None:
-            return Sleeper(lambda x: cls.align(radius, end, axis=axis, init_pos=x))
+            return Sleeper(lambda pos: cls.align(radius, end, axis=axis, init_pos=pos))
         start = radius @ init_pos
         if axis is not None:
             start -= (axis @ start) * axis
@@ -158,12 +181,12 @@ class Orbit:
         axis /= axis_norm
         return cls(radius, axis, -angle)
 
-    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
-        r = self.radius @ x
+    def at(self, pos: Matrix) -> Matrix:
+        r = self.radius @ pos
         r -= (self.axis @ r) * self.axis
         v = np.cross(self.axis, r) / (r @ r)
         A = np.kron(self.radius, v.reshape(1, -1))
-        return A, np.array((self.rate * scale,))
+        return np.column_stack((A, self.rate))
 
 
 @dataclass(slots=True)
@@ -184,26 +207,25 @@ class ParabolicPath:
         init_pos: Matrix | None = None,
     ) -> Self | Sleeper:
         if init_pos is None:
-            return Sleeper(lambda x: cls.make(
+            return Sleeper(lambda pos: cls.make(
                 point=point,
                 delta_x=delta_x,
                 delta_y=delta_y,
                 aspect_ratio=aspect_ratio,
-                init_pos=x,
+                init_pos=pos,
             ))
         origin = point @ init_pos + (delta_x, delta_y, 0.)
         rate = math.hypot(delta_x, delta_y)
         rise = 2. * aspect_ratio
         return cls(point, origin, rate, rise)
 
-    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
-        dp = self.point @ x - self.origin
+    def at(self, pos: Matrix) -> Matrix:
+        dp = self.point @ pos - self.origin
         r = np.linalg.norm(dp[:2])
         dp *= -self.rate / r
         dp[2] += self.rise * r
-        dp *= scale
         A = np.kron(self.point, np.eye(3))
-        return A, dp
+        return np.column_stack((A, dp))
 
 
 @dataclass(slots=True)
@@ -211,16 +233,8 @@ class CompoundConstraint:
     """A constraint equivalent to a combination of other constraints."""
     constraints: Sequence[Constraint] = ()
 
-    def get(self, x: Matrix, scale: float = 1.) -> tuple[Matrix, Vector]:
-        As: list[Matrix] = []
-        bs: list[Vector] = []
-        for c in self.constraints:
-            Ai, bi = c.get(x, scale)
-            As.append(Ai)
-            bs.append(bi)
-        A = np.concat(As)
-        b = np.concat(bs)
-        return A, b
+    def at(self, pos: Matrix) -> Matrix:
+       return np.concat([c.at(pos) for c in self.constraints])
 
 
 def singularity_eig(A: Matrix, b: Vector | None = None) -> tuple[float, Vector]:

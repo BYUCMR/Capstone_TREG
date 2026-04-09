@@ -18,7 +18,7 @@ def record_motion(
     robot = rover.make_robot(init_pos)
     n = 4 * cycles * resolution
     pos = np.zeros((n + 1, *robot.pos.shape))
-    d_roll = np.zeros((n, robot.n_rollers))
+    d_roll = np.zeros((n, len(robot.dx_to_dq)))
     pos[0] = robot.pos
     steps = rover.crawl(cycles, (step_length, 0))
     for i, dq in enumerate(robot.divide_steps(steps, resolution=resolution)):
@@ -125,7 +125,7 @@ def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
 
 
 def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution: int) -> float:
-    scale = 1 / resolution
+    dt = 1 / resolution
     step_length = dx
     while True:
         robot = rover.make_robot(init_pos)
@@ -141,7 +141,7 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
         ))
         try:
             for _ in range(resolution):
-                robot.take_step(constraint, scale=scale)
+                robot.take_step(constraint, dt=dt)
         except InverseKinematicsError:
             break
         step_length += dx
@@ -151,10 +151,10 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
 def measure_length_change(init_pos: Matrix, pos_hist: MatrixStack) -> tuple[float, float]:
     robot = rover.make_robot(init_pos)
     p0 = pos_hist[0]
-    d0 = robot.truss.incidence @ p0
+    d0 = robot.incidence @ p0
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
     p1 = pos_hist[-1]
-    d1 = robot.truss.incidence @ p1
+    d1 = robot.incidence @ p1
     L1 = np.sqrt(np.sum(np.square(d1), axis=1))
     delta_L = L1 - L0
     error = np.abs(np.sum(delta_L))

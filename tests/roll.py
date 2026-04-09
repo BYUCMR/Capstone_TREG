@@ -18,10 +18,12 @@ async def main(
     view, animate = rover.set_up_animation(init_pos)
     view.show()
     try:
-        for _ in robot.divide_steps(rover.roll(), resolution=resolution):
-            stabilizer.update_pos(robot.pos)
-            animate(stabilizer.pos)
-            await asyncio.sleep(0)
+        for i in range(3):
+            for _ in robot.divide_steps(rover.roll(), resolution=resolution):
+                stabilizer.update_pos(robot.pos)
+                animate(stabilizer.pos)
+                await asyncio.sleep(0)
+            robot.state = robot.state.roll()
     except InverseKinematicsError as e:
         print(e.args[0])
     print("Done with animation")

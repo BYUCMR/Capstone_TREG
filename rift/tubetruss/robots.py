@@ -1,5 +1,6 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
+from typing import Protocol
 
 import numpy as np
 import qpsolvers
@@ -7,7 +8,7 @@ import qpsolvers
 from rift.arraytypes import Matrix, Vector
 from . import constrain as cstr
 from .control import LengthControl
-from .trusses import Truss
+from .linalg import get_rigidity
 
 
 class InverseKinematicsError(Exception): ...
@@ -15,14 +16,33 @@ class SolverError(InverseKinematicsError): ...
 class SingularityError(InverseKinematicsError): ...
 
 
+class RobotLike(Protocol):
+    @property
+    def dx_to_dq(self, /) -> Matrix: ...
+    def nudge(self, dx: Vector, /) -> object: ...
+    def resolve_constraint(self, constraint: cstr.Constraint, /) -> Matrix: ...
+
+
+def apply_roll(
+    robot: RobotLike,
+    dq: Vector,
+    constraint: cstr.Constraint,
+) -> Matrix:
+    Ab = robot.resolve_constraint(constraint)
+    dx = np.linalg.solve(
+        np.concat((robot.dx_to_dq, Ab[:, :-1])),
+        np.concat((dq, Ab[:, -1])),
+    )
+    robot.nudge(dx)
+    return dx
+
+
 def solve_qp(
     *,
     R: Matrix,
     f: Vector | None = None,
-    A: Matrix | None = None,
-    b: Vector | None = None,
-    G: Matrix | None = None,
-    h: Vector | None = None,
+    Ab: Matrix | None = None,
+    Gh: Matrix | None = None,
     solver: str = 'kkt',
 ) -> Vector | None:
     """
@@ -37,26 +57,22 @@ def solve_qp(
     if f is None:
         f = np.zeros(n)
     elif len(f) != n:
-        raise ValueError(f"Wrong shape for f: expected ({n}, [1]), got {f.shape}")
-    if A is None:
-        A = np.zeros((0, n))
-    elif A.shape[1] != n:
-        raise ValueError(f"Wrong shape for A: expected (_, {n}), got {A.shape}")
-    if b is None:
-        b = np.zeros(len(A))
-    elif len(b) != len(A):
-        raise ValueError(f"Wrong shape for b: expected ({len(A)}, [1]), got {b.shape}")
-    if solver == 'kkt' and (G is not None or h is not None):
+        raise ValueError(f"Wrong shape for f: expected ({n}, [1]); got {f.shape}")
+    if Ab is None:
+        Ab = np.zeros((0, n+1))
+    elif Ab.shape[1] != n+1:
+        raise ValueError(f"Wrong shape for [A|b]: expected (_, {n+1}); got {Ab.shape}")
+    if solver == 'kkt' and Gh is not None:
         raise ValueError("Cannot use KKT to solve with inequality constraints")
-    if G is None:
-        G = np.zeros((0, n))
-    elif G.shape[1] != n:
-        raise ValueError(f"Wrong shape for G: expected (_, {n}), got {G.shape}")
-    if h is None:
-        h = np.zeros(len(G))
-    elif len(h) != len(G):
-        raise ValueError(f"Wrong shape for b: expected ({len(G)}, [1]), got {h.shape}")
+    if Gh is None:
+        Gh = np.zeros((0, n+1))
+    elif Gh.shape[1] != n+1:
+        raise ValueError(f"Wrong shape for [G|h]: expected (_, {n+1}); got {Gh.shape}")
 
+    A = Ab[:, :-1]
+    G = Gh[:, :-1]
+    b = Ab[:, -1]
+    h = Gh[:, -1]
     H = R.T @ R
     if solver != 'kkt':
         return qpsolvers.solve_qp(P=H, q=f, A=A, b=b, G=G, h=h, solver=solver)
@@ -72,32 +88,52 @@ def solve_qp(
     return x
 
 
-def find_dx(
-    *,
-    x: Matrix,
-    cost: Matrix,
+def take_step(
+    robot: RobotLike,
     constraint: cstr.Constraint,
-    scale: float = 1,
+    ineq_constraint: cstr.Constraint | None = None,
+    *,
+    dt: float = 1.,
+    cost: Matrix | None = None,
     allow_redundant: bool = False,
-    respect_floor: bool = False,
-) -> Matrix:
-    A, b = constraint.get(x, scale)
-    e, v = cstr.singularity_eig(A, b if allow_redundant else None)
+) -> Vector:
+    if cost is None:
+        cost = robot.dx_to_dq
+    Ab = robot.resolve_constraint(constraint)
+    e, v = cstr.singularity_eig(Ab[:, :-1], Ab[:, -1] if allow_redundant else None)
     if abs(e) <= 1e-3:
         raise SingularityError("Robot state is singular")
-    if respect_floor:
-        G = np.zeros((x.shape[0], x.size))
-        G[range(x.shape[0]), range(2, x.size, 3)] = -1.
-        h = x[:,2]
-        solver = 'piqp'
-    else:
-        G = None
-        h = None
+    if ineq_constraint is None:
+        Gh = None
         solver = 'piqp' if allow_redundant else 'kkt'
-    dx = solve_qp(R=cost, A=A, b=b, G=G, h=h, solver=solver)
-    if dx is None:
+    else:
+        Gh = robot.resolve_constraint(ineq_constraint)
+        solver = 'piqp'
+    vel = solve_qp(R=cost, Ab=Ab, Gh=Gh, solver=solver)
+    if vel is None:
         raise SolverError("Could not find valid node velocities")
-    return dx.reshape(x.shape)
+    dx = vel * dt
+    dq = robot.dx_to_dq @ dx
+    robot.nudge(dx)
+    return dq
+
+
+def divide_steps(
+    robot: RobotLike,
+    steps: Iterable[cstr.Constraint],
+    *,
+    resolution: int,
+    allow_redundant: bool = False,
+) -> Generator[Vector]:
+    dt = 1 / resolution
+    for step in steps:
+        for _ in range(resolution):
+            yield take_step(
+                robot,
+                step,
+                dt=dt,
+                allow_redundant=allow_redundant,
+            )
 
 
 @dataclass(slots=True)
@@ -108,23 +144,15 @@ class TrussRobot:
     It comprises a position, a truss structure, and a control setup.
     """
     _pos: Matrix
-    truss: Truss
+    _incidence: Matrix[np.int8]
     control: LengthControl
     _rigidity: Matrix | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
-        if len(self.pos) != self.truss.n_nodes:
-            raise ValueError("Robot position and truss have mismatched node counts")
-        if self.truss.n_links != self.control.n_outputs:
-            raise ValueError("Robot truss and control have mismatched link counts")
-
-    @property
-    def n_nodes(self) -> int:
-        return self.truss.n_nodes
-
-    @property
-    def n_rollers(self) -> int:
-        return self.control.n_inputs
+        if self._pos.shape[0] != self._incidence.shape[1]:
+            raise ValueError("Robot position and incidence have mismatched node counts")
+        if self._incidence.shape[0] != self.control.n_outputs:
+            raise ValueError("Robot incidence and control have mismatched link counts")
 
     @property
     def pos(self) -> Matrix:
@@ -133,65 +161,32 @@ class TrussRobot:
         return view
 
     @property
+    def incidence(self) -> Matrix[np.int8]:
+        view = self._incidence.view()
+        view.setflags(write=False)
+        return view
+
+    @property
     def rigidity(self) -> Matrix:
         if self._rigidity is None:
-            self._rigidity = self.truss.rigidity_at(self._pos)
+            self._rigidity = get_rigidity(self._incidence, self._pos)
         return self._rigidity
 
-    def apply_roll(
-        self,
-        dq: Vector,
-        constraint: cstr.Constraint,
-    ) -> Matrix:
-        A, b = constraint.get(self.pos, 1.)
-        dL = self.control.forward @ dq
-        dx = np.linalg.solve(
-            np.concat((self.rigidity, A)),
-            np.concat((dL, b)),
-        )
-        dx = dx.reshape(self.pos.shape)
+    @property
+    def dx_to_dq(self) -> Matrix:
+        return self.control.inverse @ self.rigidity
+
+    def resolve_constraint(self, constraint: cstr.Constraint) -> Matrix:
+        length_constraint = cstr.Static.make_hom(self.control.unreachable @ self.rigidity)
+        constraint = cstr.CompoundConstraint((length_constraint, constraint))
+        return constraint.at(self.pos)
+
+    def nudge(self, dx: Matrix | Vector) -> None:
+        if len(dx.shape) == 1:
+            dx = dx.reshape(self._pos.shape)
         self._rigidity = None
         self._pos[:] += dx
-        return dx
 
-    def take_step(
-        self,
-        *constraints: cstr.Constraint,
-        scale: float = 1,
-        allow_redundant: bool = False,
-        respect_floor: bool = False,
-    ) -> Vector:
-        constraint = cstr.CompoundConstraint((
-            cstr.Static(self.control.unreachable @ self.rigidity),
-            *constraints
-        ))
-        dx = find_dx(
-            x=self.pos,
-            cost=self.rigidity,
-            constraint=constraint,
-            scale=scale,
-            allow_redundant=allow_redundant,
-            respect_floor=respect_floor,
-        )
-        dq = self.control.inverse @ self.rigidity @ dx.ravel()
-        self._rigidity = None
-        self._pos[:] += dx
-        return dq
-
-    def divide_steps(
-        self,
-        steps: Iterable[cstr.Constraint],
-        *,
-        resolution: int,
-        allow_redundant: bool = False,
-        respect_floor: bool = False,
-    ) -> Generator[Vector]:
-        scale = 1 / resolution
-        for step in steps:
-            for _ in range(resolution):
-                yield self.take_step(
-                    step,
-                    scale=scale,
-                    allow_redundant=allow_redundant,
-                    respect_floor=respect_floor,
-                )
+    apply_roll = apply_roll
+    take_step = take_step
+    divide_steps = divide_steps
