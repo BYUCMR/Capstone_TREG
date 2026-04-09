@@ -59,7 +59,8 @@ class TransmitWorker(QObject):
         self.q_des = np.zeros(12, dtype=np.intp)
         self.commander = commander.Commander(self.ser, self.message.emit)
         self.feedback = feedback
-        self.done_timer = QTimer(self)
+        self.done_timer = QTimer(self, singleShot=True)
+        self.done_timer.timeout.connect(self.ready.emit)
         self.update_error_timer = QTimer(self, interval=3000, singleShot=True)
         self.update_error_timer.timeout.connect(self.update_error)
 
@@ -115,7 +116,7 @@ class TransmitWorker(QObject):
             ticks = self.q_des - q_cur
         dt = commands.get_smallest_dt(ticks, max_speed=1000)
         self.commander.send_dq(ticks, dt)
-        self.done_timer.singleShot(int(dt * 1000), self.ready.emit)
+        self.done_timer.start(int(dt * 1000))
 
     def start(self, port: str) -> None:
         self.ser.port = port
