@@ -64,7 +64,7 @@ def get_rigidity(incidence: Matrix[np.int8], pos: Matrix, *, normalize: bool = T
     return rigidity.reshape(-1, pos.size)
 
 
-def reduce[T: np.integer](mat: Matrix[T], *, in_place: bool = False) -> Matrix[T]:
+def row_echelon_form[T: np.integer](mat: Matrix[T], *, in_place: bool = False) -> Matrix[T]:
     """Convert an integer matrix to a row echelon form."""
     if not in_place:
         mat = mat.copy()
@@ -101,7 +101,7 @@ def cokernel[T: np.number](mat: Matrix[T]) -> Matrix[T]:
         aug = np.concat((mat, eye), axis=1)
         # The type-checker has trouble inferring that we know
         # this is an integer matrix, so we use typing.cast here.
-        reduce(cast(Matrix[np.integer], aug), in_place=True)
+        row_echelon_form(cast(Matrix[np.integer], aug), in_place=True)
         end = 1 + np.max(np.nonzero(aug[:, :n])[0])
         return aug[end:, n:]
     else:

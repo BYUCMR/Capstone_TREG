@@ -6,9 +6,8 @@ from typing import SupportsIndex
 import numpy as np
 
 from rift import rover
-from rift import tubetruss as tt
-import rift.tubetruss.constrain as cstr
 from rift.arraytypes import Vector
+from rift.motion import axes, constraints as cstr
 
 
 class Mode(Enum):
@@ -51,7 +50,7 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        respect_floor = cstr.PlanarBarrier(np.eye(len(robot.pos)), cstr.Z)
+        respect_floor = cstr.PlanarBarrier(np.eye(len(robot.pos)), axes.Z)
         yield robot.take_step(motion, respect_floor, allow_redundant=True)
     elif command.mode is Mode.calibration:
         yield rover.adjust_roller(robot, command.item, command.x * 0.0005)

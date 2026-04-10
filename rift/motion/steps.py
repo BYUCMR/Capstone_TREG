@@ -1,19 +1,28 @@
 from collections.abc import Generator, Iterable
-from dataclasses import dataclass, field
 from typing import Protocol
 
 import numpy as np
 import qpsolvers
 
 from rift.arraytypes import Matrix, Vector
-from . import constrain as cstr
-from .control import LengthControl
-from .linalg import get_rigidity
+from . import constraints as cstr
 
 
 class InverseKinematicsError(Exception): ...
 class SolverError(InverseKinematicsError): ...
 class SingularityError(InverseKinematicsError): ...
+
+
+def singularity_eig(A: Matrix, b: Vector | None = None) -> tuple[float, Vector]:
+    evals, evecs = np.linalg.eigh(A.T @ A)
+    m, n = A.shape
+    if b is not None:
+        aug = np.concat((A, b.reshape(-1, 1)), axis=1)
+        # Note that this takes about as much time as getting the eigenvalues;
+        # it's better to develop minimal constraints by hand.
+        m = np.linalg.matrix_rank(aug)
+    i = max(0, n - m)
+    return evals[i], evecs[:, i]
 
 
 class RobotLike(Protocol):
@@ -100,7 +109,7 @@ def take_step(
     if cost is None:
         cost = robot.dx_to_dq
     Ab = robot.resolve_constraint(constraint)
-    e, v = cstr.singularity_eig(Ab[:, :-1], Ab[:, -1] if allow_redundant else None)
+    e, v = singularity_eig(Ab[:, :-1], Ab[:, -1] if allow_redundant else None)
     if abs(e) <= 1e-3:
         raise SingularityError("Robot state is singular")
     if ineq_constraint is None:
@@ -134,59 +143,3 @@ def divide_steps(
                 dt=dt,
                 allow_redundant=allow_redundant,
             )
-
-
-@dataclass(slots=True)
-class TrussRobot:
-    """
-    A representation of a truss robot.
-
-    It comprises a position, a truss structure, and a control setup.
-    """
-    _pos: Matrix
-    _incidence: Matrix[np.int8]
-    control: LengthControl
-    _rigidity: Matrix | None = field(default=None, init=False)
-
-    def __post_init__(self) -> None:
-        if self._pos.shape[0] != self._incidence.shape[1]:
-            raise ValueError("Robot position and incidence have mismatched node counts")
-        if self._incidence.shape[0] != self.control.n_outputs:
-            raise ValueError("Robot incidence and control have mismatched link counts")
-
-    @property
-    def pos(self) -> Matrix:
-        view = self._pos.view()
-        view.setflags(write=False)
-        return view
-
-    @property
-    def incidence(self) -> Matrix[np.int8]:
-        view = self._incidence.view()
-        view.setflags(write=False)
-        return view
-
-    @property
-    def rigidity(self) -> Matrix:
-        if self._rigidity is None:
-            self._rigidity = get_rigidity(self._incidence, self._pos)
-        return self._rigidity
-
-    @property
-    def dx_to_dq(self) -> Matrix:
-        return self.control.inverse @ self.rigidity
-
-    def resolve_constraint(self, constraint: cstr.Constraint) -> Matrix:
-        length_constraint = cstr.Static.make_hom(self.control.unreachable @ self.rigidity)
-        constraint = cstr.CompoundConstraint((length_constraint, constraint))
-        return constraint.at(self.pos)
-
-    def nudge(self, dx: Matrix | Vector) -> None:
-        if len(dx.shape) == 1:
-            dx = dx.reshape(self._pos.shape)
-        self._rigidity = None
-        self._pos[:] += dx
-
-    apply_roll = apply_roll
-    take_step = take_step
-    divide_steps = divide_steps

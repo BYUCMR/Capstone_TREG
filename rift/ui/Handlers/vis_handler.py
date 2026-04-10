@@ -5,7 +5,7 @@ from PySide6.QtWidgets import QApplication
 
 from rift import rover
 from rift.arraytypes import Matrix, Vector
-from rift.tubetruss.robots import InverseKinematicsError, TrussRobot
+from rift.motion import InverseKinematicsError
 from .controls import Bundler, Command, take_command
 
 

@@ -4,8 +4,7 @@ import numpy as np
 
 from rift import rover
 from rift.arraytypes import Matrix, MatrixStack
-from rift.tubetruss import constrain as cstr
-from rift.tubetruss.robots import InverseKinematicsError
+from rift.motion import constraints as cstr, InverseKinematicsError
 
 
 def record_motion(
@@ -129,7 +128,7 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
     step_length = dx
     while True:
         robot = rover.make_robot(init_pos)
-        constraint = cstr.CompoundConstraint((
+        constraint = cstr.Compound((
             cstr.ParabolicPath.make(
                 rover.L1,
                 init_pos=robot.pos,

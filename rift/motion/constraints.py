@@ -1,29 +1,12 @@
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from typing import Final, Protocol, Self
 
 import numpy as np
 
 from rift.arraytypes import Matrix, Vector
-
-
-X: Final = np.array((1., 0., 0.))
-Y: Final = np.array((0., 1., 0.))
-Z: Final = np.array((0., 0., 1.))
-X.setflags(write=False)
-Y.setflags(write=False)
-Z.setflags(write=False)
-
-
-class Point(Protocol):
-    """
-    A general representation of a point on a truss.
-
-    `__array__` should return a vector of weights describing how much each
-    node of the truss contributes to this point's position.
-    """
-    def __array__(self, /) -> Vector: ...
+from .points import Point
 
 
 class Constraint(Protocol):
@@ -31,9 +14,13 @@ class Constraint(Protocol):
     def at(self, pos: Matrix, /) -> Matrix: ...
 
 
-def centroid(*points: Point) -> Vector:
-    """Return the mean of the input points."""
-    return np.average(np.array(points), axis=0)
+@dataclass(slots=True)
+class Compound:
+    """A constraint equivalent to a combination of other constraints."""
+    constraints: Iterable[Constraint] = ()
+
+    def at(self, pos: Matrix) -> Matrix:
+       return np.concat([c.at(pos) for c in self.constraints])
 
 
 @dataclass(slots=True)
@@ -226,24 +213,3 @@ class ParabolicPath:
         dp[2] += self.rise * r
         A = np.kron(self.point, np.eye(3))
         return np.column_stack((A, dp))
-
-
-@dataclass(slots=True)
-class CompoundConstraint:
-    """A constraint equivalent to a combination of other constraints."""
-    constraints: Sequence[Constraint] = ()
-
-    def at(self, pos: Matrix) -> Matrix:
-       return np.concat([c.at(pos) for c in self.constraints])
-
-
-def singularity_eig(A: Matrix, b: Vector | None = None) -> tuple[float, Vector]:
-    evals, evecs = np.linalg.eigh(A.T @ A)
-    m, n = A.shape
-    if b is not None:
-        aug = np.concat((A, b.reshape(-1, 1)), axis=1)
-        # Note that this takes about as much time as getting the eigenvalues;
-        # it's better to develop minimal constraints by hand.
-        m = np.linalg.matrix_rank(aug)
-    i = max(0, n - m)
-    return evals[i], evecs[:, i]

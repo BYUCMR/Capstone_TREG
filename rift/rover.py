@@ -13,8 +13,7 @@ from . import anim
 from . import grav
 from . import tubetruss as tt
 from .arraytypes import Matrix, Vector
-from .tubetruss import constrain as cstr
-from .tubetruss import robots
+from .motion import axes, constraints as cstr, points, steps
 
 
 @enum.global_enum
@@ -44,7 +43,7 @@ class Node(enum.Enum):
         out[self.value] = 1
         return out
 
-    def __sub__(self, other: cstr.Point) -> Vector:
+    def __sub__(self, other: points.Point) -> Vector:
         return np.array(self) - np.array(other)
 
     @property
@@ -91,7 +90,7 @@ INCIDENCE: Final = tt.incidence_from_trails(
 INCIDENCE.setflags(write=False)
 
 # Roller setup
-CONTROL: Final = tt.LengthControl.from_trails(
+ACTUATION: Final = tt.Actuation.from_trails(
     # These indices are based on the construction order above.
     ( 2,  0,  1),  # Rollers 01 and 02; P3-L1-L2-P3
     ( 3,  4,  5),  # Rollers 03 and 04; P1-L2-L3-P1
@@ -264,7 +263,7 @@ class Rover:
 
     @classmethod
     def make_pos(cls, pos: Matrix) -> Self:
-        return cls(tt.TrussRobot(pos.copy(), INCIDENCE, CONTROL), RoverState.R1)
+        return cls(tt.TrussRobot(pos.copy(), INCIDENCE, ACTUATION), RoverState.R1)
 
     @property
     def pos(self) -> Matrix:
@@ -285,9 +284,9 @@ class Rover:
         permuted = cstr.Permuted(constraint, self.state.get_permuter())
         return self.robot.resolve_constraint(permuted)
 
-    apply_roll = robots.apply_roll
-    take_step = robots.take_step
-    divide_steps = robots.divide_steps
+    apply_roll = steps.apply_roll
+    take_step = steps.take_step
+    divide_steps = steps.divide_steps
 
 
 def adjust_roller(
@@ -329,16 +328,16 @@ def chassis_nudge(x: float, y: float, z: float) -> cstr.Constraint:
         cstr.xyz(L2, z=0),
         cstr.xyz(R1, z=0),
         cstr.xyz(R2, z=0),
-        cstr.xyz(cstr.centroid(L1, L2, R1, R2), x=0, y=0),
+        cstr.xyz(points.centroid(L1, L2, R1, R2), x=0, y=0),
     )
 
 
 def chassis_tilt(angle: float) -> cstr.Constraint:
-    base = cstr.centroid(P3, Q3)
-    face = cstr.centroid(P2, Q2)
-    return cstr.CompoundConstraint((
+    base = points.centroid(P3, Q3)
+    face = points.centroid(P2, Q2)
+    return cstr.Compound((
         cstr.lock(base),
-        cstr.Orbit(face-base, cstr.Y, angle),
+        cstr.Orbit(face-base, axes.Y, angle),
         cstr.xyz(face - base, y=0.),
         cstr.lock(L1),
         cstr.lock(R1),
@@ -353,13 +352,13 @@ def crawl(
     cycles: int = 1,
     step_length: tuple[float, float] = (0.125, 0.),
 ) -> Generator[cstr.Constraint]:
-    chassis_up = CHASSIS_COM - cstr.centroid(P3, Q3)
+    chassis_up = CHASSIS_COM - points.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
     steadily_forward = cstr.xyz(CHASSIS_COM, x=0.25 * x_dist)
     feet = (L2, L1, R2, R1)
     for foot in (feet * cycles):
-        yield cstr.CompoundConstraint([
+        yield cstr.Compound([
             cstr.ParabolicPath.make(
                 point=foot,
                 delta_x=x_dist,
@@ -376,10 +375,10 @@ def crawl(
 
 
 def shuffle(x_dist: float = 0.125) -> Generator[cstr.Constraint]:
-    chassis_up = CHASSIS_COM - cstr.centroid(P3, Q3)
+    chassis_up = CHASSIS_COM - points.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     c_dist = x_dist * 0.4
-    yield cstr.CompoundConstraint((
+    yield cstr.Compound((
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.lock(L2),
@@ -387,7 +386,7 @@ def shuffle(x_dist: float = 0.125) -> Generator[cstr.Constraint]:
         cstr.xyz(COM, x=c_dist),
         no_wobble,
     ))
-    yield cstr.CompoundConstraint((
+    yield cstr.Compound((
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.Static.xyz(L2, x_dist, 0., 0.),
@@ -395,7 +394,7 @@ def shuffle(x_dist: float = 0.125) -> Generator[cstr.Constraint]:
         cstr.xyz(COM, x=0.5*x_dist-c_dist),
         no_wobble,
     ))
-    yield cstr.CompoundConstraint((
+    yield cstr.Compound((
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.lock(L2),
@@ -403,7 +402,7 @@ def shuffle(x_dist: float = 0.125) -> Generator[cstr.Constraint]:
         cstr.xyz(COM, x=-c_dist),
         no_wobble,
     ))
-    yield cstr.CompoundConstraint((
+    yield cstr.Compound((
         cstr.Static.xyz(L1, x_dist, 0., 0.),
         cstr.Static.xyz(R1, x_dist, 0., 0.),
         cstr.lock(L2),
@@ -436,45 +435,45 @@ def reach(dist: float = 1.) -> cstr.Static:
 
 
 def roll() -> Generator[cstr.Constraint]:
-    base = cstr.centroid(P3, Q3)
-    face = cstr.centroid(P2, Q2)
-    back = cstr.centroid(P1, Q1)
-    feet_midpoint = cstr.centroid(L1, R1)
-    yield cstr.CompoundConstraint((
+    base = points.centroid(P3, Q3)
+    face = points.centroid(P2, Q2)
+    back = points.centroid(P1, Q1)
+    feet_midpoint = points.centroid(L1, R1)
+    yield cstr.Compound((
         cstr.lock(base),
         cstr.xyz(COM - feet_midpoint, x=0.25),
-        cstr.Orbit.align(face - base, cstr.X),
+        cstr.Orbit.align(face - base, axes.X),
         cstr.xyz(P3 - Q3, x=0., z=0.),
         cstr.xyz(L1, z=0.),
         cstr.xyz(R1, z=0.),
     ))
     def step_back(x: Matrix) -> cstr.Constraint:
         x_dist = ((face - feet_midpoint) @ x)[0] - 0.5
-        return cstr.CompoundConstraint((
+        return cstr.Compound((
             cstr.xyz(L1, x_dist, 0., 0.),
             cstr.xyz(R1, x_dist, 0., 0.),
         ))
-    yield cstr.CompoundConstraint((
+    yield cstr.Compound((
         cstr.lock(CHASSIS_COM),
         cstr.xyz(P2 - Q2, z=0.),
         cstr.xyz(face - base, y=0., z=0.),
         cstr.Sleeper(step_back),
         cstr.Radial.get_to(L3-L1, 1.),
         cstr.Radial.get_to(R3-R1, 1.),
-        cstr.Orbit.align(L3-L1, cstr.X, axis=cstr.Y),
-        cstr.Orbit.align(R3-R1, cstr.X, axis=cstr.Y),
+        cstr.Orbit.align(L3-L1, axes.X, axis=axes.Y),
+        cstr.Orbit.align(R3-R1, axes.X, axis=axes.Y),
     ))
     def align_feet(x: Matrix) -> cstr.Constraint:
         point_l = L3 - L1
         point_r = R3 - R1
         target = (1., 0., 0.)
-        return cstr.CompoundConstraint((
+        return cstr.Compound((
             cstr.Static.motion(point_l, np.eye(3), target - (point_l @ x)),
             cstr.Static.motion(point_r, np.eye(3), target - (point_r @ x)),
         ))
-    yield cstr.CompoundConstraint((
+    yield cstr.Compound((
         cstr.lock(face),
-        cstr.Orbit.align(back - base, cstr.X),
+        cstr.Orbit.align(back - base, axes.X),
         cstr.xyz(P2 - Q2, x=0., z=0.),
         cstr.xyz(L1, x=0., z=0.),
         cstr.xyz(R1, x=0., z=0.),
