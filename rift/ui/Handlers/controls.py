@@ -3,11 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import SupportsIndex
 
-import numpy as np
-
 from rift import rover
 from rift.arraytypes import Vector
-from rift.motion import axes, constraints as cstr
 
 
 class Mode(Enum):
@@ -50,10 +47,10 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        respect_floor = cstr.PlanarBarrier(np.eye(len(robot.pos)), axes.Z)
-        yield robot.take_step(motion, respect_floor, allow_redundant=True)
+        yield robot.take_step(motion)
     elif command.mode is Mode.calibration:
-        yield rover.adjust_roller(robot, command.item, command.x * 0.0005)
+        motion = rover.roller_adjustment(command.item, command.x * 0.0005)
+        yield robot.take_step(motion)
     elif command.mode is Mode.stand:
         motion = rover.chassis_nudge(
             command.x * 0.0005,

@@ -4,7 +4,7 @@ import numpy as np
 
 from rift import rover
 from rift.arraytypes import Matrix, MatrixStack
-from rift.motion import constraints as cstr, InverseKinematicsError
+from rift.motion import constraints as cstr, steps
 
 
 def record_motion(
@@ -19,8 +19,8 @@ def record_motion(
     pos = np.zeros((n + 1, *robot.pos.shape))
     d_roll = np.zeros((n, len(robot.dx_to_dq)))
     pos[0] = robot.pos
-    steps = rover.crawl(cycles, (step_length, 0))
-    for i, dq in enumerate(robot.divide_steps(steps, resolution=resolution)):
+    motion = rover.crawl(cycles, (step_length, 0))
+    for i, dq in enumerate(robot.divide_steps(motion, resolution=resolution)):
         pos[i + 1] = robot.pos
         d_roll[i] = dq
     return pos, d_roll
@@ -92,16 +92,16 @@ def measure_max_crawl_speed(
 def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     z0 = robot.pos[rover.L1, 2]
-    constraint = cstr.Static.combine(
+    step = steps.KKTStep(cstr.Static.combine(
         cstr.xyz(rover.L1, 0., 0., dz),
         cstr.lock(rover.L2),
         cstr.lock(rover.R1),
         cstr.lock(rover.R2),
-    )
+    ))
     while True:
         try:
-            robot.take_step(constraint)
-        except InverseKinematicsError:
+            robot.take_step(step)
+        except steps.InverseKinematicsError:
             break
     return robot.pos[rover.L1, 2] - dz - z0
 
@@ -109,16 +109,16 @@ def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
 def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     x0 = robot.pos[rover.L1, 0]
-    constraint = cstr.Static.combine(
+    step = steps.KKTStep(cstr.Static.combine(
         cstr.xyz(rover.L1, dx, 0., 0.),
         cstr.lock(rover.L2),
         cstr.lock(rover.R1),
         cstr.lock(rover.R2),
-    )
+    ))
     while True:
         try:
-            robot.take_step(constraint)
-        except InverseKinematicsError:
+            robot.take_step(step)
+        except steps.InverseKinematicsError:
             break
     return robot.pos[rover.L1, 0] - dx - x0
 
@@ -128,7 +128,7 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
     step_length = dx
     while True:
         robot = rover.make_robot(init_pos)
-        constraint = cstr.Compound((
+        step = steps.KKTStep(cstr.Compound((
             cstr.ParabolicPath.make(
                 rover.L1,
                 init_pos=robot.pos,
@@ -137,11 +137,11 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
             cstr.lock(rover.L2),
             cstr.lock(rover.R1),
             cstr.lock(rover.R2),
-        ))
+        )))
         try:
             for _ in range(resolution):
-                robot.take_step(constraint, dt=dt)
-        except InverseKinematicsError:
+                robot.take_step(step, dt=dt)
+        except steps.InverseKinematicsError:
             break
         step_length += dx
     return step_length - dx

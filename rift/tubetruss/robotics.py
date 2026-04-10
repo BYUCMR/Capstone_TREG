@@ -115,6 +115,5 @@ class TrussRobot:
         self._rigidity = None
         self._pos[:] += dx
 
-    apply_roll = steps.apply_roll
     take_step = steps.take_step
     divide_steps = steps.divide_steps
