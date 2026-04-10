@@ -2,10 +2,9 @@ from collections.abc import Generator, Iterable
 from typing import Protocol
 
 import numpy as np
-import qpsolvers
 
 from rift.arraytypes import Matrix, Vector
-from . import constraints as cstr
+from . import constraints as cstr, optimize
 
 
 class InverseKinematicsError(Exception): ...
@@ -46,57 +45,6 @@ def apply_roll(
     return dx
 
 
-def solve_qp(
-    *,
-    R: Matrix,
-    f: Vector | None = None,
-    Ab: Matrix | None = None,
-    Gh: Matrix | None = None,
-    solver: str = 'kkt',
-) -> Vector | None:
-    """
-    Find `x` such that `x'*R'*R*x + f'*x` is minimized and `A*x = b`.
-
-    Return `None` if no such `x` exists.
-
-    `R` must be specificed, and all other inputs default to zeros of the
-    correct shapes.
-    """
-    _, n = R.shape
-    if f is None:
-        f = np.zeros(n)
-    elif len(f) != n:
-        raise ValueError(f"Wrong shape for f: expected ({n}, [1]); got {f.shape}")
-    if Ab is None:
-        Ab = np.zeros((0, n+1))
-    elif Ab.shape[1] != n+1:
-        raise ValueError(f"Wrong shape for [A|b]: expected (_, {n+1}); got {Ab.shape}")
-    if solver == 'kkt' and Gh is not None:
-        raise ValueError("Cannot use KKT to solve with inequality constraints")
-    if Gh is None:
-        Gh = np.zeros((0, n+1))
-    elif Gh.shape[1] != n+1:
-        raise ValueError(f"Wrong shape for [G|h]: expected (_, {n+1}); got {Gh.shape}")
-
-    A = Ab[:, :-1]
-    G = Gh[:, :-1]
-    b = Ab[:, -1]
-    h = Gh[:, -1]
-    H = R.T @ R
-    if solver != 'kkt':
-        return qpsolvers.solve_qp(P=H, q=f, A=A, b=b, G=G, h=h, solver=solver)
-
-    m, n = A.shape
-    O = np.zeros((m, m))
-    K = np.concat((np.concat((H, A.T), axis=1), np.concat((A, O), axis=1)))
-    try:
-        x_l = np.linalg.solve(K, np.concat((-f, b)))
-    except np.linalg.LinAlgError:
-        return None
-    x, l = np.split(x_l, [n])
-    return x
-
-
 def take_step(
     robot: RobotLike,
     constraint: cstr.Constraint,
@@ -112,13 +60,14 @@ def take_step(
     e, v = singularity_eig(Ab[:, :-1], Ab[:, -1] if allow_redundant else None)
     if abs(e) <= 1e-3:
         raise SingularityError("Robot state is singular")
-    if ineq_constraint is None:
-        Gh = None
-        solver = 'piqp' if allow_redundant else 'kkt'
+    Gh = (
+        None if ineq_constraint is None
+        else robot.resolve_constraint(ineq_constraint)
+    )
+    if Gh is not None or allow_redundant:
+        vel = optimize.solve_qp(R=cost, Ab=Ab, Gh=Gh, solver='piqp')
     else:
-        Gh = robot.resolve_constraint(ineq_constraint)
-        solver = 'piqp'
-    vel = solve_qp(R=cost, Ab=Ab, Gh=Gh, solver=solver)
+        vel = optimize.solve_kkt(R=cost, Ab=Ab)
     if vel is None:
         raise SolverError("Could not find valid node velocities")
     dx = vel * dt
