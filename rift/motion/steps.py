@@ -40,7 +40,7 @@ class MovableRobot(Robot, Protocol):
 
 
 @dataclass(slots=True)
-class FKStep:
+class FKStep(Step[Robot]):
     qdot: Vector
     constraint: cstr.Constraint
 
@@ -53,7 +53,7 @@ class FKStep:
 
 
 @dataclass(slots=True)
-class KKTStep:
+class KKTStep(Step[Robot]):
     constraint: cstr.Constraint
     quad_cost: Matrix | None = None
     lin_cost: Vector | None = None
@@ -71,7 +71,7 @@ class KKTStep:
 
 
 @dataclass(slots=True)
-class QPStep:
+class QPStep(Step[Robot]):
     eq_constraint: cstr.Constraint
     le_constraint: cstr.Constraint | None = None
     quad_cost: Matrix | None = None

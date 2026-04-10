@@ -257,7 +257,7 @@ class RoverState(enum.Enum):
 
 
 @dataclass(slots=True)
-class Rover:
+class Rover(steps.MovableRobot):
     robot: tt.TrussRobot
     state: RoverState = RoverState.R1
 

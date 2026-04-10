@@ -64,7 +64,7 @@ class Actuation:
 
 
 @dataclass(slots=True)
-class TrussRobot:
+class TrussRobot(steps.MovableRobot):
     """
     A representation of a truss robot.
 

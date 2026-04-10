@@ -15,7 +15,7 @@ class Constraint(Protocol):
 
 
 @dataclass(slots=True)
-class Compound:
+class Compound(Constraint):
     """A constraint equivalent to a combination of other constraints."""
     constraints: Iterable[Constraint] = ()
 
@@ -24,7 +24,7 @@ class Compound:
 
 
 @dataclass(slots=True)
-class Sleeper:
+class Sleeper(Constraint):
     constructor: Callable[[Matrix], Constraint]
     constraint: Constraint | None = None
 
@@ -35,7 +35,7 @@ class Sleeper:
 
 
 @dataclass(slots=True)
-class Permuted:
+class Permuted(Constraint):
     constraint: Constraint
     permuter: Matrix[np.bool]
 
@@ -47,7 +47,7 @@ class Permuted:
 
 
 @dataclass(slots=True)
-class Static:
+class Static(Constraint):
     """A constraint that doesn't vary with position."""
     aug: Matrix
 
@@ -103,7 +103,7 @@ xyz: Final = Static.xyz
 
 
 @dataclass(slots=True)
-class PlanarBarrier:
+class PlanarBarrier(Constraint):
     """As an inequality constraint, this keeps nodes on one side of a plane."""
     points: Matrix
     normal: Vector
@@ -115,7 +115,7 @@ class PlanarBarrier:
 
 
 @dataclass(slots=True)
-class Radial:
+class Radial(Constraint):
     radius: Point
     rate: float
 
@@ -141,7 +141,7 @@ class Radial:
 
 
 @dataclass(slots=True)
-class Orbit:
+class Orbit(Constraint):
     """A constraint representing the rotation of some point about its origin."""
     radius: Point
     axis: Vector
@@ -177,7 +177,7 @@ class Orbit:
 
 
 @dataclass(slots=True)
-class ParabolicPath:
+class ParabolicPath(Constraint):
     point: Point
     origin: Vector
     rate: float
