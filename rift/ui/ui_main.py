@@ -567,9 +567,9 @@ class Ui_Control(object):
     def retranslateUi(self, Control):
         Control.setWindowTitle(QCoreApplication.translate("Control", u"Control", None))
         self.left.setText(QCoreApplication.translate("Control", u"Left", None))
-        self.del_right.setText(QCoreApplication.translate("Control", u"Right Delta", None))
+        self.del_right.setText(QCoreApplication.translate("Control", u"Up", None))
         self.right.setText(QCoreApplication.translate("Control", u"Right", None))
-        self.del_left.setText(QCoreApplication.translate("Control", u"Left Delta", None))
+        self.del_left.setText(QCoreApplication.translate("Control", u"Down", None))
         self.backward.setText(QCoreApplication.translate("Control", u"Backward", None))
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
         self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))

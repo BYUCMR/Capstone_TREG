@@ -61,7 +61,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Right Delta</string>
+             <string>Up</string>
             </property>
            </widget>
           </item>
@@ -99,7 +99,7 @@
              </size>
             </property>
             <property name="text">
-             <string>Left Delta</string>
+             <string>Down</string>
             </property>
            </widget>
           </item>
