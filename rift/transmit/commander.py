@@ -39,10 +39,7 @@ class Commander:
         cmd = commands.POS(q)
         self.send(cmd)
 
-    def get_q(self, *, delay: float = 0.03) -> Vector[np.intp] | None:
-        self.ser.reset_output_buffer()
-        self.send_stop()
-        time.sleep(delay)
+    def read_last_q(self) -> Vector[np.intp] | None:
         buffer = self.ser.read_all()
         if buffer is None:
             q_cur = None
@@ -50,3 +47,9 @@ class Commander:
             lines = buffer.splitlines(keepends=True)
             q_cur = reception.read_q(lines, self.log)
         return q_cur
+
+    def get_q(self, *, delay: float = 0.03) -> Vector[np.intp] | None:
+        self.ser.reset_output_buffer()
+        self.send_stop()
+        time.sleep(delay)
+        return self.read_last_q()

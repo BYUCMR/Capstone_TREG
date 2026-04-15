@@ -55,13 +55,11 @@ class TransmitWorker(QObject):
         *,
         timeout: float = 0.01,
         parent: QObject | None = None,
-        feedback: bool = False,
     ) -> None:
         super().__init__(parent)
         self.ser = serial.Serial(baudrate=115200, timeout=timeout)
         self.q_des = np.zeros(12, dtype=np.intp)
         self.commander = commander.Commander(self.ser, self.message.emit)
-        self.feedback = feedback
         self.done_timer = QTimer(self, singleShot=True)
         self.done_timer.timeout.connect(self.ready.emit)
         self.update_error_timer = QTimer(self, interval=3000, singleShot=True)
@@ -110,15 +108,13 @@ class TransmitWorker(QObject):
         if not self.ser.is_open:
             self.ready.emit()
             return
-        q_cur = self.commander.get_q()
+        q_cur = self.commander.read_last_q()
         if q_cur is not None:
             self.update_sliders.emit(q_cur - self.q_des)
         ticks = (rover.TICKS_PER_SIDE * dq).astype(np.intp)
         self.q_des += ticks
-        if self.feedback and q_cur is not None:
-            ticks = self.q_des - q_cur
         dt = commands.get_smallest_dt(ticks, max_speed=1000)
-        self.commander.send_dq(ticks, dt)
+        self.commander.send_q(self.q_des)
         self.done_timer.start(int(dt * 1000))
 
     def start(self, port: str) -> None:
