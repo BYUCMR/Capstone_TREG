@@ -50,13 +50,13 @@ class Ui_Control(object):
 
         self.L11.addWidget(self.left, 1, 0, 1, 1)
 
-        self.del_right = QPushButton(self.verticalLayoutWidget_2)
-        self.del_right.setObjectName(u"del_right")
-        sizePolicy.setHeightForWidth(self.del_right.sizePolicy().hasHeightForWidth())
-        self.del_right.setSizePolicy(sizePolicy)
-        self.del_right.setMinimumSize(QSize(0, 70))
+        self.up = QPushButton(self.verticalLayoutWidget_2)
+        self.up.setObjectName(u"del_right")
+        sizePolicy.setHeightForWidth(self.up.sizePolicy().hasHeightForWidth())
+        self.up.setSizePolicy(sizePolicy)
+        self.up.setMinimumSize(QSize(0, 70))
 
-        self.L11.addWidget(self.del_right, 0, 2, 1, 1)
+        self.L11.addWidget(self.up, 0, 2, 1, 1)
 
         self.right = QPushButton(self.verticalLayoutWidget_2)
         self.right.setObjectName(u"right")
@@ -66,13 +66,13 @@ class Ui_Control(object):
 
         self.L11.addWidget(self.right, 1, 2, 1, 1)
 
-        self.del_left = QPushButton(self.verticalLayoutWidget_2)
-        self.del_left.setObjectName(u"del_left")
-        sizePolicy.setHeightForWidth(self.del_left.sizePolicy().hasHeightForWidth())
-        self.del_left.setSizePolicy(sizePolicy)
-        self.del_left.setMinimumSize(QSize(0, 70))
+        self.down = QPushButton(self.verticalLayoutWidget_2)
+        self.down.setObjectName(u"del_left")
+        sizePolicy.setHeightForWidth(self.down.sizePolicy().hasHeightForWidth())
+        self.down.setSizePolicy(sizePolicy)
+        self.down.setMinimumSize(QSize(0, 70))
 
-        self.L11.addWidget(self.del_left, 0, 0, 1, 1)
+        self.L11.addWidget(self.down, 0, 0, 1, 1)
 
         self.backward = QPushButton(self.verticalLayoutWidget_2)
         self.backward.setObjectName(u"backward")
@@ -567,9 +567,9 @@ class Ui_Control(object):
     def retranslateUi(self, Control):
         Control.setWindowTitle(QCoreApplication.translate("Control", u"Control", None))
         self.left.setText(QCoreApplication.translate("Control", u"Left", None))
-        self.del_right.setText(QCoreApplication.translate("Control", u"Up", None))
+        self.up.setText(QCoreApplication.translate("Control", u"Up", None))
         self.right.setText(QCoreApplication.translate("Control", u"Right", None))
-        self.del_left.setText(QCoreApplication.translate("Control", u"Down", None))
+        self.down.setText(QCoreApplication.translate("Control", u"Down", None))
         self.backward.setText(QCoreApplication.translate("Control", u"Backward", None))
         self.forward.setText(QCoreApplication.translate("Control", u"Forward", None))
         self.zero_pos.setText(QCoreApplication.translate("Control", u"Zero", None))

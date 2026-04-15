@@ -1,6 +1,5 @@
 import numpy as np
 import serial
-from numpy import ndarray
 from PySide6.QtCore import QObject, QThread, QTimer, Signal, Slot
 from PySide6.QtWidgets import QApplication
 
@@ -16,7 +15,8 @@ class TransmitHandler(QObject):
     set_zero = Signal()
     to_zero = Signal()
     catch_up = Signal()
-    bot_live = False
+
+    work_thread: QThread | None = None
 
     def __init__(self, parent: QObject | None = None, *, objectName: str | None = None) -> None:
         super().__init__(parent, objectName=objectName)
@@ -28,18 +28,21 @@ class TransmitHandler(QObject):
         self.to_zero.connect(self.worker.to_zero)
         self.catch_up.connect(self.worker.catch_up)
 
+    @property
+    def bot_live(self) -> bool:
+        return self.work_thread is not None and self.work_thread.isRunning()
+
     def start_transmission(self, *, port: str) -> None:
         self.work_thread = QThread()
         self.worker.moveToThread(self.work_thread)
         self.work_thread.finished.connect(self.worker.pull_to_main)
         self.worker.start(port)
         self.work_thread.start()
-        self.bot_live = True
 
     def kill_transmission(self) -> None:
         self.worker.close()
-        self.work_thread.exit()
-        self.bot_live = False
+        if self.work_thread is not None:
+            self.work_thread.exit()
 
 
 class TransmitWorker(QObject):
@@ -102,7 +105,7 @@ class TransmitWorker(QObject):
         self.commander.send_q(self.q_des)
         self.update_error_timer.start()
 
-    @Slot(ndarray, ndarray)
+    @Slot(np.ndarray, np.ndarray)
     def transmit(self, x: Matrix, dq: Vector) -> None:
         if not self.ser.is_open:
             self.ready.emit()

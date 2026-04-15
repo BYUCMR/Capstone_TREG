@@ -1,5 +1,4 @@
 import numpy as np
-from numpy import ndarray
 from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
 from PySide6.QtWidgets import QApplication
 
@@ -12,7 +11,7 @@ from .controls import Bundler, Command, take_command
 class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     send_cmd = Signal(Command)
     message = Signal(str)
-    reset = Signal(ndarray)
+    reset = Signal(np.ndarray)
 
     work_thread: QThread | None = None
 
@@ -29,7 +28,7 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
         )
         self.view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        self.worker = VizWorker(period=10)
+        self.worker = SimWorker(period=10)
         self.send_cmd.connect(self.worker.run_cmd)
         self.worker.done.connect(self.send_new)
         self.worker.results.connect(self.update_anim)
@@ -41,8 +40,8 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     def sim_live(self) -> bool:
         return self.work_thread is not None and self.work_thread.isRunning()
 
-    @Slot(ndarray)
-    @Slot(ndarray, ndarray)
+    @Slot(np.ndarray)
+    @Slot(np.ndarray, np.ndarray)
     def update_anim(self, x: Matrix, dq: Vector | None = None) -> None:
         self.animate(x)
 
@@ -63,9 +62,9 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
             self.work_thread.requestInterruption()
 
 
-class VizWorker(QObject):
+class SimWorker(QObject):
     done = Signal()
-    results = Signal(ndarray, ndarray)
+    results = Signal(np.ndarray, np.ndarray)
     message = Signal(str)
 
     def __init__(
@@ -84,7 +83,7 @@ class VizWorker(QObject):
         self.bundler = Bundler(period)
         self.gen = None
 
-    @Slot(ndarray)
+    @Slot(np.ndarray)
     def reset(self, pos: Matrix) -> None:
         self.bundler.delta_q = None
         self.robot = rover.make_robot(pos)

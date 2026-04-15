@@ -23,7 +23,7 @@ name = "rift"
 
 [tool.pyside6-project]
 files = [
-    "dummy_main.py",
+    "run_main.py",
     "rift/__main__.py",
     "rift/ui/Handlers/controls.py",
     "rift/ui/Handlers/joystick_handler.py",

@@ -8,14 +8,14 @@ from PySide6.QtWidgets import QMainWindow, QWidget
 
 from rift import rover
 from rift.arraytypes import Vector
+from .controls import Command, Mode
+from .joystick import JoystickHandler
+from .simulation import SimWindow
+from .transmit import TransmitHandler
 from .ui_main import Ui_Control
-from .Handlers.controls import Command, Mode
-from .Handlers.joystick_handler import JoystickHandler
-from .Handlers.transmit import TransmitHandler
-from .Handlers.vis_handler import SimWindow
 
 
-class MainWindow(QMainWindow): #referenced as widget by sim window class
+class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
@@ -26,16 +26,16 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.cmd_state = Command(Mode.offline, 0, 0, 0, 0)
 
         self.joystick_handler = JoystickHandler(self.ui)
-        self.vis_handler = SimWindow(self.cmd_state)
-        self.ui.Full_Splitter.addWidget(self.vis_handler.view)
+        self.sim_handler = SimWindow(self.cmd_state)
+        self.ui.Full_Splitter.addWidget(self.sim_handler.view)
         self.bot_handler = TransmitHandler()
         self.joystick_handler.message.connect(self.term_log)
         self.joystick_handler.command.connect(self.cmd_set)
-        self.vis_handler.message.connect(self.term_log)
+        self.sim_handler.message.connect(self.term_log)
         self.bot_handler.message.connect(self.term_log)
         self.bot_handler.update_sliders.connect(self.update_motor_sliders)
-        self.vis_handler.worker.results.connect(self.bot_handler.worker.transmit)
-        self.bot_handler.worker.ready.connect(self.vis_handler.worker.run_next)
+        self.sim_handler.worker.results.connect(self.bot_handler.worker.transmit)
+        self.bot_handler.worker.ready.connect(self.sim_handler.worker.run_next)
 
         self.ui.node_select_label.setVisible(False)
         self.ui.node_select.setVisible(False)
@@ -48,7 +48,6 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.setup_sliders()
 
         self.ui.sim_toggle.clicked.connect(self.toggle_sim)
-        # self.ui.sim_label.clicked.connect(self.open_sim)
         self.ui.bot_toggle.clicked.connect(self.toggle_bot)
         self.ui.node_select.currentIndexChanged.connect(self.node_update_item)
         self.ui.roll_select.currentIndexChanged.connect(self.roll_update_item)
@@ -60,19 +59,18 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         self.ui.symm_toggle.stateChanged.connect(self.symmetry_toggle)
 
         self.ui.forward.pressed.connect(lambda: self.cmd_update(1, 0, 0))
-        # self.ui.forward.pressed.connect(self.cleanup)
         self.ui.backward.pressed.connect(lambda: self.cmd_update(-1, 0, 0))
         self.ui.left.pressed.connect(lambda: self.cmd_update(0, 1, 0))
         self.ui.right.pressed.connect(lambda: self.cmd_update(0, -1, 0))
-        self.ui.del_right.pressed.connect(lambda: self.cmd_update(0, 0, 1))
-        self.ui.del_left.pressed.connect(lambda: self.cmd_update(0, 0, -1))
+        self.ui.up.pressed.connect(lambda: self.cmd_update(0, 0, 1))
+        self.ui.down.pressed.connect(lambda: self.cmd_update(0, 0, -1))
 
         self.ui.forward.released.connect(lambda: self.cmd_update(-1, 0, 0))
         self.ui.backward.released.connect(lambda: self.cmd_update(1, 0, 0))
         self.ui.left.released.connect(lambda: self.cmd_update(0, -1, 0))
         self.ui.right.released.connect(lambda: self.cmd_update(0, 1, 0))
-        self.ui.del_right.released.connect(lambda: self.cmd_update(0, 0, -1))
-        self.ui.del_left.released.connect(lambda: self.cmd_update(0, 0, 1))
+        self.ui.up.released.connect(lambda: self.cmd_update(0, 0, -1))
+        self.ui.down.released.connect(lambda: self.cmd_update(0, 0, 1))
 
         self.ui.crawling.clicked.connect(lambda: self.mode_select(Mode.crawling))
         self.ui.node_control.clicked.connect(lambda: self.mode_select(Mode.node_control))
@@ -84,18 +82,18 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     @Slot()
     def toggle_sim(self) -> None:
-        if not self.vis_handler.sim_live:
+        if not self.sim_handler.sim_live:
             self.greenify(self.ui.sim_label)
             self.ui.sim_label.setText("Click to Open")
             self.ui.sim_toggle.setText("Kill Simulation")
             self.term_log("Simulation Initialized")
-            self.vis_handler.start_sim()
+            self.sim_handler.start_sim()
         else:
             self.redify(self.ui.sim_label)
             self.ui.sim_label.setText("Simulation Offline")
             self.ui.sim_toggle.setText("Begin Simulation")
             self.term_log("Simulation Closed")
-            self.vis_handler.kill_sim()
+            self.sim_handler.kill_sim()
 
     @Slot()
     def toggle_bot(self) -> None:
@@ -125,12 +123,12 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
     @Slot()
     def zero_pos(self) -> None:
         self.bot_handler.set_zero.emit()
-        self.vis_handler.reset.emit(rover.ROLLING_POS)
+        self.sim_handler.reset.emit(rover.ROLLING_POS)
 
     @Slot()
     def reset_pos(self) -> None:
         self.bot_handler.to_zero.emit()
-        self.vis_handler.reset.emit(rover.ROLLING_POS)
+        self.sim_handler.reset.emit(rover.ROLLING_POS)
 
     @Slot()
     def symmetry_toggle(self, state) -> None:
@@ -190,9 +188,9 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
 
     def mode_select(self, mode: Mode) -> None:
         self.ui.left.setEnabled(True)
-        self.ui.del_left.setEnabled(True)
+        self.ui.down.setEnabled(True)
         self.ui.right.setEnabled(True)
-        self.ui.del_right.setEnabled(True)
+        self.ui.up.setEnabled(True)
         self.ui.forward.setEnabled(True)
         self.ui.backward.setEnabled(True)
 
@@ -225,9 +223,9 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.ui.roll_select_label.setVisible(True)
             self.ui.roll_select.setVisible(True)
             self.ui.left.setEnabled(False)
-            self.ui.del_left.setEnabled(False)
+            self.ui.down.setEnabled(False)
             self.ui.right.setEnabled(False)
-            self.ui.del_right.setEnabled(False)
+            self.ui.up.setEnabled(False)
         elif mode is Mode.stand:
             self.plainify_modes()
             self.greenify(self.ui.sit_stand)
@@ -242,8 +240,8 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
             self.cmd_state.mode = Mode.rolling
             self.ui.left.setEnabled(False)
             self.ui.right.setEnabled(False)
-            self.ui.del_left.setEnabled(False)
-            self.ui.del_right.setEnabled(False)
+            self.ui.down.setEnabled(False)
+            self.ui.up.setEnabled(False)
         self.term_log(f"Control Mode switched to {mode.value.replace('_', ' ')}")
 
     def cmd_update(self, x: float, y: float, z: float) -> None:
@@ -267,7 +265,7 @@ class MainWindow(QMainWindow): #referenced as widget by sim window class
         except:
             print("No Joystick to kill")
         try:
-            self.vis_handler.work_thread.requestInterruption()
+            self.sim_handler.work_thread.requestInterruption()
             print("Sim killed")
         except:
             print("No Sim to kill")

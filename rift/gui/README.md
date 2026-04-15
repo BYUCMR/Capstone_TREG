@@ -6,8 +6,8 @@ This is the runnable file for the UI, built around the `MainWindow` class. If yo
 
 The UI's execution of simulation, animation, and control are done using separate threads (using PySide6's `QThread` class). The actual User Interface runs on a main thread, and separate thread instances are opened for simulations and joystick inputs, as needed.
 
-## Handlers/vis_handler.py
-This file contains the class for simulation and visualization. The `SimWindow` class is implemented into the main UI thread, and the `VizWorker` class is implemented on a separate thread for more resource intensive tasks as needed.
+## simulation.py
+This file contains the class for simulation and visualization. The `SimWindow` class is implemented into the main UI thread, and the `SimWorker` class is implemented on a separate thread for more resource intensive tasks as needed.
 
-## Handlers/joystick_handler.py
+## joystick.py
 This file contains the `JoystickHandler` class to set up joystick control using the Panda3D package, and the `JoyWorker` class to take live inputs. Because this uses a while loop structure, the `JoyWorker` class is implemented on a separate thread.
