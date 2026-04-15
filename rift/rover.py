@@ -448,10 +448,12 @@ def roll() -> Generator[steps.Step[Rover]]:
         cstr.xyz(R1, z=0.),
     )))
     def step_back(x: Matrix) -> cstr.Constraint:
-        x_dist = ((face - feet_midpoint) @ x)[0] - 0.5
+        x0 = (face @ x)[0] - 0.5
+        o_l = np.array((x0, x[L1, 1], 0.))
+        o_r = np.array((x0, x[R1, 1], 0.))
         return cstr.Compound((
-            cstr.xyz(L1, x_dist, 0., 0.),
-            cstr.xyz(R1, x_dist, 0., 0.),
+            cstr.ParabolicPath(L1, o_l, abs(x[L1, 0] - o_l), 0.5),
+            cstr.ParabolicPath(R1, o_r, abs(x[R1, 0] - o_l), 0.5),
         ))
     yield steps.KKTStep(cstr.Compound((
         cstr.lock(CHASSIS_COM),
