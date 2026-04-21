@@ -14,7 +14,7 @@ class Constraint(Protocol):
     def at(self, pos: Matrix, /) -> Matrix: ...
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class Compound(Constraint):
     """A constraint equivalent to a combination of other constraints."""
     constraints: Iterable[Constraint] = ()
@@ -46,7 +46,7 @@ class Permuted(Constraint):
         return aug
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class Static(Constraint):
     """A constraint that doesn't vary with position."""
     aug: Matrix
@@ -102,7 +102,7 @@ motion: Final = Static.motion
 xyz: Final = Static.xyz
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class PlanarBarrier(Constraint):
     """As an inequality constraint, this keeps nodes on one side of a plane."""
     points: Matrix
@@ -114,7 +114,7 @@ class PlanarBarrier(Constraint):
         return np.column_stack((A, b))
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class Radial(Constraint):
     radius: Point
     rate: float
@@ -140,7 +140,7 @@ class Radial(Constraint):
         return np.column_stack((A, self.rate))
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class Orbit(Constraint):
     """A constraint representing the rotation of some point about its origin."""
     radius: Point
@@ -176,7 +176,7 @@ class Orbit(Constraint):
         return np.column_stack((A, self.rate))
 
 
-@dataclass(slots=True)
+@dataclass(slots=True, frozen=True)
 class ParabolicPath(Constraint):
     point: Point
     origin: Vector
