@@ -6,9 +6,20 @@ import numpy as np
 
 from rift.arraytypes import Matrix, Vector
 from rift.motion import constraints as cstr, steps
+from rift.protocols import HasRigidity
 from .linalg import cokernel, get_rigidity, incidence_from_trails
 
 type RealMatrix = Matrix[np.integer | np.floating]
+
+
+@dataclass(slots=True, frozen=True)
+class ReachabilityConstraint(cstr.Constraint[HasRigidity]):
+    unreachable: RealMatrix
+
+    def at(self, state: HasRigidity) -> Matrix:
+        A = self.unreachable @ state.rigidity
+        b = np.zeros(len(self.unreachable))
+        return np.column_stack((A, b))
 
 
 @dataclass(slots=True, frozen=True)
@@ -104,10 +115,10 @@ class TrussRobot(steps.MovableRobot):
     def dx_to_dq(self) -> Matrix:
         return self.actuation.inverse @ self.rigidity
 
-    def resolve_constraint(self, constraint: cstr.Constraint) -> Matrix:
-        length_constraint = cstr.Static.make_hom(self.actuation.unreachable @ self.rigidity)
-        constraint = cstr.combine(length_constraint, constraint)
-        return constraint.at(self.pos)
+    def build_step[R: HasRigidity](self, outline: steps.Outline[R]) -> steps.QPStep[R]:
+        length_constraint = ReachabilityConstraint(self.actuation.unreachable.astype(np.float64))
+        outline = outline.expand(eq=length_constraint)
+        return steps.QPStep(self.dx_to_dq, None, outline)
 
     def nudge(self, dx: Matrix | Vector) -> None:
         if len(dx.shape) == 1:

@@ -1,6 +1,6 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, Self
 
 import numpy as np
 
@@ -25,77 +25,82 @@ def singularity_eig(A: Matrix, b: Vector | None = None) -> tuple[float, Vector]:
     return evals[i], evecs[:, i]
 
 
-class Step[RobotType](Protocol):
-    def find_vel(self, robot: RobotType, /) -> Vector: ...
-
-
-class Robot(Protocol):
-    @property
-    def dx_to_dq(self, /) -> Matrix: ...
-    def resolve_constraint(self, constraint: cstr.Constraint, /) -> Matrix: ...
-
-
-class MovableRobot(Robot, Protocol):
-    def nudge(self, dx: Vector, /) -> object: ...
-
-
-@dataclass(slots=True)
-class FKStep(Step[Robot]):
-    qdot: Vector
-    constraint: cstr.Constraint
-
-    def find_vel(self, robot: Robot) -> Vector:
-        Ab = robot.resolve_constraint(self.constraint)
-        return np.linalg.solve(
-            np.concat((robot.dx_to_dq, Ab[:, :-1])),
-            np.concat((self.qdot, Ab[:, -1])),
-        )
-
-
-@dataclass(slots=True)
-class KKTStep(Step[Robot]):
-    constraint: cstr.Constraint
-    quad_cost: Matrix | None = None
-    lin_cost: Vector | None = None
-
-    def find_vel(self, robot: Robot) -> Vector:
-        cost = robot.dx_to_dq if self.quad_cost is None else self.quad_cost
-        Ab = robot.resolve_constraint(self.constraint)
-        e, v = singularity_eig(Ab[:, :-1])
-        if abs(e) <= 1e-3:
-            raise SingularityError("Robot state is singular")
-        vel = optimize.solve_kkt(R=cost, f=self.lin_cost, Ab=Ab)
-        if vel is None:
-            raise SolverError("Could not find valid node velocities")
-        return vel
-
-
-@dataclass(slots=True)
-class QPStep(Step[Robot]):
-    eq_constraint: cstr.Constraint
-    le_constraint: cstr.Constraint | None = None
-    quad_cost: Matrix | None = None
-    lin_cost: Vector | None = None
+@dataclass(slots=True, frozen=True)
+class Outline[T]:
+    eq: cstr.Constraint[T]
+    le: cstr.Constraint[T] | None = None
     allow_redundancy: bool = field(default=False, kw_only=True)
 
-    def find_vel(self, robot: Robot) -> Vector:
-        cost = robot.dx_to_dq if self.quad_cost is None else self.quad_cost
-        Ab = robot.resolve_constraint(self.eq_constraint)
-        e, v = singularity_eig(Ab[:, :-1], Ab[:, -1] if self.allow_redundancy else None)
+    def expand(
+        self,
+        *,
+        eq: cstr.Constraint[T] | None = None,
+        le: cstr.Constraint[T] | None = None,
+        allow_redundancy: bool = False,
+    ) -> Self:
+        if eq is None:
+            eq = self.eq
+        else:
+            eq = cstr.combine(self.eq, eq)
+        if le is None:
+            le = self.le
+        elif self.le is not None:
+            le = cstr.combine(self.le, le)
+        allow_redundancy = self.allow_redundancy or allow_redundancy
+        return type(self)(eq, le, allow_redundancy=allow_redundancy)
+
+    def __and__(self, other: Self) -> Self:
+        return self.expand(eq=other.eq, le=other.le, allow_redundancy=other.allow_redundancy)
+
+
+class Step[T](Protocol):
+    def solve(self, state: T, /) -> Vector: ...
+
+
+class MovableRobot(Protocol):
+    @property
+    def dx_to_dq(self, /) -> Matrix: ...
+    def build_step(self, outline: Outline[Self], /) -> Step[Self]: ...
+    def nudge(self, change: Vector, /) -> object: ...
+
+
+@dataclass(slots=True)
+class QPStep[T](Step[T]):
+    quad_cost: Matrix
+    lin_cost: Vector | None
+    outline: Outline[T]
+
+    def solve(self, state: T) -> Vector:
+        Ab = self.outline.eq.at(state)
+        e, v = singularity_eig(Ab[:, :-1], Ab[:, -1] if self.outline.allow_redundancy else None)
         if abs(e) <= 1e-3:
             raise SingularityError("Robot state is singular")
         Gh = (
-            None if self.le_constraint is None
-            else robot.resolve_constraint(self.le_constraint)
+            None if self.outline.le is None
+            else self.outline.le.at(state)
         )
-        vel = optimize.solve_qp(R=cost, f=self.lin_cost, Ab=Ab, Gh=Gh, solver='piqp')
+        if Gh is not None or self.outline.allow_redundancy:
+            vel = optimize.solve_qp(R=self.quad_cost, f=self.lin_cost, Ab=Ab, Gh=Gh, solver='piqp')
+        elif Ab.shape[1] == Ab.shape[0]+1:
+            try:
+                vel = np.linalg.solve(Ab[:, :-1], Ab[:, -1])
+            except np.linalg.LinAlgError:
+                vel = None
+        else:
+            vel = optimize.solve_kkt(R=self.quad_cost, f=self.lin_cost, Ab=Ab)
         if vel is None:
             raise SolverError("Could not find valid node velocities")
         return vel
 
 
-def take_step[R: MovableRobot](robot: R, step: Step[R], *, dt: float = 1.) -> Vector:
-    vel = step.find_vel(robot)
+def take_step[R: MovableRobot](
+    robot: R,
+    outline: Outline[R],
+    *,
+    dt: float = 1.,
+) -> Vector:
+    step = robot.build_step(outline)
+    vel = step.solve(robot)
     dx = vel * dt
     dq = robot.dx_to_dq @ dx
     robot.nudge(dx)
@@ -104,11 +109,16 @@ def take_step[R: MovableRobot](robot: R, step: Step[R], *, dt: float = 1.) -> Ve
 
 def divide_steps[R: MovableRobot](
     robot: R,
-    steps: Iterable[Step[R]],
+    outlines: Iterable[Outline[R]],
     *,
     resolution: int,
 ) -> Generator[Vector]:
     dt = 1 / resolution
-    for step in steps:
+    for outline in outlines:
+        step = robot.build_step(outline)
         for _ in range(resolution):
-            yield take_step(robot, step, dt=dt)
+            vel = step.solve(robot)
+            dx = vel * dt
+            dq = robot.dx_to_dq @ dx
+            robot.nudge(dx)
+            yield dq

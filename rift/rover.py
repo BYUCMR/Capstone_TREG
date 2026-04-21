@@ -14,6 +14,15 @@ from . import grav
 from . import tubetruss as tt
 from .arraytypes import Matrix, Vector
 from .motion import axes, constraints as cstr, points, steps
+from .protocols import HasDxToDq, HasPos
+
+
+@dataclass(slots=True, frozen=True)
+class RollerMotion(cstr.Constraint[HasDxToDq]):
+    qdot: Vector
+
+    def at(self, state: HasDxToDq) -> Matrix:
+        return np.column_stack((state.dx_to_dq, self.qdot))
 
 
 @enum.global_enum
@@ -265,23 +274,28 @@ class Rover(steps.MovableRobot):
         return self.source.incidence
 
     @property
+    def rigidity(self) -> Matrix:
+        return self.source.rigidity @ self.permuter
+
+    @property
     def dx_to_dq(self) -> Matrix:
         return self.source.dx_to_dq @ self.permuter
 
     def nudge(self, dx: Vector) -> None:
         self.source.nudge(self.permuter @ dx)
 
-    def resolve_constraint(self, constraint: cstr.Constraint) -> Matrix:
-        permuted = cstr.Permuted(constraint, self.permuter.T)
-        aug = self.source.resolve_constraint(permuted)
-        aug[:, :-1] @= self.permuter
-        return aug
+    def build_step(self, outline: steps.Outline[Self]) -> steps.QPStep[Self]:
+        step = self.source.build_step(outline)
+        step.quad_cost @= self.permuter
+        if step.lin_cost is not None:
+            step.lin_cost @= self.permuter
+        return step
 
     take_step = steps.take_step
     divide_steps = steps.divide_steps
 
 
-def roller_adjustment(roller: SupportsIndex, amount: float) -> steps.Step[Rover]:
+def roller_adjustment(roller: SupportsIndex, amount: float) -> steps.Outline[Rover]:
     dq = np.zeros(len(Node))
     dq[roller] = amount
     # We might be able to make better constraints than this.
@@ -290,12 +304,12 @@ def roller_adjustment(roller: SupportsIndex, amount: float) -> steps.Step[Rover]
         cstr.xyz(L2, y=0, z=0),
         cstr.xyz(R1, z=0),
     )
-    return steps.FKStep(dq, constraint)
+    return steps.Outline(cstr.Compound((RollerMotion(dq), constraint)))
 
 
-def node_nudge(node: SupportsIndex, x: float, y: float, z: float) -> steps.Step[Rover]:
-    def move(pos: Matrix) -> cstr.Static:
-        locked = pos[:, 2] < 1e-6
+def node_nudge(node: SupportsIndex, x: float, y: float, z: float) -> steps.Outline[Rover]:
+    def move(state: HasPos) -> cstr.Static:
+        locked = state.pos[:, 2] < 1e-6
         locked[node] = False
         return cstr.Static.combine(
             cstr.xyz(Node(node), x, y, z),
@@ -304,17 +318,17 @@ def node_nudge(node: SupportsIndex, x: float, y: float, z: float) -> steps.Step[
                 for n in np.flatnonzero(locked)
             ),
         )
-    def respect_floor(pos: Matrix) -> cstr.PlanarBarrier:
-        return cstr.PlanarBarrier(np.eye(len(pos)), axes.Z)
-    return steps.QPStep(
+    def respect_floor(state: HasPos) -> cstr.PlanarBarrier:
+        return cstr.PlanarBarrier(np.eye(len(state.pos)), axes.Z)
+    return steps.Outline(
         cstr.Sleeper(move),
         cstr.Sleeper(respect_floor),
         allow_redundancy=True,
     )
 
 
-def chassis_nudge(x: float, y: float, z: float) -> steps.Step[Rover]:
-    return steps.KKTStep(cstr.Static.combine(
+def chassis_nudge(x: float, y: float, z: float) -> steps.Outline[Rover]:
+    return steps.Outline(cstr.Static.combine(
         cstr.xyz(CHASSIS_COM, x, y, z),
         cstr.xyz(P3-Q3, x=0, z=0),
         cstr.xyz(L1, z=0),
@@ -325,10 +339,10 @@ def chassis_nudge(x: float, y: float, z: float) -> steps.Step[Rover]:
     ))
 
 
-def chassis_tilt(angle: float) -> steps.Step[Rover]:
+def chassis_tilt(angle: float) -> steps.Outline[Rover]:
     base = points.centroid(P3, Q3)
     face = points.centroid(P2, Q2)
-    return steps.KKTStep(cstr.combine(
+    return steps.Outline(cstr.combine(
         cstr.lock(base),
         cstr.Orbit(face-base, axes.Y, angle),
         cstr.xyz(face - base, y=0.),
@@ -344,14 +358,14 @@ def chassis_tilt(angle: float) -> steps.Step[Rover]:
 def crawl(
     cycles: int = 1,
     step_length: tuple[float, float] = (0.125, 0.),
-) -> Generator[steps.Step[Rover]]:
+) -> Generator[steps.Outline[Rover]]:
     chassis_up = CHASSIS_COM - points.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
     steadily_forward = cstr.xyz(CHASSIS_COM, x=0.25 * x_dist)
     feet = (L2, L1, R2, R1)
     for foot in (feet * cycles):
-        yield steps.KKTStep(cstr.combine(
+        yield steps.Outline(cstr.combine(
             cstr.ParabolicPath.make(
                 point=foot,
                 delta_x=x_dist,
@@ -367,11 +381,11 @@ def crawl(
         ))
 
 
-def shuffle(x_dist: float = 0.125) -> Generator[steps.Step[Rover]]:
+def shuffle(x_dist: float = 0.125) -> Generator[steps.Outline[Rover]]:
     chassis_up = CHASSIS_COM - points.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     c_dist = x_dist * 0.4
-    yield steps.KKTStep(cstr.combine(
+    yield steps.Outline(cstr.combine(
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.lock(L2),
@@ -379,7 +393,7 @@ def shuffle(x_dist: float = 0.125) -> Generator[steps.Step[Rover]]:
         cstr.xyz(COM, x=c_dist),
         no_wobble,
     ))
-    yield steps.KKTStep(cstr.combine(
+    yield steps.Outline(cstr.combine(
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.Static.xyz(L2, x_dist, 0., 0.),
@@ -387,7 +401,7 @@ def shuffle(x_dist: float = 0.125) -> Generator[steps.Step[Rover]]:
         cstr.xyz(COM, x=0.5*x_dist-c_dist),
         no_wobble,
     ))
-    yield steps.KKTStep(cstr.combine(
+    yield steps.Outline(cstr.combine(
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.lock(L2),
@@ -395,7 +409,7 @@ def shuffle(x_dist: float = 0.125) -> Generator[steps.Step[Rover]]:
         cstr.xyz(COM, x=-c_dist),
         no_wobble,
     ))
-    yield steps.KKTStep(cstr.combine(
+    yield steps.Outline(cstr.combine(
         cstr.Static.xyz(L1, x_dist, 0., 0.),
         cstr.Static.xyz(R1, x_dist, 0., 0.),
         cstr.lock(L2),
@@ -405,8 +419,8 @@ def shuffle(x_dist: float = 0.125) -> Generator[steps.Step[Rover]]:
     ))
 
 
-def lean(dist: float = 0.6) -> steps.Step[Rover]:
-    return steps.KKTStep(cstr.Static.combine(
+def lean(dist: float = 0.6) -> steps.Outline[Rover]:
+    return steps.Outline(cstr.Static.combine(
         cstr.xyz(P2, dist),
         cstr.xyz(Q2, dist),
         cstr.lock(L1),
@@ -416,8 +430,8 @@ def lean(dist: float = 0.6) -> steps.Step[Rover]:
     ))
 
 
-def reach(dist: float = 1.) -> steps.Step[Rover]:
-    return steps.KKTStep(cstr.Static.combine(
+def reach(dist: float = 1.) -> steps.Outline[Rover]:
+    return steps.Outline(cstr.Static.combine(
         cstr.xyz(L3, x=dist),
         cstr.xyz(R3, x=dist),
         cstr.lock(P3),
@@ -427,12 +441,12 @@ def reach(dist: float = 1.) -> steps.Step[Rover]:
     ))
 
 
-def roll() -> Generator[steps.Step[Rover]]:
+def roll() -> Generator[steps.Outline[Rover]]:
     base = points.centroid(P3, Q3)
     face = points.centroid(P2, Q2)
     back = points.centroid(P1, Q1)
     feet_midpoint = points.centroid(L1, R1)
-    yield steps.KKTStep(cstr.combine(
+    yield steps.Outline(cstr.combine(
         cstr.lock(base),
         cstr.xyz(COM - feet_midpoint, x=0.25),
         cstr.Orbit.align(face - base, axes.X),
@@ -440,15 +454,15 @@ def roll() -> Generator[steps.Step[Rover]]:
         cstr.xyz(L1, z=0.),
         cstr.xyz(R1, z=0.),
     ))
-    def step_back(x: Matrix) -> cstr.Constraint:
-        x0 = (face @ x)[0] - 0.5
-        o_l = np.array((x0, x[L1, 1], 0.))
-        o_r = np.array((x0, x[R1, 1], 0.))
+    def step_back(state: HasPos) -> cstr.Constraint[HasPos]:
+        x0 = (face @ state.pos)[0] - 0.5
+        o_l = np.array((x0, state.pos[L1, 1], 0.))
+        o_r = np.array((x0, state.pos[R1, 1], 0.))
         return cstr.combine(
-            cstr.ParabolicPath(L1, o_l, abs(x[L1, 0] - o_l), 0.5),
-            cstr.ParabolicPath(R1, o_r, abs(x[R1, 0] - o_l), 0.5),
+            cstr.ParabolicPath(L1, o_l, abs(state.pos[L1, 0] - o_l), 0.5),
+            cstr.ParabolicPath(R1, o_r, abs(state.pos[R1, 0] - o_l), 0.5),
         )
-    yield steps.KKTStep(cstr.combine(
+    yield steps.Outline(cstr.combine(
         cstr.lock(CHASSIS_COM),
         cstr.xyz(P2 - Q2, z=0.),
         cstr.xyz(face - base, y=0., z=0.),
@@ -458,15 +472,15 @@ def roll() -> Generator[steps.Step[Rover]]:
         cstr.Orbit.align(L3-L1, axes.X, axis=axes.Y),
         cstr.Orbit.align(R3-R1, axes.X, axis=axes.Y),
     ))
-    def align_feet(x: Matrix) -> cstr.Constraint:
+    def align_feet(state: HasPos) -> cstr.Constraint[HasPos]:
         point_l = L3 - L1
         point_r = R3 - R1
         target = (1., 0., 0.)
         return cstr.combine(
-            cstr.Static.motion(point_l, np.eye(3), target - (point_l @ x)),
-            cstr.Static.motion(point_r, np.eye(3), target - (point_r @ x)),
+            cstr.Static.motion(point_l, np.eye(3), target - (point_l @ state.pos)),
+            cstr.Static.motion(point_r, np.eye(3), target - (point_r @ state.pos)),
         )
-    yield steps.KKTStep(cstr.combine(
+    yield steps.Outline(cstr.combine(
         cstr.lock(face),
         cstr.Orbit.align(back - base, axes.X),
         cstr.xyz(P2 - Q2, x=0., z=0.),
