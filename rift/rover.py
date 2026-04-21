@@ -257,7 +257,7 @@ del _identity
 
 
 @dataclass(slots=True)
-class Rover(steps.MovableRobot):
+class Rover(steps.CanStep):
     source: tt.TrussRobot
     permuter: Matrix[np.bool]
 

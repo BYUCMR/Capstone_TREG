@@ -58,7 +58,7 @@ class Step[T](Protocol):
     def solve(self, state: T, /) -> Vector: ...
 
 
-class MovableRobot(Protocol):
+class CanStep(Protocol):
     def build_step(self, outline: Outline[Self], /) -> Step[Self]: ...
     def nudge(self, change: Vector, /) -> Vector: ...
 
@@ -94,7 +94,7 @@ class QPStep[T](Step[T]):
         return vel
 
 
-def divide_steps[R: MovableRobot](
+def divide_steps[R: CanStep](
     robot: R,
     outlines: Iterable[Outline[R]],
     *,
