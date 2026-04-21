@@ -60,7 +60,7 @@ def take_command(
         yield robot.take_step(motion)
     elif command.mode is Mode.rolling and command.x > 0:
         yield from robot.divide_steps(rover.roll(), resolution=100)
-        robot.state = robot.state.roll()
+        robot.permuter @= rover.ROLL
 
 
 @dataclass(slots=True)

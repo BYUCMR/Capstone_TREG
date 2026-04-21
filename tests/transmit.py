@@ -24,7 +24,7 @@ async def main(
     t = 37.5 / resolution
     try:
         for dr in robot.divide_steps(rover.roll(), resolution=resolution):
-            stabilizer.update_pos(robot.pos)
+            stabilizer.update_pos(robot.source.pos)
             animate(stabilizer.pos)
             ticks_per_sec = rover.TICKS_PER_SIDE * dr / t
             cmd = commands.VEL(ticks_per_sec, t)

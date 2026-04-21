@@ -241,48 +241,41 @@ def set_up_animation(
     return view, partial(anim.update_all_pos, items)
 
 
-class RoverState(enum.Enum):
-    R1 = 0
-    R2 = 2
-    R3 = 1
-
-    def roll(self) -> Self:
-        return type(self)((self.value - 1) % 3)
-
-    def get_permuter(self) -> Matrix[np.bool]:
-        i = self.value
-        order = [i, (i+1)%3, (i-1)%3]
-        I = np.eye(3, dtype=np.bool)
-        return np.kron(np.eye(4, dtype=np.bool), np.kron(I[order], I))
+_identity = np.eye(3, dtype=np.bool)
+ROLL: Final = np.kron(np.eye(4, dtype=np.bool), np.kron(_identity[[1, 2, 0]], _identity))
+ROLL.setflags(write=False)
+del _identity
 
 
 @dataclass(slots=True)
 class Rover(steps.MovableRobot):
-    robot: tt.TrussRobot
-    state: RoverState = RoverState.R1
+    source: tt.TrussRobot
+    permuter: Matrix[np.bool]
 
     @classmethod
     def make_pos(cls, pos: Matrix) -> Self:
-        return cls(tt.TrussRobot(pos.copy(), INCIDENCE, ACTUATION), RoverState.R1)
+        return cls(tt.TrussRobot(pos.copy(), INCIDENCE, ACTUATION), np.eye(pos.size, dtype=np.bool))
 
     @property
     def pos(self) -> Matrix:
-        return self.robot.pos
+        return (self.permuter.T @ self.source.pos.ravel()).reshape(self.source.pos.shape)
 
     @property
     def incidence(self) -> Matrix[np.int8]:
-        return self.robot.incidence
+        return self.source.incidence
 
     @property
     def dx_to_dq(self) -> Matrix:
-        return self.robot.dx_to_dq
+        return self.source.dx_to_dq @ self.permuter
 
-    def nudge(self, dx: Matrix | Vector) -> None:
-        self.robot.nudge(dx)
+    def nudge(self, dx: Vector) -> None:
+        self.source.nudge(self.permuter @ dx)
 
     def resolve_constraint(self, constraint: cstr.Constraint) -> Matrix:
-        permuted = cstr.Permuted(constraint, self.state.get_permuter())
-        return self.robot.resolve_constraint(permuted)
+        permuted = cstr.Permuted(constraint, self.permuter.T)
+        aug = self.source.resolve_constraint(permuted)
+        aug[:, :-1] @= self.permuter
+        return aug
 
     take_step = steps.take_step
     divide_steps = steps.divide_steps

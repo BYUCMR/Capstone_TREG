@@ -20,10 +20,10 @@ async def main(
     try:
         for i in range(3):
             for _ in robot.divide_steps(rover.roll(), resolution=resolution):
-                stabilizer.update_pos(robot.pos)
+                stabilizer.update_pos(robot.source.pos)
                 animate(stabilizer.pos)
                 await asyncio.sleep(0)
-            robot.state = robot.state.roll()
+            robot.permuter @= rover.ROLL
     except InverseKinematicsError as e:
         print(e.args[0])
     print("Done with animation")

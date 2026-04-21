@@ -22,7 +22,7 @@ async def main(
     try:
         steps = rover.crawl(cycles, (step_length, 0))
         for _ in robot.divide_steps(steps, resolution=resolution):
-            stabilizer.update_pos(robot.pos)
+            stabilizer.update_pos(robot.source.pos)
             animate(stabilizer.pos)
             await asyncio.sleep(0)
     except InverseKinematicsError as e:
