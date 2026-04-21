@@ -94,18 +94,6 @@ class QPStep[T](Step[T]):
         return vel
 
 
-def take_step[R: MovableRobot](
-    robot: R,
-    outline: Outline[R],
-    *,
-    dt: float = 1.,
-) -> Vector:
-    step = robot.build_step(outline)
-    vel = step.solve(robot)
-    dx = vel * dt
-    return robot.nudge(dx)
-
-
 def divide_steps[R: MovableRobot](
     robot: R,
     outlines: Iterable[Outline[R]],

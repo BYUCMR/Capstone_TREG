@@ -92,34 +92,40 @@ def measure_max_crawl_speed(
 def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     z0 = robot.pos[rover.L1, 2]
-    step = steps.Outline[rover.Rover](cstr.Static.combine(
+    outline = steps.Outline[rover.Rover](cstr.Static.combine(
         cstr.xyz(rover.L1, 0., 0., dz),
         cstr.lock(rover.L2),
         cstr.lock(rover.R1),
         cstr.lock(rover.R2),
     ))
+    step = robot.build_step(outline)
     while True:
         try:
-            robot.take_step(step)
+            change = step.solve(robot)
         except steps.InverseKinematicsError:
             break
+        else:
+            robot.nudge(change)
     return robot.pos[rover.L1, 2] - dz - z0
 
 
 def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
     x0 = robot.pos[rover.L1, 0]
-    step = steps.Outline[rover.Rover](cstr.Static.combine(
+    outline = steps.Outline[rover.Rover](cstr.Static.combine(
         cstr.xyz(rover.L1, dx, 0., 0.),
         cstr.lock(rover.L2),
         cstr.lock(rover.R1),
         cstr.lock(rover.R2),
     ))
+    step = robot.build_step(outline)
     while True:
         try:
-            robot.take_step(step)
+            change = step.solve(robot)
         except steps.InverseKinematicsError:
             break
+        else:
+            robot.nudge(change)
     return robot.pos[rover.L1, 0] - dx - x0
 
 
@@ -128,7 +134,7 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
     step_length = dx
     while True:
         robot = rover.make_robot(init_pos)
-        step = steps.Outline[rover.Rover](cstr.combine(
+        outline = steps.Outline[rover.Rover](cstr.combine(
             cstr.ParabolicPath.make(
                 rover.L1,
                 init_pos=robot.pos,
@@ -138,9 +144,11 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
             cstr.lock(rover.R1),
             cstr.lock(rover.R2),
         ))
+        step = robot.build_step(outline)
         try:
             for _ in range(resolution):
-                robot.take_step(step, dt=dt)
+                vel = step.solve(robot)
+                robot.nudge(vel * dt)
         except steps.InverseKinematicsError:
             break
         step_length += dx

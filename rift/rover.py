@@ -287,7 +287,6 @@ class Rover(steps.MovableRobot):
     def build_step(self, outline: steps.Outline[Self]) -> steps.QPStep[Self]:
         return self.source.build_step(outline)
 
-    take_step = steps.take_step
     divide_steps = steps.divide_steps
 
 

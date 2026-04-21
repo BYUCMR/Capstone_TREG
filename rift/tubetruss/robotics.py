@@ -137,5 +137,4 @@ class TrussRobot(steps.MovableRobot):
         self._pos[:] += dx
         return dq
 
-    take_step = steps.take_step
     divide_steps = steps.divide_steps

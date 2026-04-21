@@ -47,17 +47,20 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        yield robot.take_step(motion)
+        dx = robot.build_step(motion).solve(robot)
+        yield robot.nudge(dx)
     elif command.mode is Mode.calibration:
         motion = rover.roller_adjustment(command.item, command.x * 0.0005)
-        yield robot.take_step(motion)
+        dx = robot.build_step(motion).solve(robot)
+        yield robot.nudge(dx)
     elif command.mode is Mode.stand:
         motion = rover.chassis_nudge(
             command.x * 0.0005,
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        yield robot.take_step(motion)
+        dx = robot.build_step(motion).solve(robot)
+        yield robot.nudge(dx)
     elif command.mode is Mode.rolling and command.x > 0:
         yield from robot.divide_steps(rover.roll(), resolution=100)
         robot.permuter @= rover.ROLL
