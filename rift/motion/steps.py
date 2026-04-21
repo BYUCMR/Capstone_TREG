@@ -59,10 +59,8 @@ class Step[T](Protocol):
 
 
 class MovableRobot(Protocol):
-    @property
-    def dx_to_dq(self, /) -> Matrix: ...
     def build_step(self, outline: Outline[Self], /) -> Step[Self]: ...
-    def nudge(self, change: Vector, /) -> object: ...
+    def nudge(self, change: Vector, /) -> Vector: ...
 
 
 @dataclass(slots=True)
@@ -105,9 +103,7 @@ def take_step[R: MovableRobot](
     step = robot.build_step(outline)
     vel = step.solve(robot)
     dx = vel * dt
-    dq = robot.dx_to_dq @ dx
-    robot.nudge(dx)
-    return dq
+    return robot.nudge(dx)
 
 
 def divide_steps[R: MovableRobot](
@@ -122,6 +118,4 @@ def divide_steps[R: MovableRobot](
         for _ in range(resolution):
             vel = step.solve(robot)
             dx = vel * dt
-            dq = robot.dx_to_dq @ dx
-            robot.nudge(dx)
-            yield dq
+            yield robot.nudge(dx)

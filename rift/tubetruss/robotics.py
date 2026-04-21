@@ -129,11 +129,13 @@ class TrussRobot(steps.MovableRobot):
         quad_cost = MotorCost(self.actuation.inverse)
         return steps.QPStep(quad_cost, None, outline)
 
-    def nudge(self, dx: Matrix | Vector) -> None:
+    def nudge(self, dx: Matrix | Vector) -> Vector:
         if len(dx.shape) == 1:
             dx = dx.reshape(self._pos.shape)
+        dq = self.dx_to_dq @ dx.ravel()
         self._rigidity = None
         self._pos[:] += dx
+        return dq
 
     take_step = steps.take_step
     divide_steps = steps.divide_steps

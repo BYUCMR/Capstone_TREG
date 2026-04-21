@@ -281,8 +281,8 @@ class Rover(steps.MovableRobot):
     def dx_to_dq(self) -> Matrix:
         return self.source.dx_to_dq @ self.permuter
 
-    def nudge(self, dx: Vector) -> None:
-        self.source.nudge(self.permuter @ dx)
+    def nudge(self, dx: Vector) -> Vector:
+        return self.source.nudge(self.permuter @ dx)
 
     def build_step(self, outline: steps.Outline[Self]) -> steps.QPStep[Self]:
         return self.source.build_step(outline)
