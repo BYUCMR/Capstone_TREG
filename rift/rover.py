@@ -328,7 +328,7 @@ def chassis_nudge(x: float, y: float, z: float) -> steps.Step[Rover]:
 def chassis_tilt(angle: float) -> steps.Step[Rover]:
     base = points.centroid(P3, Q3)
     face = points.centroid(P2, Q2)
-    return steps.KKTStep(cstr.Compound((
+    return steps.KKTStep(cstr.combine(
         cstr.lock(base),
         cstr.Orbit(face-base, axes.Y, angle),
         cstr.xyz(face - base, y=0.),
@@ -338,7 +338,7 @@ def chassis_tilt(angle: float) -> steps.Step[Rover]:
         cstr.xyz(R2, y=0.),
         cstr.xyz(L3, y=0.),
         cstr.xyz(R3, y=0.),
-    )))
+    ))
 
 
 def crawl(
@@ -351,7 +351,7 @@ def crawl(
     steadily_forward = cstr.xyz(CHASSIS_COM, x=0.25 * x_dist)
     feet = (L2, L1, R2, R1)
     for foot in (feet * cycles):
-        yield steps.KKTStep(cstr.Compound((
+        yield steps.KKTStep(cstr.combine(
             cstr.ParabolicPath.make(
                 point=foot,
                 delta_x=x_dist,
@@ -364,45 +364,45 @@ def crawl(
             ),
             steadily_forward,
             no_wobble,
-        )))
+        ))
 
 
 def shuffle(x_dist: float = 0.125) -> Generator[steps.Step[Rover]]:
     chassis_up = CHASSIS_COM - points.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     c_dist = x_dist * 0.4
-    yield steps.KKTStep(cstr.Compound((
+    yield steps.KKTStep(cstr.combine(
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.lock(L2),
         cstr.lock(R2),
         cstr.xyz(COM, x=c_dist),
         no_wobble,
-    )))
-    yield steps.KKTStep(cstr.Compound((
+    ))
+    yield steps.KKTStep(cstr.combine(
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.Static.xyz(L2, x_dist, 0., 0.),
         cstr.Static.xyz(R2, x_dist, 0., 0.),
         cstr.xyz(COM, x=0.5*x_dist-c_dist),
         no_wobble,
-    )))
-    yield steps.KKTStep(cstr.Compound((
+    ))
+    yield steps.KKTStep(cstr.combine(
         cstr.lock(L1),
         cstr.lock(R1),
         cstr.lock(L2),
         cstr.lock(R2),
         cstr.xyz(COM, x=-c_dist),
         no_wobble,
-    )))
-    yield steps.KKTStep(cstr.Compound((
+    ))
+    yield steps.KKTStep(cstr.combine(
         cstr.Static.xyz(L1, x_dist, 0., 0.),
         cstr.Static.xyz(R1, x_dist, 0., 0.),
         cstr.lock(L2),
         cstr.lock(R2),
         cstr.xyz(COM, x=0.5*x_dist+c_dist),
         no_wobble,
-    )))
+    ))
 
 
 def lean(dist: float = 0.6) -> steps.Step[Rover]:
@@ -432,23 +432,23 @@ def roll() -> Generator[steps.Step[Rover]]:
     face = points.centroid(P2, Q2)
     back = points.centroid(P1, Q1)
     feet_midpoint = points.centroid(L1, R1)
-    yield steps.KKTStep(cstr.Compound((
+    yield steps.KKTStep(cstr.combine(
         cstr.lock(base),
         cstr.xyz(COM - feet_midpoint, x=0.25),
         cstr.Orbit.align(face - base, axes.X),
         cstr.xyz(P3 - Q3, x=0., z=0.),
         cstr.xyz(L1, z=0.),
         cstr.xyz(R1, z=0.),
-    )))
+    ))
     def step_back(x: Matrix) -> cstr.Constraint:
         x0 = (face @ x)[0] - 0.5
         o_l = np.array((x0, x[L1, 1], 0.))
         o_r = np.array((x0, x[R1, 1], 0.))
-        return cstr.Compound((
+        return cstr.combine(
             cstr.ParabolicPath(L1, o_l, abs(x[L1, 0] - o_l), 0.5),
             cstr.ParabolicPath(R1, o_r, abs(x[R1, 0] - o_l), 0.5),
-        ))
-    yield steps.KKTStep(cstr.Compound((
+        )
+    yield steps.KKTStep(cstr.combine(
         cstr.lock(CHASSIS_COM),
         cstr.xyz(P2 - Q2, z=0.),
         cstr.xyz(face - base, y=0., z=0.),
@@ -457,20 +457,20 @@ def roll() -> Generator[steps.Step[Rover]]:
         cstr.Radial.get_to(R3-R1, 1.),
         cstr.Orbit.align(L3-L1, axes.X, axis=axes.Y),
         cstr.Orbit.align(R3-R1, axes.X, axis=axes.Y),
-    )))
+    ))
     def align_feet(x: Matrix) -> cstr.Constraint:
         point_l = L3 - L1
         point_r = R3 - R1
         target = (1., 0., 0.)
-        return cstr.Compound((
+        return cstr.combine(
             cstr.Static.motion(point_l, np.eye(3), target - (point_l @ x)),
             cstr.Static.motion(point_r, np.eye(3), target - (point_r @ x)),
-        ))
-    yield steps.KKTStep(cstr.Compound((
+        )
+    yield steps.KKTStep(cstr.combine(
         cstr.lock(face),
         cstr.Orbit.align(back - base, axes.X),
         cstr.xyz(P2 - Q2, x=0., z=0.),
         cstr.xyz(L1, x=0., z=0.),
         cstr.xyz(R1, x=0., z=0.),
         cstr.Sleeper(align_feet),
-    )))
+    ))

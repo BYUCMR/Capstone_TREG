@@ -213,3 +213,26 @@ class ParabolicPath(Constraint):
         dp[2] += self.rise * r
         A = np.kron(self.point, np.eye(3))
         return np.column_stack((A, dp))
+
+
+def combine(*constraints: Constraint) -> Constraint:
+    if not constraints:
+        raise ValueError("Cannot combine zero constraints")
+    all_constraints = list(constraints)
+    static: list[Static] = []
+    dynamic: list[Constraint] = []
+    for constraint in all_constraints:
+        match constraint:
+            case Static():
+                static.append(constraint)
+            case Compound(subconstraints):
+                all_constraints.extend(subconstraints)
+            case Sleeper(constraint=subconstraint) if subconstraint is not None:
+                all_constraints.append(subconstraint)
+            case _:
+                dynamic.append(constraint)
+    if static:
+        dynamic.append(Static.combine(*static))
+    if len(dynamic) == 1:
+        return dynamic.pop()
+    return Compound(dynamic)

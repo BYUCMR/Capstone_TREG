@@ -128,7 +128,7 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
     step_length = dx
     while True:
         robot = rover.make_robot(init_pos)
-        step = steps.KKTStep(cstr.Compound((
+        step = steps.KKTStep(cstr.combine(
             cstr.ParabolicPath.make(
                 rover.L1,
                 init_pos=robot.pos,
@@ -137,7 +137,7 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
             cstr.lock(rover.L2),
             cstr.lock(rover.R1),
             cstr.lock(rover.R2),
-        )))
+        ))
         try:
             for _ in range(resolution):
                 robot.take_step(step, dt=dt)

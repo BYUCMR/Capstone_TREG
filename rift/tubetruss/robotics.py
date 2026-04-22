@@ -106,7 +106,7 @@ class TrussRobot(steps.MovableRobot):
 
     def resolve_constraint(self, constraint: cstr.Constraint) -> Matrix:
         length_constraint = cstr.Static.make_hom(self.actuation.unreachable @ self.rigidity)
-        constraint = cstr.Compound((length_constraint, constraint))
+        constraint = cstr.combine(length_constraint, constraint)
         return constraint.at(self.pos)
 
     def nudge(self, dx: Matrix | Vector) -> None:
