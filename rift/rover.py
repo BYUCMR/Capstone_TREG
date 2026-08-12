@@ -279,7 +279,7 @@ class Rover(steps.CanStep):
 
     @property
     def dx_to_dq(self) -> Matrix:
-        return self.source.dx_to_dq @ self.permuter
+        return self.source.actuation.inverse @ self.rigidity
 
     def nudge(self, dx: Vector) -> Vector:
         return self.source.nudge(self.permuter @ dx)

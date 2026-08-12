@@ -119,10 +119,6 @@ class TrussRobot(steps.CanStep):
             self._rigidity = get_rigidity(self._incidence, self._pos)
         return self._rigidity
 
-    @property
-    def dx_to_dq(self) -> Matrix:
-        return self.actuation.inverse @ self.rigidity
-
     def build_step[R: HasRigidity](self, outline: steps.Outline[R]) -> steps.QPStep[R]:
         length_constraint = ReachabilityConstraint(self.actuation.unreachable.astype(np.float64))
         outline = outline.expand(eq=length_constraint)
@@ -132,7 +128,7 @@ class TrussRobot(steps.CanStep):
     def nudge(self, dx: Matrix | Vector) -> Vector:
         if len(dx.shape) == 1:
             dx = dx.reshape(self._pos.shape)
-        dq = self.dx_to_dq @ dx.ravel()
+        dq = self.actuation.inverse @ self.rigidity @ dx.ravel()
         self._rigidity = None
         self._pos[:] += dx
         return dq
