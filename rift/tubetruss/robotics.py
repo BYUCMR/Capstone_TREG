@@ -6,7 +6,7 @@ import numpy as np
 
 from rift.arraytypes import Matrix, Vector
 from rift.motion import constraints as cstr, steps
-from rift.protocols import HasRigidity
+from rift.protocols import HasRigidity, StateFunction
 from .linalg import cokernel, get_rigidity, incidence_from_trails
 
 type RealMatrix = Matrix[np.integer | np.floating]
@@ -20,6 +20,14 @@ class ReachabilityConstraint(cstr.Constraint[HasRigidity]):
         A = self.unreachable @ state.rigidity
         b = np.zeros(len(self.unreachable))
         return np.column_stack((A, b))
+
+
+@dataclass(slots=True, frozen=True)
+class MotorCost(StateFunction[HasRigidity, Matrix]):
+    inverse_actuation: RealMatrix
+
+    def at(self, state: HasRigidity) -> Matrix:
+        return self.inverse_actuation @ state.rigidity
 
 
 @dataclass(slots=True, frozen=True)
@@ -118,7 +126,8 @@ class TrussRobot(steps.MovableRobot):
     def build_step[R: HasRigidity](self, outline: steps.Outline[R]) -> steps.QPStep[R]:
         length_constraint = ReachabilityConstraint(self.actuation.unreachable.astype(np.float64))
         outline = outline.expand(eq=length_constraint)
-        return steps.QPStep(self.dx_to_dq, None, outline)
+        quad_cost = MotorCost(self.actuation.inverse)
+        return steps.QPStep(quad_cost, None, outline)
 
     def nudge(self, dx: Matrix | Vector) -> None:
         if len(dx.shape) == 1:

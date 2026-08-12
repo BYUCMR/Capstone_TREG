@@ -5,6 +5,7 @@ from typing import Protocol, Self
 import numpy as np
 
 from rift.arraytypes import Matrix, Vector
+from rift.protocols import StateFunction
 from . import constraints as cstr, optimize
 
 
@@ -66,8 +67,8 @@ class MovableRobot(Protocol):
 
 @dataclass(slots=True)
 class QPStep[T](Step[T]):
-    quad_cost: Matrix
-    lin_cost: Vector | None
+    quad_cost: StateFunction[T, Matrix]
+    lin_cost: StateFunction[T, Vector] | None
     outline: Outline[T]
 
     def solve(self, state: T) -> Vector:
@@ -79,15 +80,17 @@ class QPStep[T](Step[T]):
             None if self.outline.le is None
             else self.outline.le.at(state)
         )
+        R = self.quad_cost.at(state)
+        f = None if self.lin_cost is None else self.lin_cost.at(state)
         if Gh is not None or self.outline.allow_redundancy:
-            vel = optimize.solve_qp(R=self.quad_cost, f=self.lin_cost, Ab=Ab, Gh=Gh, solver='piqp')
+            vel = optimize.solve_qp(R=R, f=f, Ab=Ab, Gh=Gh, solver='piqp')
         elif Ab.shape[1] == Ab.shape[0]+1:
             try:
                 vel = np.linalg.solve(Ab[:, :-1], Ab[:, -1])
             except np.linalg.LinAlgError:
                 vel = None
         else:
-            vel = optimize.solve_kkt(R=self.quad_cost, f=self.lin_cost, Ab=Ab)
+            vel = optimize.solve_kkt(R=R, f=f, Ab=Ab)
         if vel is None:
             raise SolverError("Could not find valid node velocities")
         return vel

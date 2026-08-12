@@ -285,11 +285,7 @@ class Rover(steps.MovableRobot):
         self.source.nudge(self.permuter @ dx)
 
     def build_step(self, outline: steps.Outline[Self]) -> steps.QPStep[Self]:
-        step = self.source.build_step(outline)
-        step.quad_cost @= self.permuter
-        if step.lin_cost is not None:
-            step.lin_cost @= self.permuter
-        return step
+        return self.source.build_step(outline)
 
     take_step = steps.take_step
     divide_steps = steps.divide_steps
