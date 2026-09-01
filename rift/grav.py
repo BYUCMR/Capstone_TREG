@@ -47,10 +47,10 @@ def get_contact_transform(
     """
     Return a transformation matrix to keep a truss above ground.
 
-    Given a truss attempting to move from `old_pos` to `new_pos` (each N x 3),
-    return a transformation matrix representing the effect of normal force
-    from a plane at z = 0; return `None` if `new_pos` is strictly above
-    z = `tol`.
+    Given a truss attempting to move from `old_pos` to `new_pos` (each of
+    shape N x 3), return a transformation matrix representing the effect of
+    normal force from a plane at z = 0; return `None` if `new_pos` is strictly
+    above z = `tol`.
     """
     i = np.argmin(new_pos[:, 2])
     min_z = new_pos[i, 2]
@@ -77,9 +77,9 @@ def get_fall_transform(
     """
     Return a transformation matrix simulating gravity on a truss.
 
-    Given a truss at position `pos` (N x 3) with center of mass `com`, return
-    a transformation matrix representing the effect of gravity on the truss
-    (as well as normal force from the ground at z = 0).
+    Given a truss at position `pos` (shape N x 3) with center of mass `com`,
+    return a transformation matrix representing the effect of gravity on the
+    truss (as well as normal force from the ground at z = 0).
 
     The direction of gravity can be specified with `gravity`, which should be
     a unit vector.
@@ -121,9 +121,9 @@ def tipping_rotation(rel_pos: Matrix, rel_axis: Vector) -> Matrix:
     """
     Return a transformation to rotate a collection of nodes about an axis.
 
-    Given a collection of nodes at `rel_pos` (N x 3), rotate them about a line
-    emanating at their origin in the direction of `rel_axis` until one of them
-    has a z coordinate of 0.
+    Given a collection of nodes at `rel_pos` (shape N x 3), rotate them about
+    a line emanating at their origin in the direction of `rel_axis` until one
+    of them has a z coordinate of 0.
     """
     unit_axis = rel_axis / np.linalg.norm(rel_axis)
     rel_z = rel_pos[:, 2]

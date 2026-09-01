@@ -12,6 +12,7 @@ def incidence_from_trails(
     *trails: Iterable[SupportsIndex],
     empty_cols: SupportsIndex = 0,
 ) -> Matrix[np.int8]:
+    """Create an incidence matrix based on trails from node to node."""
     n_cols = 1 + max(map(int, chain.from_iterable(trails))) + int(empty_cols)
     rows: list[Vector[np.int8]] = []
     for trail in trails:
@@ -52,10 +53,10 @@ def get_rigidity(incidence: Matrix[np.int8], pos: Matrix, *, normalize: bool = T
     Return the rigidity matrix of a truss in a given position.
 
     This matrix converts a flattened vector of node velocities into a
-    vector comprising the rate of change of each link.
+    vector comprising the rate of change of the length of each link.
 
     If `normalize == False`, then each value in the resulting vector will
-    be multiplied by the length of the corresponding link.
+    be multiplied by the current length of the corresponding link.
     """
     link_vectors = incidence @ pos
     if normalize:

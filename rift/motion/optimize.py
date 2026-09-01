@@ -51,7 +51,7 @@ def solve_qp(
     solver: str = 'piqp',
 ) -> Vector | None:
     """
-    Find `x` such that `x'*R'*R*x + f'*x` is minimized and `A*x = b`.
+    Find `x` such that `x'*R'*R*x + f'*x` is minimized, `A*x = b`, and `G*x <= h`.
 
     Return `None` if no such `x` exists.
 

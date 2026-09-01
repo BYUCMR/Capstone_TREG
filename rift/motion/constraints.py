@@ -25,10 +25,12 @@ class Compound[T](Constraint[T]):
 
 @dataclass(slots=True)
 class Sleeper[T](Constraint[T]):
+    """A constraint that sets itself up the first time it is used."""
     constructor: Callable[[T], Constraint[T]]
     constraint: Constraint[T] | None = None
 
     def at(self, state: T) -> Matrix:
+        """Initialize the constraint if needed and delegate to its `at` method."""
         if self.constraint is None:
             self.constraint = self.constructor(state)
         return self.constraint.at(state)
@@ -41,10 +43,12 @@ class Static(Constraint[object]):
 
     @classmethod
     def combine(cls, *others: Self) -> Self:
+        """Create a static constraint equivalent to those given."""
         return cls(np.concat([c.aug for c in others]))
 
     @classmethod
     def make_hom(cls, A: Matrix) -> Self:
+        """Create a constraint with a homogenous augmented matrix."""
         m, n = A.shape
         aug = np.zeros((m, n+1))
         aug[:, :-1] = A
@@ -82,6 +86,7 @@ class Static(Constraint[object]):
         return cls.motion(point, directions, rates)
 
     def at(self, state: object = None) -> Matrix:
+        """Return a copy of the stored augmented matrix."""
         return self.aug.copy()
 
 
@@ -104,6 +109,7 @@ class PlanarBarrier(Constraint[HasPos]):
 
 @dataclass(slots=True, frozen=True)
 class Radial(Constraint[HasPos]):
+    """A constraint on radial motion of a point relative to its origin."""
     radius: Point
     rate: float
 
@@ -115,6 +121,7 @@ class Radial(Constraint[HasPos]):
         *,
         init_pos: Matrix | None = None,
     ) -> Self | Sleeper[HasPos]:
+        """Constrain a point to apporach a target distance from its origin."""
         if init_pos is None:
             return Sleeper(lambda state: cls.get_to(radius, length, init_pos=state.pos))
         current_length = np.linalg.norm(radius @ init_pos)
@@ -144,6 +151,11 @@ class Orbit(Constraint[HasPos]):
         axis: Vector | None = None,
         init_pos: Matrix | None = None,
     ) -> Self | Sleeper[HasPos]:
+        """
+        Constrain a point to approach alignment with a vector.
+
+        The vector is treated as anchored to the point's origin.
+        """
         if init_pos is None:
             return Sleeper(lambda state: cls.align(radius, end, axis=axis, init_pos=state.pos))
         start = radius @ init_pos
@@ -166,6 +178,7 @@ class Orbit(Constraint[HasPos]):
 
 @dataclass(slots=True, frozen=True)
 class ParabolicPath(Constraint[HasPos]):
+    """A constraint representing a parabolic trajectory for a point."""
     point: Point
     origin: Vector
     rate: float
@@ -181,6 +194,7 @@ class ParabolicPath(Constraint[HasPos]):
         aspect_ratio: float = 0.5,
         init_pos: Matrix | None = None,
     ) -> Self | Sleeper[HasPos]:
+        """Create a parabolic path using more friendly parameters."""
         if init_pos is None:
             return Sleeper(lambda state: cls.make(
                 point=point,
@@ -204,6 +218,7 @@ class ParabolicPath(Constraint[HasPos]):
 
 
 def combine[T](*constraints: Constraint[T]) -> Constraint[T]:
+    """Create a constraint equivalent to those given."""
     if not constraints:
         raise ValueError("Cannot combine zero constraints")
     all_constraints = list(constraints)

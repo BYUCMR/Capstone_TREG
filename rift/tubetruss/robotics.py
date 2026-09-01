@@ -14,6 +14,7 @@ type RealMatrix = Matrix[np.integer | np.floating]
 
 @dataclass(slots=True, frozen=True)
 class ReachabilityConstraint(cstr.Constraint[HasRigidity]):
+    """A constraint that ensures motion is possible for a robot."""
     unreachable: RealMatrix
 
     def at(self, state: HasRigidity) -> Matrix:
@@ -24,6 +25,7 @@ class ReachabilityConstraint(cstr.Constraint[HasRigidity]):
 
 @dataclass(slots=True, frozen=True)
 class MotorCost(StateFunction[HasRigidity, Matrix]):
+    """A cost that scales with total motor motion."""
     inverse_actuation: RealMatrix
 
     def at(self, state: HasRigidity) -> Matrix:
@@ -32,11 +34,13 @@ class MotorCost(StateFunction[HasRigidity, Matrix]):
 
 @dataclass(slots=True, frozen=True)
 class Actuation:
+    """A description of the structure of a tube-truss robot."""
     forward: RealMatrix
     inverse: RealMatrix
     unreachable: RealMatrix
 
     def __post_init__(self) -> None:
+        """Make sure this was constructed correctly."""
         if self.forward.shape != self.inverse.T.shape:
             raise ValueError("Forward and inverse matrices have mismatched shapes")
         if self.inverse.shape[1] != self.unreachable.shape[1]:
@@ -120,12 +124,14 @@ class TrussRobot(steps.CanStep):
         return self._rigidity
 
     def build_step[R: HasRigidity](self, outline: steps.Outline[R]) -> steps.QPStep[R]:
+        """Convert a step `Outline` into a `QPStep` suitable for use with this robot."""
         length_constraint = ReachabilityConstraint(self.actuation.unreachable.astype(np.float64))
         outline = outline.expand(eq=length_constraint)
         quad_cost = MotorCost(self.actuation.inverse)
         return steps.QPStep(quad_cost, None, outline)
 
     def nudge(self, dx: Matrix | Vector) -> Vector:
+        """Modify the positions of the nodes of this robot."""
         if len(dx.shape) == 1:
             dx = dx.reshape(self._pos.shape)
         dq = self.actuation.inverse @ self.rigidity @ dx.ravel()

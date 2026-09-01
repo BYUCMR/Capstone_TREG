@@ -22,22 +22,26 @@ OKABE_ITO: Final = (
 
 
 class AnimationItem(Protocol):
+    """A general interface for displaying things."""
     def add_to_view(self, view: gl.GLViewWidget, /) -> None: ...
     def update_pos(self, pos: Matrix, /) -> None: ...
 
 
 def add_all_to_view(items: Iterable[AnimationItem], view: gl.GLViewWidget) -> None:
+    """A convenience function for repeatedly calling `AnimationItem.add_to_view`."""
     for item in items:
         item.add_to_view(view)
 
 
 def update_all_pos(items: Iterable[AnimationItem], pos: Matrix) -> None:
+    """A convenience function for repeatedly calling `AnimationItem.update_pos`."""
     for item in items:
         item.update_pos(pos)
 
 
 @dataclass(slots=True, frozen=True)
 class DrawnLinks(AnimationItem):
+    """A set of linked nodes drawn in 3-D space."""
     nodes: IndexVector
     drawing: gl.GLLinePlotItem
 
@@ -50,6 +54,7 @@ class DrawnLinks(AnimationItem):
 
 @dataclass(slots=True, frozen=True)
 class NodeTrace(AnimationItem):
+    """A trail visualizing a node's recent motion."""
     node: SupportsIndex
     length: SupportsIndex
     drawing: gl.GLScatterPlotItem
@@ -64,6 +69,7 @@ class NodeTrace(AnimationItem):
 
 @dataclass(slots=True, frozen=True)
 class Markers:
+    """Markers on a link to visualize tube motion."""
     trail: IndexVector
     ts: Iterable[float]
     mark: gl.GLScatterPlotItem
@@ -95,6 +101,7 @@ class Markers:
 
 @dataclass(slots=True, frozen=True)
 class BodyMesh(AnimationItem):
+    """An mesh in 3-D space."""
     nodes: IndexVector
     mesh: gl.GLMeshItem
 
@@ -111,6 +118,7 @@ class BodyMesh(AnimationItem):
 
 
 def draw_links(nodes: IndexVector, pos: Matrix, **kwargs) -> DrawnLinks:
+    """Construct and return an instance of `DrawnLinks`."""
     drawing = gl.GLLinePlotItem(pos=pos[nodes], **kwargs)
     drawing.setGLOptions('opaque')
     return DrawnLinks(nodes, drawing)
@@ -122,6 +130,7 @@ def draw_traces(
     pos: Matrix,
     **kwargs,
 ) -> list[NodeTrace]:
+    """Create and return a list of `NodeTrace`s."""
     traces: list[NodeTrace] = []
     for node in nodes:
         drawing = gl.GLScatterPlotItem(pos=[pos[node]], **kwargs)

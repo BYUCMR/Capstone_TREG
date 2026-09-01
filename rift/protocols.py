@@ -4,6 +4,7 @@ from rift.arraytypes import Matrix
 
 
 class StateFunction[StateT, ReturnT](Protocol):
+    """A simple, generic callback interface."""
     def at(self, state: StateT, /) -> ReturnT: ...
 
 

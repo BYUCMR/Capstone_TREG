@@ -15,6 +15,10 @@ class SingularityError(InverseKinematicsError): ...
 
 
 def singularity_eig(A: Matrix, b: Vector | None = None) -> tuple[float, Vector]:
+    """
+    Return an eigenvalue and eigenvector corresponding to
+    the proximity of the given system to a singularity.
+    """
     evals, evecs = np.linalg.eigh(A.T @ A)
     m, n = A.shape
     if b is not None:
@@ -28,6 +32,7 @@ def singularity_eig(A: Matrix, b: Vector | None = None) -> tuple[float, Vector]:
 
 @dataclass(slots=True, frozen=True)
 class Outline[T]:
+    """A high-level description of a step for a robot to take."""
     eq: cstr.Constraint[T]
     le: cstr.Constraint[T] | None = None
     allow_redundancy: bool = field(default=False, kw_only=True)
@@ -39,6 +44,7 @@ class Outline[T]:
         le: cstr.Constraint[T] | None = None,
         allow_redundancy: bool = False,
     ) -> Self:
+        """Return a new outline by adding the given constraints to this one."""
         if eq is None:
             eq = self.eq
         else:
@@ -51,20 +57,24 @@ class Outline[T]:
         return type(self)(eq, le, allow_redundancy=allow_redundancy)
 
     def __and__(self, other: Self) -> Self:
+        """Combine this outline with another."""
         return self.expand(eq=other.eq, le=other.le, allow_redundancy=other.allow_redundancy)
 
 
 class Step[T](Protocol):
+    """A basic interface for a step for a robot to take."""
     def solve(self, state: T, /) -> Vector: ...
 
 
 class CanStep(Protocol):
+    """A basic interface for a robot that can take steps."""
     def build_step(self, outline: Outline[Self], /) -> Step[Self]: ...
     def nudge(self, change: Vector, /) -> Vector: ...
 
 
 @dataclass(slots=True)
 class QPStep[T](Step[T]):
+    """A step that selects optimal motion by solving a quadratic program."""
     quad_cost: StateFunction[T, Matrix]
     lin_cost: StateFunction[T, Vector] | None
     outline: Outline[T]
@@ -100,6 +110,7 @@ def divide_steps[R: CanStep](
     *,
     resolution: int,
 ) -> Generator[Vector]:
+    """Divide a sequence of steps into one of finer resolution."""
     dt = 1 / resolution
     for outline in outlines:
         step = robot.build_step(outline)
