@@ -101,7 +101,7 @@ class Markers:
 
 @dataclass(slots=True, frozen=True)
 class BodyMesh(AnimationItem):
-    """An mesh in 3-D space."""
+    """A mesh in 3-D space."""
     nodes: IndexVector
     mesh: gl.GLMeshItem
 
