@@ -27,16 +27,18 @@ class AnimationItem(Protocol):
     def update_pos(self, pos: Matrix, /) -> None: ...
 
 
-def add_all_to_view(items: Iterable[AnimationItem], view: gl.GLViewWidget) -> None:
-    """A convenience function for repeatedly calling `AnimationItem.add_to_view`."""
-    for item in items:
-        item.add_to_view(view)
+@dataclass(slots=True, frozen=True)
+class AnimationBundle(AnimationItem):
+    """Multiple `AnimationItem`s wrapped up into one."""
+    items: Iterable[AnimationItem]
 
+    def add_to_view(self, view: gl.GLViewWidget) -> None:
+        for item in self.items:
+            item.add_to_view(view)
 
-def update_all_pos(items: Iterable[AnimationItem], pos: Matrix) -> None:
-    """A convenience function for repeatedly calling `AnimationItem.update_pos`."""
-    for item in items:
-        item.update_pos(pos)
+    def update_pos(self, pos: Matrix) -> None:
+        for item in self.items:
+            item.update_pos(pos)
 
 
 @dataclass(slots=True, frozen=True)
@@ -115,6 +117,20 @@ class BodyMesh(AnimationItem):
         mesh_data: gl.MeshData = self.mesh.opts['meshdata']
         mesh_data.setVertexes(pos[self.nodes])
         self.mesh.setMeshData(meshdata=mesh_data)
+
+
+def make_default_view(
+    *,
+    show: bool = True,
+    add_grid: bool = True,
+) -> gl.GLViewWidget:
+    """Create and return a `GLViewWidget`."""
+    view = gl.GLViewWidget()
+    if add_grid:
+        view.addItem(gl.GLGridItem())
+    if show:
+        view.show()
+    return view
 
 
 def draw_links(nodes: IndexVector, pos: Matrix, **kwargs) -> DrawnLinks:

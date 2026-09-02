@@ -2,7 +2,7 @@ import numpy as np
 from PySide6.QtCore import Qt, QObject, Signal, QThread, Slot
 from PySide6.QtWidgets import QApplication
 
-from rift import rover
+from rift import anim, rover
 from rift.arraytypes import Matrix, Vector
 from rift.motion import InverseKinematicsError
 from .controls import Bundler, Command, take_command
@@ -22,8 +22,10 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     ) -> None:
         super().__init__(parent)
         self.cmd_state = cmd_state
-        self.view, self.animate = rover.set_up_animation(
+        self.view = anim.make_default_view(show=False)
+        self.animation = rover.set_up_animation(
             rover.ROLLING_POS,
+            self.view,
             trace_len=10,
         )
         self.view.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -43,7 +45,7 @@ class SimWindow(QObject): #referenced as sim_widget by mainwindow class
     @Slot(np.ndarray)
     @Slot(np.ndarray, np.ndarray)
     def update_anim(self, x: Matrix, dq: Vector | None = None) -> None:
-        self.animate(x)
+        self.animation.update_pos(x)
 
     @Slot()
     def send_new(self):

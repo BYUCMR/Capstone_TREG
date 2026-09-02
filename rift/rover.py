@@ -1,8 +1,7 @@
 import enum
 import math
-from collections.abc import Callable, Generator
+from collections.abc import Generator
 from dataclasses import dataclass
-from functools import partial
 from typing import Final, Self, SupportsIndex
 
 import numpy as np
@@ -194,9 +193,10 @@ def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
 
 def set_up_animation(
     init_pos: Matrix = CRAWLING_POS,
+    view: gl.GLViewWidget | None = None,
     *,
     trace_len: SupportsIndex = 100,
-) -> tuple[gl.GLViewWidget, Callable[[Matrix], None]]:
+) -> anim.AnimationBundle:
     items: list[anim.AnimationItem] = []
     chassis_mesh = gl.GLMeshItem(
         meshdata=gl.MeshData(
@@ -243,11 +243,10 @@ def set_up_animation(
         markers.update_pos(init_pos)
         items.append(markers)
     items += anim.draw_traces(range(12), trace_len, init_pos, size=4)
-
-    view = gl.GLViewWidget()
-    view.addItem(gl.GLGridItem())
-    anim.add_all_to_view(items, view)
-    return view, partial(anim.update_all_pos, items)
+    bundle = anim.AnimationBundle(items)
+    if view is not None:
+        bundle.add_to_view(view)
+    return bundle
 
 
 _identity = np.eye(3, dtype=np.bool)

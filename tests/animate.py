@@ -3,7 +3,7 @@ import asyncio
 import pyqtgraph
 from PySide6 import QtAsyncio
 
-from rift import rover
+from rift import anim, rover
 from rift.arraytypes import Matrix
 from rift.motion import InverseKinematicsError
 
@@ -17,13 +17,12 @@ async def main(
 ) -> None:
     robot = rover.make_robot(init_pos)
     stabilizer = rover.make_stabilizer(init_pos)
-    view, animate = rover.set_up_animation(init_pos)
-    view.show()
+    animation = rover.set_up_animation(init_pos, anim.make_default_view())
     try:
         steps = rover.crawl(cycles, (step_length, 0))
         for _ in robot.divide_steps(steps, resolution=resolution):
             stabilizer.update_pos(robot.source.pos)
-            animate(stabilizer.pos)
+            animation.update_pos(stabilizer.pos)
             await asyncio.sleep(0)
     except InverseKinematicsError as e:
         print(e.args[0])

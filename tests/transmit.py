@@ -5,7 +5,7 @@ import pyqtgraph
 import serial
 from PySide6 import QtAsyncio
 
-from rift import rover
+from rift import anim, rover
 from rift.arraytypes import Matrix
 from rift.motion import InverseKinematicsError
 from rift.transmit import commands
@@ -17,15 +17,14 @@ async def main(
     *,
     resolution: int = 100,
 ) -> None:
-    view, animate = rover.set_up_animation(init_pos)
+    animation = rover.set_up_animation(init_pos, anim.make_default_view())
     robot = rover.make_robot(init_pos)
     stabilizer = rover.make_stabilizer(init_pos)
-    view.show()
     t = 37.5 / resolution
     try:
         for dr in robot.divide_steps(rover.roll(), resolution=resolution):
             stabilizer.update_pos(robot.source.pos)
-            animate(stabilizer.pos)
+            animation.update_pos(stabilizer.pos)
             ticks_per_sec = rover.TICKS_PER_SIDE * dr / t
             cmd = commands.VEL(ticks_per_sec, t)
             if ser is not None:
