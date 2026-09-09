@@ -4,7 +4,7 @@ visualization of a rover made of inflatable, flexible tubes.
 
 ## anim.py
 This file contains functions used for visualizing the rover using pyqtgraph.
-An example of its use can be found in `../tests/animate.py`.
+An example of its use can be found in `../demos/animate.py`.
 
 ## arraytypes.py
 This file contains descriptions of important types for static type analysis.
