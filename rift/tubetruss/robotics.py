@@ -123,10 +123,10 @@ class TrussRobot(steps.CanStep):
             self._rigidity = get_rigidity(self._incidence, self._pos)
         return self._rigidity
 
-    def build_step[R: HasRigidity](self, outline: steps.Outline[R]) -> steps.QPStep[R]:
+    def build_step[R: HasRigidity](self, outline: steps.AbstractOutline[R]) -> steps.QPStep[R]:
         """Convert a step `Outline` into a `QPStep` suitable for use with this robot."""
         length_constraint = ReachabilityConstraint(self.actuation.unreachable.astype(np.float64))
-        outline = outline.expand(eq=length_constraint)
+        outline = steps.combine_outlines(outline, steps.Outline(length_constraint))
         quad_cost = MotorCost(self.actuation.inverse)
         return steps.QPStep(quad_cost, None, outline)
 

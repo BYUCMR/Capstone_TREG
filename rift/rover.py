@@ -283,13 +283,13 @@ class Rover(steps.CanStep):
     def nudge(self, dx: Vector) -> Vector:
         return self.source.nudge(self.permuter @ dx)
 
-    def build_step(self, outline: steps.Outline[Self]) -> steps.QPStep[Self]:
+    def build_step(self, outline: steps.AbstractOutline[Self]) -> steps.QPStep[Self]:
         return self.source.build_step(outline)
 
     divide_steps = steps.divide_steps
 
 
-def roller_adjustment(roller: SupportsIndex, amount: float) -> steps.Outline[Rover]:
+def roller_adjustment(roller: SupportsIndex, amount: float) -> steps.Outline[HasDxToDq]:
     dq = np.zeros(len(Node))
     dq[roller] = amount
     # We might be able to make better constraints than this.
@@ -301,7 +301,7 @@ def roller_adjustment(roller: SupportsIndex, amount: float) -> steps.Outline[Rov
     return steps.Outline(cstr.Compound((RollerMotion(dq), constraint)))
 
 
-def node_nudge(node: SupportsIndex, x: float, y: float, z: float) -> steps.Outline[Rover]:
+def node_nudge(node: SupportsIndex, x: float, y: float, z: float) -> steps.Outline[HasPos]:
     def move(state: HasPos) -> cstr.Static:
         locked = state.pos[:, 2] < 1e-6
         locked[node] = False
@@ -321,7 +321,7 @@ def node_nudge(node: SupportsIndex, x: float, y: float, z: float) -> steps.Outli
     )
 
 
-def chassis_nudge(x: float, y: float, z: float) -> steps.Outline[Rover]:
+def chassis_nudge(x: float, y: float, z: float) -> steps.Outline[object]:
     return steps.Outline(cstr.Static.combine(
         cstr.xyz(CHASSIS_COM, x, y, z),
         cstr.xyz(P3-Q3, x=0, z=0),
@@ -333,7 +333,7 @@ def chassis_nudge(x: float, y: float, z: float) -> steps.Outline[Rover]:
     ))
 
 
-def chassis_tilt(angle: float) -> steps.Outline[Rover]:
+def chassis_tilt(angle: float) -> steps.Outline[HasPos]:
     base = points.centroid(P3, Q3)
     face = points.centroid(P2, Q2)
     return steps.Outline(cstr.combine(
@@ -352,7 +352,7 @@ def chassis_tilt(angle: float) -> steps.Outline[Rover]:
 def crawl(
     cycles: int = 1,
     step_length: tuple[float, float] = (0.125, 0.),
-) -> Generator[steps.Outline[Rover]]:
+) -> Generator[steps.Outline[HasPos]]:
     chassis_up = CHASSIS_COM - points.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     x_dist, y_dist = step_length
@@ -375,7 +375,7 @@ def crawl(
         ))
 
 
-def shuffle(x_dist: float = 0.125) -> Generator[steps.Outline[Rover]]:
+def shuffle(x_dist: float = 0.125) -> Generator[steps.Outline[HasPos]]:
     chassis_up = CHASSIS_COM - points.centroid(P3, Q3)
     no_wobble = cstr.motion(chassis_up, np.eye(3)[0:2], np.zeros(2))
     c_dist = x_dist * 0.4
@@ -413,7 +413,7 @@ def shuffle(x_dist: float = 0.125) -> Generator[steps.Outline[Rover]]:
     ))
 
 
-def lean(dist: float = 0.6) -> steps.Outline[Rover]:
+def lean(dist: float = 0.6) -> steps.Outline[object]:
     return steps.Outline(cstr.Static.combine(
         cstr.xyz(P2, dist),
         cstr.xyz(Q2, dist),
@@ -424,7 +424,7 @@ def lean(dist: float = 0.6) -> steps.Outline[Rover]:
     ))
 
 
-def reach(dist: float = 1.) -> steps.Outline[Rover]:
+def reach(dist: float = 1.) -> steps.Outline[object]:
     return steps.Outline(cstr.Static.combine(
         cstr.xyz(L3, x=dist),
         cstr.xyz(R3, x=dist),
@@ -435,7 +435,7 @@ def reach(dist: float = 1.) -> steps.Outline[Rover]:
     ))
 
 
-def roll() -> Generator[steps.Outline[Rover]]:
+def roll() -> Generator[steps.Outline[HasPos]]:
     base = points.centroid(P3, Q3)
     face = points.centroid(P2, Q2)
     back = points.centroid(P1, Q1)
