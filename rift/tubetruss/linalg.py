@@ -5,7 +5,7 @@ from typing import SupportsIndex, cast
 
 import numpy as np
 
-from rift.arraytypes import IndexVector, Matrix, Vector
+from rift.arraytypes import IndexVector, Matrix, MatrixStack, Vector
 
 
 def incidence_from_trails(
@@ -63,6 +63,37 @@ def get_rigidity(incidence: Matrix[np.int8], pos: Matrix, *, normalize: bool = T
         link_vectors /= np.linalg.vector_norm(link_vectors, axis=1, keepdims=True)
     rigidity = incidence[:,:,None] @ link_vectors[:,None,:]
     return rigidity.reshape(-1, pos.size)
+
+
+def get_rigidity_gradient(
+    incidence: Matrix[np.int8], pos: Matrix, *, normalize: bool = True
+) -> tuple[Matrix, MatrixStack]:
+    """
+    Return a rigidity matrix and its gradient with respect to position.
+
+    See `get_rigidity` for more details about the rigidity matrix.
+
+    The gradient is represented as a 3-D array. Each 2-D matrix stacked along
+    the first axis is the partial derivative of the rigidity matrix with
+    respect to the position variable corresponding to its index. The position
+    variable are indexed with the default order used by NumPy `.ravel()`
+    methods.
+    """
+    pos_to_rigidity = np.kron(
+        # The `@` and `*` operators are equivalent in this case.
+        # This one seems to be slightly faster here.
+        incidence[:,:,None] * incidence[:,None,:],
+        np.eye(pos.shape[1], dtype=pos.dtype),
+    )
+    R = pos_to_rigidity @ pos.ravel()
+    dR_dx = pos_to_rigidity.transpose(2, 0, 1)
+    if not normalize:
+        return R, dR_dx
+    a = np.reciprocal(np.sqrt(R @ pos.reshape(-1, 1)))
+    da_dx = -a**3 * R.T[:,:,None]
+    Rn = a * R
+    dRn_dx = a*dR_dx + da_dx*R
+    return Rn, dRn_dx
 
 
 def row_echelon_form[T: np.integer](mat: Matrix[T], *, in_place: bool = False) -> Matrix[T]:
