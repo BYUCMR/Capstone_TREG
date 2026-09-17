@@ -2,7 +2,7 @@ import enum
 import math
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Final, Self, SupportsIndex
+from typing import Final, Protocol, Self, SupportsIndex
 
 import numpy as np
 import pyqtgraph as pg
@@ -182,8 +182,9 @@ CRAWLING_POS: Final = make_pos(0.625, 0.5, 0, 1.25, 0.875)
 ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 1.0)
 
 
-def make_robot(init_pos: Matrix = CRAWLING_POS) -> 'Rover':
-    return Rover.make_pos(init_pos)
+def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussController['RoverTruss']:
+    truss = RoverTruss.make_pos(init_pos)
+    return tt.TrussController(truss)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -255,14 +256,19 @@ ROLL.setflags(write=False)
 del _identity
 
 
+class FullTruss(HasPos, tt.ControllableTruss, Protocol):
+    @property
+    def incidence(self, /) -> Matrix[np.int8]: ...
+
+
 @dataclass(slots=True)
-class Rover(steps.CanStep):
-    source: tt.TrussRobot
+class RoverTruss(FullTruss):
+    source: FullTruss
     permuter: Matrix[np.bool]
 
     @classmethod
     def make_pos(cls, pos: Matrix) -> Self:
-        return cls(tt.TrussRobot(pos.copy(), INCIDENCE, ACTUATION), np.eye(pos.size, dtype=np.bool))
+        return cls(tt.ActuatedTruss(pos.copy(), INCIDENCE, ACTUATION), np.eye(pos.size, dtype=np.bool))
 
     @property
     def pos(self) -> Matrix:
@@ -277,16 +283,15 @@ class Rover(steps.CanStep):
         return self.source.rigidity @ self.permuter
 
     @property
+    def actuation(self) -> tt.Actuation:
+        return self.source.actuation
+
+    @property
     def dx_to_dq(self) -> Matrix:
         return self.source.actuation.inverse @ self.rigidity
 
-    def nudge(self, dx: Vector) -> Vector:
-        return self.source.nudge(self.permuter @ dx)
-
-    def build_step(self, outline: steps.AbstractOutline[Self]) -> steps.QPStep[Self]:
-        return self.source.build_step(outline)
-
-    divide_steps = steps.divide_steps
+    def nudge(self, dx: Matrix | Vector) -> Vector:
+        return self.source.nudge(self.permuter @ dx.ravel())
 
 
 def roller_adjustment(roller: SupportsIndex, amount: float) -> steps.Outline[HasDxToDq]:

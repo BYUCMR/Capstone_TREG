@@ -111,10 +111,10 @@ class SimWorker(QObject):
             self.message.emit(e.args[0])
         else:
             if self.stabilizer is not None:
-                self.stabilizer.update_pos(self.robot.source.pos)
+                self.stabilizer.update_pos(self.robot.truss.source.pos)
                 out_pos = self.stabilizer.pos
             else:
-                out_pos = self.robot.source.pos.copy()
+                out_pos = self.robot.truss.source.pos.copy()
             self.results.emit(out_pos, delta_q)
 
     @Slot(Command)

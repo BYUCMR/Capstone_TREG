@@ -1,6 +1,6 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
-from typing import Protocol, Self
+from typing import Protocol
 
 import numpy as np
 
@@ -69,9 +69,11 @@ class Step[T](Protocol):
     def solve(self, state: T, /) -> Vector: ...
 
 
-class CanStep(Protocol):
+class CanStep[T](Protocol):
     """A basic interface for a robot that can take steps."""
-    def build_step(self, outline: AbstractOutline[Self], /) -> Step[Self]: ...
+    @property
+    def state(self, /) -> T: ...
+    def build_step(self, outline: AbstractOutline[T], /) -> Step[T]: ...
     def nudge(self, change: Vector, /) -> Vector: ...
 
 
@@ -110,9 +112,9 @@ class QPStep[T](Step[T]):
         return vel
 
 
-def divide_steps[R: CanStep](
-    robot: R,
-    outlines: Iterable[AbstractOutline[R]],
+def divide_steps[T](
+    robot: CanStep[T],
+    outlines: Iterable[AbstractOutline[T]],
     *,
     resolution: int,
 ) -> Generator[Vector]:
@@ -121,6 +123,6 @@ def divide_steps[R: CanStep](
     for outline in outlines:
         step = robot.build_step(outline)
         for _ in range(resolution):
-            vel = step.solve(robot)
+            vel = step.solve(robot.state)
             dx = vel * dt
             yield robot.nudge(dx)

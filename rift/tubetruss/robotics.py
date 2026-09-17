@@ -1,6 +1,6 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Self, SupportsIndex
+from typing import Protocol, Self, SupportsIndex
 
 import numpy as np
 
@@ -86,8 +86,13 @@ class Actuation:
         return cls.from_forward(forward_T.T)
 
 
+class HasActuation(Protocol):
+    @property
+    def actuation(self, /) -> Actuation: ...
+
+
 @dataclass(slots=True)
-class TrussRobot(steps.CanStep):
+class ActuatedTruss:
     """
     A representation of a truss robot.
 
@@ -101,9 +106,9 @@ class TrussRobot(steps.CanStep):
 
     def __post_init__(self) -> None:
         if self._pos.shape[0] != self._incidence.shape[1]:
-            raise ValueError("Robot position and incidence have mismatched node counts")
+            raise ValueError("Truss position and incidence have mismatched node counts")
         if self._incidence.shape[0] != self.actuation.n_outputs:
-            raise ValueError("Robot incidence and actuation have mismatched link counts")
+            raise ValueError("Truss incidence and actuation have mismatched link counts")
 
     @property
     def pos(self) -> Matrix:
@@ -123,20 +128,37 @@ class TrussRobot(steps.CanStep):
             self._rigidity = get_rigidity(self._incidence, self._pos)
         return self._rigidity
 
-    def build_step[R: HasRigidity](self, outline: steps.AbstractOutline[R]) -> steps.QPStep[R]:
-        """Convert a step `Outline` into a `QPStep` suitable for use with this robot."""
-        length_constraint = ReachabilityConstraint(self.actuation.unreachable.astype(np.float64))
-        outline = steps.combine_outlines(outline, steps.Outline(length_constraint))
-        quad_cost = MotorCost(self.actuation.inverse)
-        return steps.QPStep(quad_cost, None, outline)
-
     def nudge(self, dx: Matrix | Vector) -> Vector:
-        """Modify the positions of the nodes of this robot."""
+        """Modify the positions of the nodes of this truss."""
         if len(dx.shape) == 1:
             dx = dx.reshape(self._pos.shape)
         dq = self.actuation.inverse @ self.rigidity @ dx.ravel()
         self._rigidity = None
         self._pos[:] += dx
         return dq
+
+
+class ControllableTruss(HasRigidity, HasActuation, Protocol):
+    def nudge(self, dx: Matrix | Vector, /) -> Vector: ...
+
+
+@dataclass(slots=True, frozen=True)
+class TrussController[T: ControllableTruss = ControllableTruss](steps.CanStep[T]):
+    truss: T
+
+    @property
+    def state(self) -> T:
+        return self.truss
+
+    def build_step(self, outline: steps.AbstractOutline[T]) -> steps.QPStep[T]:
+        """Convert a step `Outline` into a `QPStep` suitable for use with this robot."""
+        length_constraint = ReachabilityConstraint(self.truss.actuation.unreachable)
+        outline = steps.combine_outlines(outline, steps.Outline(length_constraint))
+        quad_cost = MotorCost(self.truss.actuation.inverse)
+        return steps.QPStep(quad_cost, None, outline)
+
+    def nudge(self, dx: Matrix | Vector) -> Vector:
+        """Modify the positions of the nodes of this robot."""
+        return self.truss.nudge(dx)
 
     divide_steps = steps.divide_steps

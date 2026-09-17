@@ -16,12 +16,12 @@ def record_motion(
 ) -> tuple[MatrixStack, Matrix]:
     robot = rover.make_robot(init_pos)
     n = 4 * cycles * resolution
-    pos = np.zeros((n + 1, *robot.pos.shape))
-    d_roll = np.zeros((n, len(robot.dx_to_dq)))
-    pos[0] = robot.pos
+    pos = np.zeros((n + 1, *robot.truss.pos.shape))
+    d_roll = np.zeros((n, len(robot.truss.dx_to_dq)))
+    pos[0] = robot.truss.pos
     motion = rover.crawl(cycles, (step_length, 0))
     for i, dq in enumerate(robot.divide_steps(motion, resolution=resolution)):
-        pos[i + 1] = robot.pos
+        pos[i + 1] = robot.truss.pos
         d_roll[i] = dq
     return pos, d_roll
 
@@ -33,7 +33,7 @@ def measure_max_incline(init_pos: Matrix, *, da: float = 1.) -> float:
     angle = 0.
     while True:
         stabilizer.gravity = np.array([-math.sin(angle), 0., -math.cos(angle)])
-        if stabilizer.adjust_for(robot.pos) or angle >= 0.5*np.pi:
+        if stabilizer.adjust_for(robot.truss.pos) or angle >= 0.5*np.pi:
             break
         angle += da
     return math.degrees(angle)
@@ -91,7 +91,7 @@ def measure_max_crawl_speed(
 
 def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
-    z0 = robot.pos[rover.L1, 2]
+    z0 = robot.truss.pos[rover.L1, 2]
     outline = steps.Outline(cstr.Static.combine(
         cstr.xyz(rover.L1, 0., 0., dz),
         cstr.lock(rover.L2),
@@ -101,17 +101,17 @@ def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
     step = robot.build_step(outline)
     while True:
         try:
-            change = step.solve(robot)
+            change = step.solve(robot.truss)
         except steps.InverseKinematicsError:
             break
         else:
-            robot.nudge(change)
-    return robot.pos[rover.L1, 2] - dz - z0
+            robot.truss.nudge(change)
+    return robot.truss.pos[rover.L1, 2] - dz - z0
 
 
 def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     robot = rover.make_robot(init_pos)
-    x0 = robot.pos[rover.L1, 0]
+    x0 = robot.truss.pos[rover.L1, 0]
     outline = steps.Outline(cstr.Static.combine(
         cstr.xyz(rover.L1, dx, 0., 0.),
         cstr.lock(rover.L2),
@@ -121,12 +121,12 @@ def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
     step = robot.build_step(outline)
     while True:
         try:
-            change = step.solve(robot)
+            change = step.solve(robot.truss)
         except steps.InverseKinematicsError:
             break
         else:
-            robot.nudge(change)
-    return robot.pos[rover.L1, 0] - dx - x0
+            robot.truss.nudge(change)
+    return robot.truss.pos[rover.L1, 0] - dx - x0
 
 
 def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution: int) -> float:
@@ -137,7 +137,7 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
         outline = steps.Outline(cstr.combine(
             cstr.ParabolicPath.make(
                 rover.L1,
-                init_pos=robot.pos,
+                init_pos=robot.truss.pos,
                 delta_x=step_length,
             ),
             cstr.lock(rover.L2),
@@ -147,8 +147,8 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
         step = robot.build_step(outline)
         try:
             for _ in range(resolution):
-                vel = step.solve(robot)
-                robot.nudge(vel * dt)
+                vel = step.solve(robot.truss)
+                robot.truss.nudge(vel * dt)
         except steps.InverseKinematicsError:
             break
         step_length += dx
@@ -158,10 +158,10 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
 def measure_length_change(init_pos: Matrix, pos_hist: MatrixStack) -> tuple[float, float]:
     robot = rover.make_robot(init_pos)
     p0 = pos_hist[0]
-    d0 = robot.incidence @ p0
+    d0 = robot.truss.incidence @ p0
     L0 = np.sqrt(np.sum(np.square(d0), axis=1))
     p1 = pos_hist[-1]
-    d1 = robot.incidence @ p1
+    d1 = robot.truss.incidence @ p1
     L1 = np.sqrt(np.sum(np.square(d1), axis=1))
     delta_L = L1 - L0
     error = np.abs(np.sum(delta_L))

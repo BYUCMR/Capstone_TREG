@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import SupportsIndex
 
-from rift import rover
+from rift import tubetruss as tt, rover
 from rift.arraytypes import Vector
 
 
@@ -29,7 +29,7 @@ class Command:
 
 
 def take_command(
-    robot: rover.Rover,
+    robot: tt.TrussController[rover.RoverTruss],
     command: Command,
 ) -> Generator[Vector]:
     if not command:
@@ -47,11 +47,11 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        dx = robot.build_step(motion).solve(robot)
+        dx = robot.build_step(motion).solve(robot.truss)
         yield robot.nudge(dx)
     elif command.mode is Mode.calibration:
         motion = rover.roller_adjustment(command.item, command.x * 0.0005)
-        dx = robot.build_step(motion).solve(robot)
+        dx = robot.build_step(motion).solve(robot.truss)
         yield robot.nudge(dx)
     elif command.mode is Mode.stand:
         motion = rover.chassis_nudge(
@@ -59,11 +59,11 @@ def take_command(
             command.y * 0.0005,
             command.z * 0.0005,
         )
-        dx = robot.build_step(motion).solve(robot)
+        dx = robot.build_step(motion).solve(robot.truss)
         yield robot.nudge(dx)
     elif command.mode is Mode.rolling and command.x > 0:
         yield from robot.divide_steps(rover.roll(), resolution=100)
-        robot.permuter @= rover.ROLL
+        robot.truss.permuter @= rover.ROLL
 
 
 @dataclass(slots=True)
