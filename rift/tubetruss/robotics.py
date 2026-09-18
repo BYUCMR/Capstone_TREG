@@ -24,15 +24,6 @@ class ReachabilityConstraint(cstr.Constraint[HasRigidity]):
 
 
 @dataclass(slots=True, frozen=True)
-class MotorCost(StateFunction[HasRigidity, Matrix]):
-    """A cost that scales with total motor motion."""
-    inverse_actuation: RealMatrix
-
-    def at(self, state: HasRigidity) -> Matrix:
-        return self.inverse_actuation @ state.rigidity
-
-
-@dataclass(slots=True, frozen=True)
 class Actuation:
     """A description of the structure of a tube-truss robot."""
     forward: RealMatrix
@@ -138,13 +129,30 @@ class ActuatedTruss:
         return dq
 
 
-class ControllableTruss(HasRigidity, HasActuation, Protocol):
+class HasRigidityAndActuation(HasRigidity, HasActuation, Protocol): ...
+
+
+class ControllableTruss(HasRigidityAndActuation, Protocol):
     def nudge(self, dx: Matrix | Vector, /) -> Vector: ...
 
 
-@dataclass(slots=True, frozen=True)
+class MotorCost:
+    """
+    A cost that scales with total motor motion.
+
+    This class does not need to be instantiated.
+    """
+
+    @staticmethod
+    def at(state: HasRigidityAndActuation) -> Matrix:
+        return state.actuation.inverse @ state.rigidity
+
+
+@dataclass(slots=True, frozen=True, kw_only=True)
 class TrussController[T: ControllableTruss = ControllableTruss](steps.CanStep[T]):
     truss: T
+    quad_cost: StateFunction[T, Matrix] = MotorCost
+    lin_cost: StateFunction[T, Vector] | None = None
 
     @property
     def state(self) -> T:
@@ -154,8 +162,7 @@ class TrussController[T: ControllableTruss = ControllableTruss](steps.CanStep[T]
         """Convert a step `Outline` into a `QPStep` suitable for use with this robot."""
         length_constraint = ReachabilityConstraint(self.truss.actuation.unreachable)
         outline = steps.combine_outlines(outline, steps.Outline(length_constraint))
-        quad_cost = MotorCost(self.truss.actuation.inverse)
-        return steps.QPStep(quad_cost, None, outline)
+        return steps.QPStep(self.quad_cost, self.lin_cost, outline)
 
     def nudge(self, dx: Matrix | Vector) -> Vector:
         """Modify the positions of the nodes of this robot."""

@@ -184,7 +184,7 @@ ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 1.0)
 
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussController['RoverTruss']:
     truss = RoverTruss.make_pos(init_pos)
-    return tt.TrussController(truss)
+    return tt.TrussController(truss=truss)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
