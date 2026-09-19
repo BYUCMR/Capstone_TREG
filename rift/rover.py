@@ -13,7 +13,7 @@ from . import grav
 from . import tubetruss as tt
 from .arraytypes import Matrix, Vector
 from .motion import axes, constraints as cstr, points, steps
-from .protocols import HasDxToDq, HasPos
+from .protocols import HasDxToDq, HasIncidence, HasPos
 
 
 @dataclass(slots=True, frozen=True)
@@ -256,9 +256,7 @@ ROLL.setflags(write=False)
 del _identity
 
 
-class FullTruss(HasPos, tt.ControllableTruss, Protocol):
-    @property
-    def incidence(self, /) -> Matrix[np.int8]: ...
+class FullTruss(HasPos, HasIncidence, tt.ControllableTruss, Protocol): ...
 
 
 @dataclass(slots=True)

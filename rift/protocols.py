@@ -1,5 +1,7 @@
 from typing import Protocol
 
+import numpy as np
+
 from rift.arraytypes import Matrix
 
 
@@ -11,6 +13,11 @@ class StateFunction[StateT, ReturnT](Protocol):
 class HasPos(Protocol):
     @property
     def pos(self, /) -> Matrix: ...
+
+
+class HasIncidence(Protocol):
+    @property
+    def incidence(self, /) -> Matrix[np.int8]: ...
 
 
 class HasRigidity(Protocol):
