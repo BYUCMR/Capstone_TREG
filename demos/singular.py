@@ -23,15 +23,14 @@ def sit() -> Generator[steps.Outline[object]]:
 
 
 async def main(init_pos: Matrix = rover.CRAWLING_POS) -> None:
-    robot = TrussController(
-        truss=rover.RoverTruss.make_pos(init_pos),
+    robot = TrussController.make_default(
+        rover.RoverTruss.make_pos(init_pos),
         lin_cost=SingularityCost(),
     )
     animation = rover.set_up_animation(init_pos, anim.make_default_view())
     try:
         for outline in sit():
-            step = robot.build_step(outline)
-            dx = step.solve(robot.state)
+            dx = robot.solve(outline)
             robot.nudge(dx)
             animation.update_pos(robot.truss.source.pos)
             await asyncio.sleep(0)

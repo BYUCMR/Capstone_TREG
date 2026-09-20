@@ -2,7 +2,7 @@ import enum
 import math
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Final, Protocol, Self, SupportsIndex
+from typing import ClassVar, Final, Protocol, Self, SupportsIndex
 
 import numpy as np
 import pyqtgraph as pg
@@ -14,6 +14,7 @@ from . import tubetruss as tt
 from .arraytypes import Matrix, Vector
 from .motion import axes, constraints as cstr, points, steps
 from .protocols import HasDxToDq, HasIncidence, HasPos
+from .tubetruss.robotics import ReachabilityConstraint
 
 
 @dataclass(slots=True, frozen=True)
@@ -184,7 +185,7 @@ ROLLING_POS: Final = make_pos(0, 0.5, 0, 1.25, 1.0)
 
 def make_robot(init_pos: Matrix = CRAWLING_POS) -> tt.TrussController['RoverTruss']:
     truss = RoverTruss.make_pos(init_pos)
-    return tt.TrussController(truss=truss)
+    return tt.TrussController.make_default(truss)
 
 
 def make_stabilizer(init_pos: Matrix = CRAWLING_POS) -> grav.Stabilizer:
@@ -263,6 +264,7 @@ class FullTruss(HasPos, HasIncidence, tt.ControllableTruss, Protocol): ...
 class RoverTruss(FullTruss):
     source: FullTruss
     permuter: Matrix[np.bool]
+    stipulation: ClassVar = steps.Outline(ReachabilityConstraint)
 
     @classmethod
     def make_pos(cls, pos: Matrix) -> Self:

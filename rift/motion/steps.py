@@ -1,11 +1,11 @@
 from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Protocol, Self, cast, runtime_checkable
 
 import numpy as np
 
 from rift.arraytypes import Matrix, Vector
-from rift.protocols import StateFunction
+from rift.protocols import StateFunction, SupportsNudge
 from . import constraints as cstr, optimize
 
 
@@ -64,41 +64,45 @@ def combine_outlines[T](lhs: AbstractOutline[T], rhs: AbstractOutline[T]) -> Out
     return Outline(eq, le, allow_redundancy=allow_redundancy)
 
 
-class Step[T](Protocol):
-    """A basic interface for a step for a robot to take."""
-    def solve(self, state: T, /) -> Vector: ...
+class Solver[T](Protocol):
+    def solve(self, outline: AbstractOutline[T], state: T, /) -> Vector: ...
 
 
-class CanStep[T](Protocol):
+class CanStep[T](SupportsNudge, Protocol):
     """A basic interface for a robot that can take steps."""
+    def solve(self, outline: AbstractOutline[T], /) -> Vector: ...
+
+
+@runtime_checkable
+class HasStipulation(Protocol):
     @property
-    def state(self, /) -> T: ...
-    def build_step(self, outline: AbstractOutline[T], /) -> Step[T]: ...
-    def nudge(self, change: Vector, /) -> Vector: ...
+    def stipulation(self, /) -> AbstractOutline[Self]: ...
 
 
-@dataclass(slots=True)
-class QPStep[T](Step[T]):
-    """A step that selects optimal motion by solving a quadratic program."""
+@dataclass(slots=True, frozen=True)
+class QPSolver[T](Solver[T]):
+    """A solver that selects optimal motion by solving a quadratic program."""
     quad_cost: StateFunction[T, Matrix]
-    lin_cost: StateFunction[T, Vector] | None
-    outline: AbstractOutline[T]
+    lin_cost: StateFunction[T, Vector] | None = None
+    eig_threshold: float = field(default=0., kw_only=True)
+    allow_redundancy: bool = field(default=False, kw_only=True)
 
-    def solve(self, state: T) -> Vector:
-        if self.outline.eq is not None:
-            Ab = self.outline.eq.at(state)
-            e, v = singularity_eig(Ab[:, :-1], Ab[:, -1] if self.outline.allow_redundancy else None)
-            if abs(e) <= 1e-3:
+    def solve(self, outline: AbstractOutline[T], state: T) -> Vector:
+        if isinstance(state, HasStipulation):
+            # We know that `state` is of type `T & HasStipulation`,
+            # but Python typing doesn't support intersection types (yet).
+            stipulation = cast(AbstractOutline[T], state.stipulation)
+            outline = combine_outlines(outline, stipulation)
+        allow_redundancy = self.allow_redundancy or outline.allow_redundancy
+        Ab = None if outline.eq is None else outline.eq.at(state)
+        Gh = None if outline.le is None else outline.le.at(state)
+        if Ab is not None and self.eig_threshold > 0:
+            e, v = singularity_eig(Ab[:, :-1], Ab[:, -1] if allow_redundancy else None)
+            if abs(e) <= self.eig_threshold:
                 raise SingularityError("Robot state is singular")
-        else:
-            Ab = None
-        Gh = (
-            None if self.outline.le is None
-            else self.outline.le.at(state)
-        )
         R = self.quad_cost.at(state)
         f = None if self.lin_cost is None else self.lin_cost.at(state)
-        if Gh is not None or self.outline.allow_redundancy:
+        if Gh is not None or allow_redundancy:
             vel = optimize.solve_qp(R=R, f=f, Ab=Ab, Gh=Gh, solver='piqp')
         elif Ab is not None and Ab.shape[1] == Ab.shape[0]+1:
             try:
@@ -121,8 +125,7 @@ def divide_steps[T](
     """Divide a sequence of steps into one of finer resolution."""
     dt = 1 / resolution
     for outline in outlines:
-        step = robot.build_step(outline)
         for _ in range(resolution):
-            vel = step.solve(robot.state)
+            vel = robot.solve(outline)
             dx = vel * dt
             yield robot.nudge(dx)

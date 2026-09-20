@@ -1,26 +1,15 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Protocol, Self, SupportsIndex
+from typing import ClassVar, Protocol, Self, SupportsIndex
 
 import numpy as np
 
 from rift.arraytypes import Matrix, Vector
-from rift.motion import constraints as cstr, steps
-from rift.protocols import HasRigidity, StateFunction
+from rift.motion import steps
+from rift.protocols import HasRigidity, StateFunction, SupportsNudge
 from .linalg import cokernel, get_rigidity, incidence_from_trails
 
 type RealMatrix = Matrix[np.integer | np.floating]
-
-
-@dataclass(slots=True, frozen=True)
-class ReachabilityConstraint(cstr.Constraint[HasRigidity]):
-    """A constraint that ensures motion is possible for a robot."""
-    unreachable: RealMatrix
-
-    def at(self, state: HasRigidity) -> Matrix:
-        A = self.unreachable @ state.rigidity
-        b = np.zeros(len(self.unreachable))
-        return np.column_stack((A, b))
 
 
 @dataclass(slots=True, frozen=True)
@@ -82,6 +71,24 @@ class HasActuation(Protocol):
     def actuation(self, /) -> Actuation: ...
 
 
+class HasRigidityAndActuation(HasRigidity, HasActuation, Protocol): ...
+
+
+@dataclass(slots=True, frozen=True)
+class ReachabilityConstraint:
+    """
+    A constraint that ensures motion is possible for a robot.
+
+    This class does not need to be instantiated.
+    """
+
+    @staticmethod
+    def at(state: HasRigidityAndActuation) -> Matrix:
+        A = state.actuation.unreachable @ state.rigidity
+        b = np.zeros(len(state.actuation.unreachable))
+        return np.column_stack((A, b))
+
+
 @dataclass(slots=True)
 class ActuatedTruss:
     """
@@ -89,6 +96,7 @@ class ActuatedTruss:
 
     It comprises a position, a truss topology, and an actuation schema.
     """
+    stipulation: ClassVar = steps.Outline(ReachabilityConstraint)
     _pos: Matrix
     _incidence: Matrix[np.int8]
     actuation: Actuation
@@ -129,11 +137,7 @@ class ActuatedTruss:
         return dq
 
 
-class HasRigidityAndActuation(HasRigidity, HasActuation, Protocol): ...
-
-
-class ControllableTruss(HasRigidityAndActuation, Protocol):
-    def nudge(self, dx: Matrix | Vector, /) -> Vector: ...
+class ControllableTruss(HasRigidityAndActuation, steps.SupportsNudge, Protocol): ...
 
 
 class MotorCost:
@@ -148,23 +152,33 @@ class MotorCost:
         return state.actuation.inverse @ state.rigidity
 
 
-@dataclass(slots=True, frozen=True, kw_only=True)
-class TrussController[T: ControllableTruss = ControllableTruss](steps.CanStep[T]):
+@dataclass(slots=True, frozen=True)
+class TrussController[T: SupportsNudge](steps.CanStep[T]):
     truss: T
-    quad_cost: StateFunction[T, Matrix] = MotorCost
-    lin_cost: StateFunction[T, Vector] | None = None
+    solver: steps.Solver[T]
 
-    @property
-    def state(self) -> T:
-        return self.truss
+    @classmethod
+    def make_default[CT: ControllableTruss](
+        cls: type['TrussController[CT]'],
+        truss: CT,
+        *,
+        quad_cost: StateFunction[CT, Matrix] = MotorCost,
+        lin_cost: StateFunction[CT, Vector] | None = None,
+        eig_threshold: float = 1e-3,
+        allow_redundancy: bool = False,
+    ) -> 'TrussController[CT]':
+        return cls(
+            truss, steps.QPSolver(
+                quad_cost, lin_cost,
+                eig_threshold=eig_threshold,
+                allow_redundancy=allow_redundancy
+            )
+        )
 
-    def build_step(self, outline: steps.AbstractOutline[T]) -> steps.QPStep[T]:
-        """Convert a step `Outline` into a `QPStep` suitable for use with this robot."""
-        length_constraint = ReachabilityConstraint(self.truss.actuation.unreachable)
-        outline = steps.combine_outlines(outline, steps.Outline(length_constraint))
-        return steps.QPStep(self.quad_cost, self.lin_cost, outline)
+    def solve(self, outline: steps.AbstractOutline[T]) -> Vector:
+        return self.solver.solve(outline, self.truss)
 
-    def nudge(self, dx: Matrix | Vector) -> Vector:
+    def nudge(self, dx: Vector) -> Vector:
         """Modify the positions of the nodes of this robot."""
         return self.truss.nudge(dx)
 

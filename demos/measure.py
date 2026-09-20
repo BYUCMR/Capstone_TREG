@@ -98,10 +98,9 @@ def measure_max_foot_lift(init_pos: Matrix, *, dz: float = 0.0025) -> float:
         cstr.lock(rover.R1),
         cstr.lock(rover.R2),
     ))
-    step = robot.build_step(outline)
     while True:
         try:
-            change = step.solve(robot.truss)
+            change = robot.solve(outline)
         except steps.InverseKinematicsError:
             break
         else:
@@ -118,10 +117,9 @@ def measure_max_foot_forward(init_pos: Matrix, *, dx: float = 0.0025) -> float:
         cstr.lock(rover.R1),
         cstr.lock(rover.R2),
     ))
-    step = robot.build_step(outline)
     while True:
         try:
-            change = step.solve(robot.truss)
+            change = robot.solve(outline)
         except steps.InverseKinematicsError:
             break
         else:
@@ -144,10 +142,9 @@ def measure_max_step_length(init_pos: Matrix, *, dx: float = 0.0025, resolution:
             cstr.lock(rover.R1),
             cstr.lock(rover.R2),
         ))
-        step = robot.build_step(outline)
         try:
             for _ in range(resolution):
-                vel = step.solve(robot.truss)
+                vel = robot.solve(outline)
                 robot.truss.nudge(vel * dt)
         except steps.InverseKinematicsError:
             break

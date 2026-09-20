@@ -2,12 +2,16 @@ from typing import Protocol
 
 import numpy as np
 
-from rift.arraytypes import Matrix
+from rift.arraytypes import Matrix, Vector
 
 
 class StateFunction[StateT, ReturnT](Protocol):
     """A simple, generic callback interface."""
     def at(self, state: StateT, /) -> ReturnT: ...
+
+
+class SupportsNudge(Protocol):
+    def nudge(self, change: Vector, /) -> Vector: ...
 
 
 class HasPos(Protocol):
