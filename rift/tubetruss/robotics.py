@@ -15,30 +15,48 @@ type RealMatrix = Matrix[np.integer | np.floating]
 @dataclass(slots=True, frozen=True)
 class Actuation:
     """A description of the structure of a tube-truss robot."""
-    forward: RealMatrix
-    inverse: RealMatrix
-    unreachable: RealMatrix
+    _forward: RealMatrix
+    _inverse: RealMatrix
+    _unreachable: RealMatrix
 
     def __post_init__(self) -> None:
         """Make sure this was constructed correctly."""
-        if self.forward.shape != self.inverse.T.shape:
+        if self._forward.shape != self._inverse.T.shape:
             raise ValueError("Forward and inverse matrices have mismatched shapes")
-        if self.inverse.shape[1] != self.unreachable.shape[1]:
+        if self._inverse.shape[1] != self._unreachable.shape[1]:
             raise ValueError("Inverse and unreachable matrices have unequal column counts")
-        if np.any(self.unreachable @ self.forward):
+        if np.any(self._unreachable @ self._forward):
             raise ValueError("Unreachable null space does not contain forward column space")
-        round_trip = self.inverse @ self.forward
-        identity = np.eye(self.forward.shape[1])
+        round_trip = self._inverse @ self._forward
+        identity = np.eye(self._forward.shape[1])
         if not np.allclose(round_trip, identity):
             raise ValueError("Inverse matrix times forward matrix is not an identity")
 
     @property
+    def forward(self) -> RealMatrix:
+        view = self._forward.view()
+        view.setflags(write=False)
+        return view
+
+    @property
+    def inverse(self) -> RealMatrix:
+        view = self._inverse.view()
+        view.setflags(write=False)
+        return view
+
+    @property
+    def unreachable(self) -> RealMatrix:
+        view = self._unreachable.view()
+        view.setflags(write=False)
+        return view
+
+    @property
     def n_inputs(self) -> int:
-        return len(self.inverse)
+        return len(self._inverse)
 
     @property
     def n_outputs(self) -> int:
-        return len(self.forward)
+        return len(self._forward)
 
     @classmethod
     def make_simple(cls, n: int) -> Self:
@@ -125,6 +143,7 @@ class ActuatedTruss:
     def rigidity(self) -> Matrix:
         if self._rigidity is None:
             self._rigidity = get_rigidity(self._incidence, self._pos)
+            self._rigidity.setflags(write=False)
         return self._rigidity
 
     def nudge(self, dx: Matrix | Vector) -> Vector:
