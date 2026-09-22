@@ -27,9 +27,14 @@ def solve_kkt(
         Ab = np.zeros((0, n+1))
     elif Ab.shape[1] != n+1:
         raise ValueError(f"Wrong shape for [A|b]: expected (_, {n+1}), got {Ab.shape}")
-
     A = Ab[:, :-1]
     b = Ab[:, -1]
+    if A.shape[0] == A.shape[1]:
+        try:
+            x = np.linalg.solve(A, b)
+        except np.linalg.LinAlgError:
+            x = None
+        return x
     H = R.T @ R
     m, n = A.shape
     O = np.zeros((m, m))

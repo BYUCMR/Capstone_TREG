@@ -104,11 +104,6 @@ class QPSolver[T](Solver[T]):
         f = None if self.lin_cost is None else self.lin_cost.at(state)
         if Gh is not None or allow_redundancy:
             vel = optimize.solve_qp(R=R, f=f, Ab=Ab, Gh=Gh, solver='piqp')
-        elif Ab is not None and Ab.shape[1] == Ab.shape[0]+1:
-            try:
-                vel = np.linalg.solve(Ab[:, :-1], Ab[:, -1])
-            except np.linalg.LinAlgError:
-                vel = None
         else:
             vel = optimize.solve_kkt(R=R, f=f, Ab=Ab)
         if vel is None:
