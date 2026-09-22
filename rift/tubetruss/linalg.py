@@ -59,10 +59,16 @@ def get_rigidity(incidence: Matrix[np.int8], pos: Matrix, *, normalize: bool = T
     be multiplied by the current length of the corresponding link.
     """
     link_vectors = incidence @ pos
-    if normalize:
-        link_vectors /= np.linalg.vector_norm(link_vectors, axis=1, keepdims=True)
+    # The `@` and `*` operators are equivalent in this case.
+    # This one seems to be slightly faster here.
     rigidity = incidence[:,:,None] @ link_vectors[:,None,:]
-    return rigidity.reshape(-1, pos.size)
+    rigidity = rigidity.reshape(-1, pos.size)
+    if normalize:
+        # Using the already-constructed rigidity matrix is faster than
+        # directly taking the norms of `link_vectors`.
+        link_lengths = np.sqrt(rigidity @ pos.reshape(-1, 1))
+        rigidity /= link_lengths
+    return rigidity
 
 
 def get_rigidity_gradient(
