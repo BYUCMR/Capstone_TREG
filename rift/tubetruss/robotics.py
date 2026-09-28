@@ -156,7 +156,7 @@ class ActuatedTruss:
         return dq
 
 
-class ControllableTruss(HasRigidityAndActuation, steps.SupportsNudge, Protocol): ...
+class ControllableTruss(HasRigidityAndActuation, SupportsNudge, Protocol): ...
 
 
 class MotorCost:
