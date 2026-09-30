@@ -11,7 +11,7 @@ from rift.tubetruss.robotics import TrussController
 from rift.tubetruss.singularity import SingularityCost
 
 
-def sit() -> Generator[steps.Outline[object]]:
+def stand() -> Generator[steps.Outline[object]]:
     constraint = cstr.combine(
         cstr.xyz(rover.L1, x=0, y=0, z=0),
         cstr.xyz(rover.L2, y=0, z=0),
@@ -29,7 +29,7 @@ async def main(init_pos: Matrix = rover.CRAWLING_POS) -> None:
     )
     animation = rover.set_up_animation(init_pos, anim.make_default_view())
     try:
-        for outline in sit():
+        for outline in stand():
             dx = robot.solve(outline)
             robot.nudge(dx)
             animation.update_pos(robot.truss.source.pos)
