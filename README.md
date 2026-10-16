@@ -17,8 +17,8 @@ connected triangle modules.
 The package requires Python 3.13 or above. It can be installed locally with
 `python -m pip install --editable .`.
 
-### Tests
-The RIFT package is used through various tests. The `animate.py` script runs
+### Demos
+The RIFT package is used through various demos. The `animate.py` script runs
 and displays a simulated rover walking. The `measure.py` script measures the
 capabilities of a given rover configuration. The `prof.py` script profiles the
 code used to simulate a walking rover.
