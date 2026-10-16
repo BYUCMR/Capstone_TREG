@@ -1,0 +1,145 @@
+\documentclass[11pt]{article}
+
+\usepackage{mathtools}
+
+\DeclareMathOperator\vectorize{vec}
+
+
+\title{Rigidity Matrices}
+\author{W. Muneo Okiishi}
+\date{2026-10-15}
+
+\begin{document}
+
+\maketitle
+
+\section{Notation}
+
+We denote matrices with bold capital letters, such as $\mathbf{M}$, and
+vectors with bold lowercase letters, such as $\mathbf{v}$. We denote the
+elements thereof with subscripts and without boldface, for instance $M_{ij}$
+or $v_k$.
+
+If $\mathbf{M}$ is a matrix, we use $\mathbf{M}_{i*}$ to denote its $i$-th row
+vector and $\mathbf{M}_{*j}$ to refer to its $j$-th column vector.
+$\mathbf{M}_{i*}^\mathrm{T}$ and $\mathbf{M}_{*j}^\mathrm{T}$ denote the
+transposes of these respective vectors.
+
+We use $\otimes$ to denote the Kronecker product.
+
+We use $\left \lVert \mathbf{v} \right \rVert$ to denote the standard Euclidean
+2-norm of a vector $\mathbf{v}$.
+
+We use $\vectorize(\mathbf{M})$ to refer to the column vector produced by a
+row-major vectorization of a matrix $\mathbf{M}$.
+
+\section{Constructing a Rigidity Matrix}
+
+Let $\mathbf{B}$ be the directed incidence matrix for a framework,
+defined with rows corresponding to links and columns corresponding to nodes.
+(Note that this is the transpose of the more common definition.)
+
+Let $\mathbf{X}$ be the position matrix of the same framework.
+It comprises a stack of row vectors, each corresponding to the position of a
+node in the framework.
+
+We can now define an intermediate matrix $\mathbf{V}$, representing the
+direction of each link in the framework:
+\begin{equation} \label{eq:V_def}
+    \mathbf{V} = \mathbf{B} \mathbf{X}
+\end{equation}
+
+Using this, each row of the rigidity matrix $\mathbf{R}$ of the framework can
+be expressed as:
+\begin{equation} \label{eq:R_def}
+    \mathbf{R}_{i*} = \mathbf{B}_{i*} \otimes \mathbf{V}_{i*}
+\end{equation}
+
+Algorithms constructing $\mathbf{R}$ can take advantage of a variety of
+identities. For example:
+\begin{align}
+    \mathbf{R}_{i*}^\mathrm{T}
+    &= \vectorize(\mathbf{B}_{i*}^\mathrm{T} \mathbf{V}_{i*}) \\
+    &= \vectorize(\mathbf{B}_{i*}^\mathrm{T} \mathbf{B}_{i*} \mathbf{X}) \\
+    &= ((\mathbf{B}_{i*}^\mathrm{T} \mathbf{B}_{i*}) \otimes \mathbf{I})
+    \vectorize(\mathbf{X}) \label{eq:R_expanded}
+\end{align}
+
+\section{Normalized Rigidity Matrix}
+
+Some applications require a normalized rigidity matrix $\mathbf{\hat{R}}$.
+To calculate this, we first construct a new matrix $\mathbf{\hat{V}}$ by
+normalizing each row of $\mathbf{V}$:
+\begin{equation} \label{eq:Vn_def}
+    \mathbf{\hat{V}}_{i*}
+    = \frac{\mathbf{V}_{i*}}{\left \lVert \mathbf{V}_{i*} \right \rVert}
+\end{equation}
+
+With this, calculating the normalized rigidity matrix takes the same form as \eqref{eq:R_def}:
+\begin{equation} \label{eq:Rn_def}
+    \mathbf{\hat{R}}_{i*} = \mathbf{B}_{i*} \otimes \mathbf{\hat{V}}_{i*}
+\end{equation}
+
+$\mathbf{\hat{R}}$ can thus be constructed with similar algorithms as $\mathbf{R}$.
+
+\section{Differentiating the Normalized Rigidity Matrix}
+
+Some applications may require $\frac{\partial \mathbf{\hat{R}}}{\partial x_k}$.
+We can derive this by differentiating each row of $\mathbf{\hat{R}}$.
+
+From \eqref{eq:Vn_def} and \eqref{eq:Rn_def}, we can see that
+\begin{equation}
+    \mathbf{\hat{R}}_{i*} = a_i \mathbf{R}_{i*}
+\end{equation}
+where
+\begin{equation} \label{eq:a_def}
+    a_i = \left \lVert \mathbf{V}_{i*} \right \rVert^{-1}
+    = (\mathbf{V}_{i*} \mathbf{V}_{i*}^\mathrm{T})^{-1/2}
+\end{equation}
+
+This means that
+\begin{equation} \label{eq:dRndx_basic}
+    \frac{\partial \mathbf{\hat{R}}_{i*}}{\partial x_k}
+    = a_i \frac{\partial \mathbf{R}_{i*}}{\partial x_k}
+    + \frac{\partial a_i}{\partial x_k} \mathbf{R}_{i*}
+\end{equation}
+
+From \eqref{eq:R_expanded}, we can derive $\frac{\partial \mathbf{R}_{i*}}{\partial x_k}$:
+\begin{equation} \label{eq:dRdx}
+    \frac{\partial \mathbf{R}_{i*}}{\partial x_k}
+    = ((\mathbf{B}_{i*}^\mathrm{T} \mathbf{B}_{i*}) \otimes \mathbf{I})_{*k}^\mathrm{T}
+\end{equation}
+
+To find $\frac{\partial a_i}{\partial x_k}$, we start by differentiating
+\eqref{eq:a_def} with respect to $X_{nd}$:
+\begin{equation}
+    \frac{\partial a_i}{\partial X_{nd}}
+    = -a_i^3 \frac{\partial \mathbf{V}_{i*}}{\partial X_{nd}} \mathbf{V}_{i*}^\mathrm{T}
+\end{equation}
+
+Referencing \eqref{eq:V_def}, we can convert this to
+\begin{equation}
+    \frac{\partial a_i}{\partial X_{nd}}
+    = -a_i^3 \mathbf{B}_i \frac{\partial \mathbf{X}}{\partial X_{nd}} \mathbf{V}_{i*}^\mathrm{T}
+\end{equation}
+
+This reduces to
+\begin{equation}
+    \frac{\partial a_i}{\partial X_{nd}} = -a_i^3 B_{in} V_{id}
+\end{equation}
+
+Switching from $X_{nd}$ to $x_k$, this simplifies to
+\begin{equation} \label{eq:dadx_simple}
+    \frac{\partial a_i}{\partial x_k} = -a_i^3 R_{ik}
+\end{equation}
+
+Finally, we can substitute \eqref{eq:dadx_simple} into \eqref{eq:dRndx_basic}:
+\begin{equation}
+    \frac{\partial \mathbf{\hat{R}}_{i*}}{\partial x_k}
+    = a_i \frac{\partial \mathbf{R}_{i*}}{\partial x_k} - a_i^3 R_{ik} \mathbf{R}_{i*}
+\end{equation}
+
+An algorithm implementing this to construct $\frac{\partial \mathbf{\hat{R}}}{\partial x_k}$
+can be optimized in a variety of ways depending on the application.
+
+\end{document}

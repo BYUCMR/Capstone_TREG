@@ -1,0 +1,57 @@
+\documentclass[11pt]{article}
+
+\usepackage{mathtools}
+
+
+\title{Actuation Matrices}
+\author{W. Muneo Okiishi}
+\date{2026-10-15}
+
+\begin{document}
+
+\maketitle
+
+The shape change of a truss robot can be described by either
+$\dot{\mathbf{q}}$, the joint velocities, or $\dot{\boldsymbol{\ell}}$,
+the rate of change of the lengths of its members.
+
+The relationship between these can be easily encoded in a matrix $\mathbf{A}$
+such that
+
+\begin{equation}
+    \mathbf{A} \dot{\mathbf{q}} = \dot{\boldsymbol{\ell}}
+\end{equation}
+
+Generally, any $\dot{\mathbf{q}}$ within limits is achievable, but some
+combinations of $\dot{\boldsymbol{\ell}}$ are unreachable by the physical
+robot. Achievable values of $\dot{\boldsymbol{\ell}}$ must be within
+$\mathcal{C}(\mathbf{A})$, the column space of $\mathbf{A}$.
+
+For example, if $\mathbf{A}^+$ is the using the Moore--Penrose inverse
+(pseudoinverse) of $\mathbf{A}$, then
+
+\begin{equation}
+    \mathbf{A} \mathbf{A}^+ \dot{\boldsymbol{\ell}} = \dot{\boldsymbol{\ell}}
+    \text{ for all } \dot{\boldsymbol{\ell}} \in \mathcal{C}(\mathbf{A})
+\end{equation}
+
+Thus, only when $\dot{\boldsymbol{\ell}} \in \mathcal{C}(\mathbf{A})$ will a
+$\dot{\mathbf{q}}$ constructed as $\dot{\mathbf{q}} = \mathbf{A}^+ \dot{\boldsymbol{\ell}}$
+produce the original value of $\dot{\boldsymbol{\ell}}$.
+
+In order to to evaluate whether a given $\dot{\boldsymbol{\ell}}$, we thus
+want to find a matrix $\mathbf{T}$ such that
+
+\begin{equation}
+    \mathbf{T} \dot{\boldsymbol{\ell}} = \mathbf{0}
+    \iff \dot{\boldsymbol{\ell}} \in \mathcal{C}(\mathbf{A})
+\end{equation}
+
+This is the case when
+
+\begin{equation}
+    \mathcal{N}(\mathbf{T}) = \mathcal{C}(\mathbf{A})
+\end{equation}
+
+
+\end{document}
